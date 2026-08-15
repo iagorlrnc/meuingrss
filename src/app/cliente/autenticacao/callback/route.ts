@@ -60,13 +60,13 @@ export async function GET(request: Request) {
           const protocolo = process.env.NEXT_PUBLIC_PROTOCOLO || 'https';
 
           if (perfil.role === 'diretor') {
-            const dominioDiretor = (process.env.NEXT_PUBLIC_SUBDOMINIO_DIRETOR || 'diretoria.meuingrss.com.br').replace(/\/+$/, '');
-            return NextResponse.redirect(new URL(`${protocolo}://${dominioDiretor}/`));
+            const dominioDiretoria = (process.env.NEXT_PUBLIC_SUBDOMINIO_DIRETORIA || process.env.NEXT_PUBLIC_SUBDOMINIO_DIRETOR || 'diretoria.meuingrss.com.br').replace(/\/+$/, '');
+            return NextResponse.redirect(new URL(`${protocolo}://${dominioDiretoria}/`));
           }
 
           if (perfil.role === 'admin') {
-            const dominioAdmin = (process.env.NEXT_PUBLIC_SUBDOMINIO_ADMIN || 'dev.meuingrss.com.br').replace(/\/+$/, '');
-            return NextResponse.redirect(new URL(`${protocolo}://${dominioAdmin}/`));
+            const dominioDev = (process.env.NEXT_PUBLIC_SUBDOMINIO_DEV || process.env.NEXT_PUBLIC_SUBDOMINIO_ADMIN || 'dev.meuingrss.com.br').replace(/\/+$/, '');
+            return NextResponse.redirect(new URL(`${protocolo}://${dominioDev}/`));
           }
         }
       }

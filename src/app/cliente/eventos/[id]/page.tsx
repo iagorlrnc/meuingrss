@@ -79,15 +79,24 @@ function ConteudoDetalheEvento() {
     if (!obterEventoCache(eventoId)) {
       setCarregando(true);
     }
-    const { data } = await supabase
+
+    const ehUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventoId);
+    
+    let query = supabase
       .from('eventos')
       .select(`
         *,
         atletica:atleticas(*),
         lotes_ingresso(*)
-      `)
-      .eq('id', eventoId)
-      .single();
+      `);
+
+    if (ehUUID) {
+      query = query.eq('id', eventoId);
+    } else {
+      query = query.eq('slug', eventoId);
+    }
+
+    const { data } = await query.single();
 
     if (data) {
       const eventoFormatado = data as unknown as EventoCompleto;

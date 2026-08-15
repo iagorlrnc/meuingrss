@@ -9,6 +9,7 @@ import Carregando from '@/componentes/ui/Carregando';
 import { criarClienteNavegador } from '@/lib/supabase/cliente';
 import { usarAutenticacao } from '@/contextos/ContextoAutenticacao';
 import { useNotificacao } from '@/componentes/ui/Notificacao';
+import { gerarSlugUnico } from '@/lib/utilitarios';
 import {
   ArrowLeft,
   CalendarPlus,
@@ -154,8 +155,11 @@ export default function PaginaEditarEvento() {
 
     try {
       const eventoId = params.id as string;
+      const slugGerado = await gerarSlugUnico(supabase, titulo.trim(), eventoId);
+
       const dadosAtualizar = {
         titulo: titulo.trim(),
+        slug: slugGerado,
         descricao: descricao.trim(),
         imagem_url: imagemUrl.trim() || null,
         data_evento: dataObj.toISOString(),

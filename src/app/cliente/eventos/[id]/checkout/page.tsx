@@ -35,11 +35,20 @@ function ConteudoCheckout() {
   const supabase = criarClienteNavegador();
 
   async function buscarDados() {
-    const { data: eventoData } = await supabase
+    const eventoIdParam = typeof params.id === 'string' ? params.id : Array.isArray(params.id) ? params.id[0] : '';
+    const ehUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventoIdParam);
+
+    let query = supabase
       .from('eventos')
-      .select('id, titulo, data_evento, local, cidade, status, imagem_url, atletica_id, atletica:atleticas(nome, logo_url)')
-      .eq('id', params.id)
-      .single();
+      .select('id, slug, titulo, data_evento, local, cidade, status, imagem_url, atletica_id, atletica:atleticas(nome, logo_url)');
+
+    if (ehUUID) {
+      query = query.eq('id', eventoIdParam);
+    } else {
+      query = query.eq('slug', eventoIdParam);
+    }
+
+    const { data: eventoData } = await query.single();
 
     if (eventoData) {
       setEvento(eventoData as Evento);

@@ -1,8 +1,8 @@
 import { TipoSubdominio } from '@/tipos';
 
 const DOMINIO_PRINCIPAL = process.env.NEXT_PUBLIC_DOMINIO_PRINCIPAL || 'meuingrss.com.br';
-const SUBDOMINIO_DIRETOR = process.env.NEXT_PUBLIC_SUBDOMINIO_DIRETOR || 'diretoria.meuingrss.com.br';
-const SUBDOMINIO_ADMIN = process.env.NEXT_PUBLIC_SUBDOMINIO_ADMIN || 'dev.meuingrss.com.br';
+const SUBDOMINIO_DIRETORIA = process.env.NEXT_PUBLIC_SUBDOMINIO_DIRETORIA || process.env.NEXT_PUBLIC_SUBDOMINIO_DIRETOR || 'diretoria.meuingrss.com.br';
+const SUBDOMINIO_DEV = process.env.NEXT_PUBLIC_SUBDOMINIO_DEV || process.env.NEXT_PUBLIC_SUBDOMINIO_ADMIN || 'dev.meuingrss.com.br';
 const PROTOCOLO = process.env.NEXT_PUBLIC_PROTOCOLO || 'https';
 
 export function obterSubdominio(hostname: string): TipoSubdominio {
@@ -10,25 +10,27 @@ export function obterSubdominio(hostname: string): TipoSubdominio {
   const hostSemPorta = hostname.split(':')[0];
 
   if (hostSemPorta.startsWith('diretoria.')) {
-    return 'diretor';
+    return 'diretoria';
   }
 
   if (hostSemPorta.startsWith('dev.')) {
-    return 'admin';
+    return 'dev';
   }
 
   return 'cliente';
 }
 
-export function construirUrl(subdominio: TipoSubdominio, caminho: string = '/'): string {
+export function construirUrl(subdominio: TipoSubdominio | 'diretor' | 'admin', caminho: string = '/'): string {
   let dominio: string;
 
   switch (subdominio) {
+    case 'diretoria':
     case 'diretor':
-      dominio = SUBDOMINIO_DIRETOR;
+      dominio = SUBDOMINIO_DIRETORIA;
       break;
+    case 'dev':
     case 'admin':
-      dominio = SUBDOMINIO_ADMIN;
+      dominio = SUBDOMINIO_DEV;
       break;
     default:
       dominio = DOMINIO_PRINCIPAL;
@@ -55,9 +57,9 @@ export function obterUrlLogin(): string {
 export function obterUrlPorRole(role: string): string {
   switch (role) {
     case 'diretor':
-      return construirUrl('diretor', '/');
+      return construirUrl('diretoria', '/');
     case 'admin':
-      return construirUrl('admin', '/');
+      return construirUrl('dev', '/');
     default:
       return construirUrl('cliente', '/');
   }

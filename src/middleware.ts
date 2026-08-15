@@ -39,8 +39,17 @@ export async function middleware(request: NextRequest) {
   );
 
   const protocolo = process.env.NEXT_PUBLIC_PROTOCOLO || 'https';
-  const dominioDiretor = (process.env.NEXT_PUBLIC_SUBDOMINIO_DIRETOR || 'diretoria.meuingrss.com.br').replace(/\/+$/, '');
-  const dominioAdmin = (process.env.NEXT_PUBLIC_SUBDOMINIO_ADMIN || 'dev.meuingrss.com.br').replace(/\/+$/, '');
+  const dominioDiretoria = (
+    process.env.NEXT_PUBLIC_SUBDOMINIO_DIRETORIA ||
+    process.env.NEXT_PUBLIC_SUBDOMINIO_DIRETOR ||
+    'diretoria.meuingrss.com.br'
+  ).replace(/\/+$/, '');
+
+  const dominioDev = (
+    process.env.NEXT_PUBLIC_SUBDOMINIO_DEV ||
+    process.env.NEXT_PUBLIC_SUBDOMINIO_ADMIN ||
+    'dev.meuingrss.com.br'
+  ).replace(/\/+$/, '');
 
   // Helper para preservar cookies em redirecionamentos e reescritas
   function redirecionarComCookies(url: string | URL): NextResponse {
@@ -55,55 +64,25 @@ export async function middleware(request: NextRequest) {
     return resRewr;
   }
 
-  // --- REDIRECIONAMENTOS DE EXCLUSIVIDADE & HIGIENIZAÇÃO DE URL ---
+  // --- BLOQUEIO DE ACESSO A ROTAS RESERVADAS (DIRECIONA PARA 404 NOT FOUND) ---
+  // Se o usuário tentar acessar explicitamente /diretoria, /dev, /diretor, /admin ou /cliente no caminho da URL
+  const ehCaminhoReservado =
+    pathname.startsWith('/diretor') ||
+    pathname.startsWith('/diretoria') ||
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/dev') ||
+    pathname.startsWith('/cliente');
 
-  // 1. Acesso a rotas de Diretor tentado fora do subdomínio de Diretoria (redireciona para subdomínio exclusivo)
-  if (subdominio !== 'diretor' && (pathname.startsWith('/diretor') || pathname.startsWith('/diretoria'))) {
-    const caminhoLimpo = pathname
-      .replace(/^\/diretor\b/, '')
-      .replace(/^\/diretoria\b/, '');
-    const urlDestino = `${protocolo}://${dominioDiretor}${caminhoLimpo || '/'}${request.nextUrl.search}`;
-    return redirecionarComCookies(urlDestino);
-  }
-
-  // 2. Acesso a rotas de Admin tentado fora do subdomínio de Admin (dev) (redireciona para subdomínio exclusivo)
-  if (subdominio !== 'admin' && (pathname.startsWith('/admin') || pathname.startsWith('/dev'))) {
-    const caminhoLimpo = pathname
-      .replace(/^\/admin\b/, '')
-      .replace(/^\/dev\b/, '');
-    const urlDestino = `${protocolo}://${dominioAdmin}${caminhoLimpo || '/'}${request.nextUrl.search}`;
-    return redirecionarComCookies(urlDestino);
-  }
-
-  // 3. Se estiver NO subdomínio de Diretoria mas a URL ainda contiver /diretor ou /diretoria no caminho exposto
-  if (subdominio === 'diretor' && (pathname.startsWith('/diretor') || pathname.startsWith('/diretoria'))) {
-    const caminhoLimpo = pathname
-      .replace(/^\/diretor\b/, '')
-      .replace(/^\/diretoria\b/, '');
-    const urlDestino = `${protocolo}://${hostname}${caminhoLimpo || '/'}${request.nextUrl.search}`;
-    return redirecionarComCookies(urlDestino);
-  }
-
-  // 4. Se estiver NO subdomínio de Admin (dev) mas a URL ainda contiver /admin ou /dev no caminho exposto
-  if (subdominio === 'admin' && (pathname.startsWith('/admin') || pathname.startsWith('/dev'))) {
-    const caminhoLimpo = pathname
-      .replace(/^\/admin\b/, '')
-      .replace(/^\/dev\b/, '');
-    const urlDestino = `${protocolo}://${hostname}${caminhoLimpo || '/'}${request.nextUrl.search}`;
-    return redirecionarComCookies(urlDestino);
-  }
-
-  // 5. Se no subdomínio Principal a URL contiver /cliente no caminho exposto, redireciona para a rota limpa
-  if (subdominio === 'cliente' && pathname.startsWith('/cliente')) {
-    const caminhoLimpo = pathname.replace(/^\/cliente\b/, '');
-    const urlDestino = `${protocolo}://${hostname}${caminhoLimpo || '/'}${request.nextUrl.search}`;
-    return redirecionarComCookies(urlDestino);
+  if (ehCaminhoReservado) {
+    const url404 = request.nextUrl.clone();
+    url404.pathname = '/_not-found';
+    return reescreverComCookies(url404);
   }
 
   // --- LÓGICA DE AUTENTICAÇÃO E REESCRITA INTERNA (APP ROUTER) ---
 
-  const ehAreaDiretor = subdominio === 'diretor';
-  const ehAreaAdmin = subdominio === 'admin';
+  const ehAreaDiretor = subdominio === 'diretoria';
+  const ehAreaAdmin = subdominio === 'dev';
   const rotasClienteProtegidas = ['/meus-ingressos', '/checkout'];
   const precisaAuthCliente = rotasClienteProtegidas.some((rota) => pathname.startsWith(rota)) || pathname.includes('/checkout');
 

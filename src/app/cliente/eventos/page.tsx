@@ -110,7 +110,7 @@ function ConteudoEventos() {
             return (
               <Link
                 key={evento.id}
-                href={`/eventos/${evento.id}`}
+                href={`/eventos/${evento.slug || evento.id}`}
                 className="group flex flex-col bg-[#0f172a] border border-white/10 rounded-lg overflow-hidden hover:border-[#ff007a] transition-all hover:shadow-2xl duration-300"
               >
                 {/* Event Card Image & Badges Container */}
@@ -141,7 +141,15 @@ function ConteudoEventos() {
 
                   {/* Presale / Status Badge */}
                   <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
-                    {esgotado ? (
+                    {evento.status === 'cancelado' ? (
+                      <span className="px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-sm bg-red-700 text-white text-[8px] sm:text-[10px] font-black uppercase tracking-wider shadow">
+                        Cancelado
+                      </span>
+                    ) : evento.status === 'encerrado' ? (
+                      <span className="px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-sm bg-zinc-700 text-slate-300 text-[8px] sm:text-[10px] font-black uppercase tracking-wider shadow">
+                        Encerrado
+                      </span>
+                    ) : esgotado ? (
                       <span className="px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-sm bg-red-600 text-white text-[8px] sm:text-[10px] font-black uppercase tracking-wider shadow">
                         Esgotado
                       </span>

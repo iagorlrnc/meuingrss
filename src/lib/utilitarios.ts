@@ -132,3 +132,49 @@ export function obterInfoStatus(status: string): { cor: string; label: string } 
 
   return mapa[status] || { cor: 'text-zinc-400 bg-zinc-400/10', label: status };
 }
+
+export function gerarSlug(titulo: string): string {
+  if (!titulo) return '';
+  const slugBase = titulo
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-');
+
+  return slugBase || 'evento';
+}
+
+export async function gerarSlugUnico(
+  supabaseClient: any,
+  titulo: string,
+  eventoIdAtual?: string
+): Promise<string> {
+  const slugBase = gerarSlug(titulo);
+  let slugCandidato = slugBase;
+  let contador = 1;
+  let disponivel = false;
+
+  while (!disponivel && contador <= 100) {
+    let query = supabaseClient
+      .from('eventos')
+      .select('id')
+      .eq('slug', slugCandidato);
+
+    if (eventoIdAtual) {
+      query = query.neq('id', eventoIdAtual);
+    }
+
+    const { data } = await query.maybeSingle();
+
+    if (!data) {
+      disponivel = true;
+    } else {
+      contador++;
+      slugCandidato = `${slugBase}-${contador}`;
+    }
+  }
+
+  return slugCandidato;
+}

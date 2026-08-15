@@ -10,7 +10,7 @@ export type StatusIngresso = 'valido' | 'utilizado' | 'cancelado';
 
 export type StatusPagamento = 'pendente' | 'aprovado' | 'recusado' | 'estornado';
 
-export type TipoSubdominio = 'cliente' | 'diretor' | 'admin';
+export type TipoSubdominio = 'cliente' | 'diretoria' | 'dev';
 
 export interface Perfil {
   id: string;
@@ -48,6 +48,7 @@ export interface Evento {
   id: string;
   atletica_id: string;
   titulo: string;
+  slug?: string | null;
   descricao: string;
   imagem_url: string | null;
   data_evento: string;

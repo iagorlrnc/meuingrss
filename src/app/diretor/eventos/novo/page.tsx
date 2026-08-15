@@ -8,7 +8,7 @@ import CampoTexto from '@/componentes/ui/CampoTexto';
 import { criarClienteNavegador } from '@/lib/supabase/cliente';
 import { usarAutenticacao } from '@/contextos/ContextoAutenticacao';
 import { useNotificacao } from '@/componentes/ui/Notificacao';
-import { formatarData, mascararMoeda, desmascararMoeda } from '@/lib/utilitarios';
+import { formatarData, mascararMoeda, desmascararMoeda, gerarSlugUnico } from '@/lib/utilitarios';
 import {
   ArrowLeft,
   Plus,
@@ -169,9 +169,12 @@ export default function PaginaCriarEvento() {
     setSalvando(true);
 
     try {
+      const slugGerado = await gerarSlugUnico(supabase, titulo.trim());
+
       const dadosInserir = {
         atletica_id: idAtletica,
         titulo: titulo.trim(),
+        slug: slugGerado,
         descricao: descricao.trim(),
         imagem_url: imagemUrl.trim() || null,
         data_evento: dataObj.toISOString(),
