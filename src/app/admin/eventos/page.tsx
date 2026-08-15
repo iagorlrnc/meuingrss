@@ -10,7 +10,8 @@ import Carregando from '@/componentes/ui/Carregando';
 import { criarClienteNavegador } from '@/lib/supabase/cliente';
 import { useNotificacao } from '@/componentes/ui/Notificacao';
 import { formatarDataCurta } from '@/lib/utilitarios';
-import { Search, Ban, CheckCircle, CalendarDays } from 'lucide-react';
+import { construirUrl } from '@/lib/dominios';
+import { Search, Ban, CheckCircle, CalendarDays, Eye } from 'lucide-react';
 import type { Evento } from '@/tipos';
 
 export default function PaginaGestaoEventos() {
@@ -67,7 +68,12 @@ export default function PaginaGestaoEventos() {
               <tbody>
                 {filtrados.map(e => (
                   <tr key={e.id} className="border-b border-borda-sutil/50 hover:bg-fundo-hover/50 transition-colors">
-                    <td className="px-6 py-4 text-sm font-medium">{e.titulo}</td>
+                    <td className="px-6 py-4 text-sm font-medium">
+                      <p className="font-bold">{e.titulo}</p>
+                      <p className="text-xs text-[#00e5ff] font-mono truncate">
+                        meuingrss.com.br/eventos/{e.slug || e.id}
+                      </p>
+                    </td>
                     <td className="px-6 py-4 text-sm text-texto-secundario">{e.atletica?.nome}</td>
                     <td className="px-6 py-4 text-sm text-texto-secundario">{formatarDataCurta(e.data_evento)}</td>
                     <td className="px-6 py-4 flex items-center gap-2 flex-wrap">
@@ -80,6 +86,15 @@ export default function PaginaGestaoEventos() {
                       )}
                     </td>
                     <td className="px-6 py-4 text-right space-x-2">
+                      <a
+                        href={construirUrl('cliente', `/eventos/${e.slug || e.id}`)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Botao variante="fantasma" tamanho="sm" icone={<Eye size={14} />}>
+                          Ver no site
+                        </Botao>
+                      </a>
                       {e.status === 'rascunho' && <Botao variante="sucesso" tamanho="sm" onClick={() => alterarStatus(e.id, 'publicado')} icone={<CheckCircle size={14} />}>Aprovar</Botao>}
                       {e.status === 'publicado' && <Botao variante="perigo" tamanho="sm" onClick={() => alterarStatus(e.id, 'cancelado')} icone={<Ban size={14} />}>Cancelar</Botao>}
                     </td>
