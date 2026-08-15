@@ -281,7 +281,7 @@ export default function DashboardAdmin() {
               <div className="flex items-center gap-2">
                 <Distintivo status={evento.status} />
                 {evento.apagado_pelo_diretor && (
-                  <Distintivo texto="Apagado pelo diretor" cor="text-amber-400 bg-amber-400/10 border-amber-400/20 text-xs font-semibold" />
+                  <Distintivo texto="Apagado pelo Diretor" cor="text-red-400 bg-red-950/80 border-red-800/40 text-xs font-black uppercase tracking-wider" />
                 )}
               </div>
             </div>

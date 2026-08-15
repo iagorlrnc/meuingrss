@@ -7,7 +7,7 @@ import Botao from '@/componentes/ui/Botao';
 import Cartao from '@/componentes/ui/Cartao';
 import { SkeletonCard } from '@/componentes/ui/Carregando';
 import { criarClienteNavegador } from '@/lib/supabase/cliente';
-import { formatarData, formatarDataHora, formatarMoeda } from '@/lib/utilitarios';
+import { formatarData, formatarDataHora, formatarMoeda, ordenarEventosPorPrioridade, matchFiltroCidade } from '@/lib/utilitarios';
 import type { Evento, LoteIngresso } from '@/tipos';
 import BarraNavegacaoMobile from '@/componentes/layout/BarraNavegacaoMobile';
 import {
@@ -68,62 +68,74 @@ function ConteudoPaginaInicial() {
     buscarEventos();
   }, []);
 
+  const eventosHero = eventos.filter((e) => {
+    const ehPassado = new Date(e.data_evento) < new Date();
+    return e.status === 'publicado' && !ehPassado;
+  });
+
+  const eventoDestaque =
+    eventosHero.length > 0
+      ? eventosHero[indiceDestaque % eventosHero.length]
+      : null;
+
   // Efeito para alternar os eventos em destaque automaticamente com fade out -> fade in
   useEffect(() => {
-    if (eventos.length <= 1) return;
+    if (eventosHero.length <= 1) return;
 
     const interval = setInterval(() => {
       setVisivelHero(false);
       setTimeout(() => {
-        setIndiceDestaque((prev) => (prev + 1) % eventos.length);
+        setIndiceDestaque((prev) => (prev + 1) % eventosHero.length);
         setVisivelHero(true);
       }, 500);
     }, 5500);
 
     return () => clearInterval(interval);
-  }, [eventos.length]);
+  }, [eventosHero.length]);
 
   async function buscarEventos() {
     setCarregando(true);
     const { data } = await supabase
       .from('eventos')
       .select(`
-        id, titulo, descricao, imagem_url, data_evento, local, cidade, status,
+        id, slug, titulo, descricao, imagem_url, data_evento, local, cidade, status, apagado_pelo_diretor,
         atletica:atleticas(id, nome, logo_url),
         lotes_ingresso(id, evento_id, nome_lote, preco, quantidade_total, quantidade_vendida, ordem, ativo)
       `)
-      .eq('status', 'publicado')
+      .eq('apagado_pelo_diretor', false)
+      .in('status', ['publicado', 'encerrado', 'cancelado'])
       .order('data_evento', { ascending: true })
       .limit(12);
 
     if (data) {
       const validos = (data as unknown as (EventoComLote & { apagado_pelo_diretor?: boolean })[]).filter(e => !e.apagado_pelo_diretor);
-      salvarVariosEventosCache(validos as unknown as import('@/lib/cacheEventos').EventoCompleto[]);
-      setEventos(validos);
+      const ordenados = ordenarEventosPorPrioridade(validos);
+      salvarVariosEventosCache(ordenados as unknown as import('@/lib/cacheEventos').EventoCompleto[]);
+      setEventos(ordenados);
     }
     setCarregando(false);
   }
 
   function proximoDestaque() {
-    if (eventos.length <= 1 || !visivelHero) return;
+    if (eventosHero.length <= 1 || !visivelHero) return;
     setVisivelHero(false);
     setTimeout(() => {
-      setIndiceDestaque((prev) => (prev + 1) % eventos.length);
+      setIndiceDestaque((prev) => (prev + 1) % eventosHero.length);
       setVisivelHero(true);
     }, 500);
   }
 
   function destaqueAnterior() {
-    if (eventos.length <= 1 || !visivelHero) return;
+    if (eventosHero.length <= 1 || !visivelHero) return;
     setVisivelHero(false);
     setTimeout(() => {
-      setIndiceDestaque((prev) => (prev - 1 + eventos.length) % eventos.length);
+      setIndiceDestaque((prev) => (prev - 1 + eventosHero.length) % eventosHero.length);
       setVisivelHero(true);
     }, 500);
   }
 
   function irParaDestaque(idx: number) {
-    if (idx === indiceDestaque || !visivelHero) return;
+    if (eventosHero.length <= 1 || idx === indiceDestaque || !visivelHero) return;
     setVisivelHero(false);
     setTimeout(() => {
       setIndiceDestaque(idx);
@@ -151,22 +163,17 @@ function ConteudoPaginaInicial() {
     return { mes, dia };
   }
 
-  const eventosFiltrados = eventos.filter(
-    (e) =>
+  const eventosFiltrados = eventos.filter((e) => {
+    const matchBusca =
+      !busca ||
       e.titulo.toLowerCase().includes(busca.toLowerCase()) ||
       e.cidade?.toLowerCase().includes(busca.toLowerCase()) ||
-      e.atletica?.nome.toLowerCase().includes(busca.toLowerCase())
-  );
+      e.atletica?.nome.toLowerCase().includes(busca.toLowerCase());
+    const matchCidade = matchFiltroCidade(e.cidade, cidade);
+    return matchBusca && matchCidade;
+  });
 
-  const eventosHero = eventos.filter(
-    (e) => e.status === 'publicado' && new Date(e.data_evento) >= new Date()
-  );
-  const eventoDestaque =
-    eventosHero.length > 0
-      ? eventosHero[indiceDestaque % eventosHero.length]
-      : eventos.length > 0 && eventos[0].status === 'publicado'
-      ? eventos[0]
-      : null;
+
 
   return (
     <div className="relative min-h-screen bg-[#080c14] text-white">
@@ -179,7 +186,7 @@ function ConteudoPaginaInicial() {
       {/* Hero Marquee Stage */}
       <section className="relative overflow-hidden border-b border-white/10 bg-[#060910] group/hero">
         {/* Barra Visual de Progresso do Loop */}
-        {eventos.length > 1 && (
+        {eventosHero.length > 1 && (
           <div className="absolute top-0 left-0 right-0 h-1 bg-white/10 z-40 overflow-hidden">
             <div
               key={`${indiceDestaque}-${visivelHero}`}
@@ -271,9 +278,9 @@ function ConteudoPaginaInicial() {
             </div>
 
             {/* Indicadores do carrossel (dots) */}
-            {eventos.length > 1 && (
+            {eventosHero.length > 1 && (
               <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#080c14]/80 border border-white/10 backdrop-blur-md">
-                {eventos.map((evt, idx) => (
+                {eventosHero.map((evt, idx) => (
                   <button
                     key={evt.id}
                     onClick={() => irParaDestaque(idx)}
@@ -362,27 +369,44 @@ function ConteudoPaginaInicial() {
 
                     {/* Presale / Status Badge */}
                     <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
-                      {evento.status === 'cancelado' ? (
-                        <span className="px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-sm bg-red-700 text-white text-[8px] sm:text-[10px] font-black uppercase tracking-wider shadow">
-                          Cancelado
-                        </span>
-                      ) : evento.status === 'encerrado' ? (
-                        <span className="px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-sm bg-zinc-700 text-slate-300 text-[8px] sm:text-[10px] font-black uppercase tracking-wider shadow">
-                          Encerrado
-                        </span>
-                      ) : esgotado ? (
-                        <span className="px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-sm bg-red-600 text-white text-[8px] sm:text-[10px] font-black uppercase tracking-wider shadow">
-                          Esgotado
-                        </span>
-                      ) : totalDisponivel <= 20 ? (
-                        <span className="px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-sm bg-red-600 text-white text-[8px] sm:text-[10px] font-black uppercase tracking-wider shadow">
-                          Últimos
-                        </span>
-                      ) : (
-                        <span className="px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-sm bg-[#ffbe00] text-[#080c14] text-[8px] sm:text-[10px] font-black uppercase tracking-wider shadow">
-                          Venda Geral
-                        </span>
-                      )}
+                      {(() => {
+                        const ehCancelado = evento.status === 'cancelado';
+                        const ehEncerrado = evento.status === 'encerrado' || new Date(evento.data_evento) < new Date();
+
+                        if (ehCancelado) {
+                          return (
+                            <span className="px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-sm bg-red-700 text-white text-[8px] sm:text-[10px] font-black uppercase tracking-wider shadow">
+                              Cancelado
+                            </span>
+                          );
+                        }
+                        if (ehEncerrado) {
+                          return (
+                            <span className="px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-sm bg-zinc-700 text-slate-300 text-[8px] sm:text-[10px] font-black uppercase tracking-wider shadow">
+                              Encerrado
+                            </span>
+                          );
+                        }
+                        if (esgotado) {
+                          return (
+                            <span className="px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-sm bg-red-600 text-white text-[8px] sm:text-[10px] font-black uppercase tracking-wider shadow">
+                              Esgotado
+                            </span>
+                          );
+                        }
+                        if (totalDisponivel <= 20) {
+                          return (
+                            <span className="px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-sm bg-red-600 text-white text-[8px] sm:text-[10px] font-black uppercase tracking-wider shadow">
+                              Últimos
+                            </span>
+                          );
+                        }
+                        return (
+                          <span className="px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-sm bg-[#ffbe00] text-[#080c14] text-[8px] sm:text-[10px] font-black uppercase tracking-wider shadow">
+                            Venda Geral
+                          </span>
+                        );
+                      })()}
                     </div>
 
                     {/* Atletica Badge overlay */}

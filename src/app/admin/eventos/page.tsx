@@ -74,8 +74,8 @@ export default function PaginaGestaoEventos() {
                       <Distintivo status={e.status} />
                       {e.apagado_pelo_diretor && (
                         <Distintivo
-                          texto="Apagado pelo diretor da atlética"
-                          cor="text-amber-400 bg-amber-400/10 border-amber-400/20 font-bold"
+                          texto="Apagado pelo Diretor"
+                          cor="text-red-400 bg-red-950/80 border-red-800/40 font-black uppercase tracking-wider"
                         />
                       )}
                     </td>

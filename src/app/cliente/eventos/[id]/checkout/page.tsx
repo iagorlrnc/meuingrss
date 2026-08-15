@@ -48,6 +48,8 @@ function ConteudoCheckout() {
       query = query.eq('slug', eventoIdParam);
     }
 
+    query = query.eq('apagado_pelo_diretor', false);
+
     const { data: eventoData } = await query.single();
 
     if (eventoData) {

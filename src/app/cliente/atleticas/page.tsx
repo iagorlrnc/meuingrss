@@ -8,6 +8,7 @@ import Modal from '@/componentes/ui/Modal';
 import { SkeletonCard } from '@/componentes/ui/Carregando';
 import EstadoVazio from '@/componentes/ui/EstadoVazio';
 import { criarClienteNavegador } from '@/lib/supabase/cliente';
+import { matchFiltroCidade } from '@/lib/utilitarios';
 import type { Atletica } from '@/tipos';
 import BarraNavegacaoMobile from '@/componentes/layout/BarraNavegacaoMobile';
 import {
@@ -95,9 +96,7 @@ function ConteudoAtleticas() {
       a.faculdade.toLowerCase().includes(busca.toLowerCase()) ||
       a.cidade.toLowerCase().includes(busca.toLowerCase());
 
-    const combinaCidade =
-      !cidadeSelecionada ||
-      a.cidade.toLowerCase() === cidadeSelecionada.toLowerCase();
+    const combinaCidade = matchFiltroCidade(a.cidade, cidadeSelecionada);
 
     return combinaBusca && combinaCidade;
   });

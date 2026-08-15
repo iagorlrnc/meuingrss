@@ -9,7 +9,7 @@ import Carregando from '@/componentes/ui/Carregando';
 import { criarClienteNavegador } from '@/lib/supabase/cliente';
 import { usarAutenticacao } from '@/contextos/ContextoAutenticacao';
 import { useNotificacao } from '@/componentes/ui/Notificacao';
-import { gerarSlugUnico } from '@/lib/utilitarios';
+import { gerarSlugUnico, formatarCidadeEstado } from '@/lib/utilitarios';
 import {
   ArrowLeft,
   CalendarPlus,
@@ -61,11 +61,21 @@ export default function PaginaEditarEvento() {
       return;
     }
 
+    let cidadeInicial = data.cidade || '';
+    let estadoInicial = 'TO';
+    if (cidadeInicial.includes(' - ')) {
+      const partes = cidadeInicial.split(' - ');
+      cidadeInicial = partes[0].trim();
+      estadoInicial = partes[1].trim() || 'TO';
+    }
+
     setTitulo(data.titulo || '');
     setDescricao(data.descricao || '');
     setImagemUrl(data.imagem_url || '');
     setDataEvento(data.data_evento ? new Date(data.data_evento).toISOString().slice(0, 16) : '');
     setLocal(data.local || '');
+    setCidade(cidadeInicial);
+    setEstado(estadoInicial);
     setStatus(data.status || 'rascunho');
     setCarregando(false);
   }
@@ -157,6 +167,7 @@ export default function PaginaEditarEvento() {
       const eventoId = params.id as string;
       const slugGerado = await gerarSlugUnico(supabase, titulo.trim(), eventoId);
 
+      const cidadeFormatada = formatarCidadeEstado(cidade, estado);
       const dadosAtualizar = {
         titulo: titulo.trim(),
         slug: slugGerado,
@@ -164,7 +175,7 @@ export default function PaginaEditarEvento() {
         imagem_url: imagemUrl.trim() || null,
         data_evento: dataObj.toISOString(),
         local: local.trim(),
-        cidade: cidade.trim(),
+        cidade: cidadeFormatada,
         status,
         atualizado_em: new Date().toISOString(),
       };

@@ -9,7 +9,7 @@ import Botao from '@/componentes/ui/Botao';
 import EstadoVazio from '@/componentes/ui/EstadoVazio';
 import { SkeletonCard } from '@/componentes/ui/Carregando';
 import { criarClienteNavegador } from '@/lib/supabase/cliente';
-import { formatarData, formatarMoeda } from '@/lib/utilitarios';
+import { formatarData, formatarMoeda, ordenarEventosPorPrioridade, matchFiltroCidade } from '@/lib/utilitarios';
 import type { Evento, LoteIngresso, Atletica } from '@/tipos';
 import BarraNavegacaoMobile from '@/componentes/layout/BarraNavegacaoMobile';
 import { Search, Calendar, MapPin, Users, Ticket, SlidersHorizontal } from 'lucide-react';
@@ -48,16 +48,18 @@ function ConteudoEventos() {
     if (!cacheEventos) setCarregando(true);
     const { data } = await supabase
       .from('eventos')
-      .select('id, titulo, imagem_url, data_evento, local, cidade, status, atletica:atleticas(id, nome), lotes_ingresso(id, preco, quantidade_total, quantidade_vendida, ativo)')
-      .eq('status', 'publicado')
+      .select('id, slug, titulo, imagem_url, data_evento, local, cidade, status, apagado_pelo_diretor, atletica:atleticas(id, nome), lotes_ingresso(id, preco, quantidade_total, quantidade_vendida, ativo)')
+      .eq('apagado_pelo_diretor', false)
+      .in('status', ['publicado', 'encerrado', 'cancelado'])
       .order('data_evento', { ascending: true })
       .range(0, 49);
 
     if (data) {
       const novoseventos = (data as unknown as (EventoComRelacoes & { apagado_pelo_diretor?: boolean })[]).filter(e => !e.apagado_pelo_diretor);
-      cacheEventos = novoseventos;
-      salvarVariosEventosCache(novoseventos as unknown as import('@/lib/cacheEventos').EventoCompleto[]);
-      setEventos(novoseventos);
+      const ordenados = ordenarEventosPorPrioridade(novoseventos);
+      cacheEventos = ordenados;
+      salvarVariosEventosCache(ordenados as unknown as import('@/lib/cacheEventos').EventoCompleto[]);
+      setEventos(ordenados);
     }
     setCarregando(false);
   }
@@ -67,7 +69,7 @@ function ConteudoEventos() {
       e.titulo.toLowerCase().includes(busca.toLowerCase()) ||
       e.cidade?.toLowerCase().includes(busca.toLowerCase()) ||
       e.atletica?.nome.toLowerCase().includes(busca.toLowerCase());
-    const matchCidade = !cidade || e.cidade?.toLowerCase() === cidade.toLowerCase();
+    const matchCidade = matchFiltroCidade(e.cidade, cidade);
     return matchBusca && matchCidade;
   });
 
@@ -141,27 +143,44 @@ function ConteudoEventos() {
 
                   {/* Presale / Status Badge */}
                   <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
-                    {evento.status === 'cancelado' ? (
-                      <span className="px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-sm bg-red-700 text-white text-[8px] sm:text-[10px] font-black uppercase tracking-wider shadow">
-                        Cancelado
-                      </span>
-                    ) : evento.status === 'encerrado' ? (
-                      <span className="px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-sm bg-zinc-700 text-slate-300 text-[8px] sm:text-[10px] font-black uppercase tracking-wider shadow">
-                        Encerrado
-                      </span>
-                    ) : esgotado ? (
-                      <span className="px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-sm bg-red-600 text-white text-[8px] sm:text-[10px] font-black uppercase tracking-wider shadow">
-                        Esgotado
-                      </span>
-                    ) : totalRestante <= 20 ? (
-                      <span className="px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-sm bg-red-600 text-white text-[8px] sm:text-[10px] font-black uppercase tracking-wider shadow">
-                        Últimos
-                      </span>
-                    ) : (
-                      <span className="px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-sm bg-[#ffbe00] text-[#080c14] text-[8px] sm:text-[10px] font-black uppercase tracking-wider shadow">
-                        Venda Geral
-                      </span>
-                    )}
+                    {(() => {
+                      const ehCancelado = evento.status === 'cancelado';
+                      const ehEncerrado = evento.status === 'encerrado' || new Date(evento.data_evento) < new Date();
+
+                      if (ehCancelado) {
+                        return (
+                          <span className="px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-sm bg-red-700 text-white text-[8px] sm:text-[10px] font-black uppercase tracking-wider shadow">
+                            Cancelado
+                          </span>
+                        );
+                      }
+                      if (ehEncerrado) {
+                        return (
+                          <span className="px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-sm bg-zinc-700 text-slate-300 text-[8px] sm:text-[10px] font-black uppercase tracking-wider shadow">
+                            Encerrado
+                          </span>
+                        );
+                      }
+                      if (esgotado) {
+                        return (
+                          <span className="px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-sm bg-red-600 text-white text-[8px] sm:text-[10px] font-black uppercase tracking-wider shadow">
+                            Esgotado
+                          </span>
+                        );
+                      }
+                      if (totalRestante <= 20) {
+                        return (
+                          <span className="px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-sm bg-red-600 text-white text-[8px] sm:text-[10px] font-black uppercase tracking-wider shadow">
+                            Últimos
+                          </span>
+                        );
+                      }
+                      return (
+                        <span className="px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-sm bg-[#ffbe00] text-[#080c14] text-[8px] sm:text-[10px] font-black uppercase tracking-wider shadow">
+                          Venda Geral
+                        </span>
+                      );
+                    })()}
                   </div>
 
                   {/* Atletica Badge overlay */}

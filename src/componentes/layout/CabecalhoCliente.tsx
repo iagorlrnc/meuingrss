@@ -59,9 +59,16 @@ function ConteudoCabecalhoCliente() {
   useEffect(() => {
     async function carregarCidades() {
       const lista = await obterOuBuscarCidades(supabase);
-      setCidades(lista);
+      if (lista && lista.length > 0) {
+        setCidades(lista);
+      }
     }
     carregarCidades();
+    const interval = setInterval(() => {
+      const c = obterCidadesCache();
+      if (c && c.length > 0) setCidades(c);
+    }, 2000);
+    return () => clearInterval(interval);
   }, [supabase]);
 
   function navegarComFiltros(buscaVal: string, cidadeVal: string) {

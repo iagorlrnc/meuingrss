@@ -55,6 +55,7 @@ export default function PaginaEventosDiretor() {
       let query = supabase
         .from('eventos')
         .select('*, lotes_ingresso(*)')
+        .eq('apagado_pelo_diretor', false)
         .order('criado_em', { ascending: false });
 
       if (idAtletica) {
@@ -76,27 +77,11 @@ export default function PaginaEventosDiretor() {
   }
 
   function tentarApagarEvento(e: Evento & { lotes_ingresso?: LoteIngresso[] }) {
-    if (e.status === 'publicado') {
-      notificarErro(
-        'Impossível apagar evento publicado',
-        'Eventos com status "Publicado" não podem ser apagados. Cancele ou encerre o evento antes.'
-      );
-      return;
-    }
     setEventoParaApagar(e);
   }
 
   async function aoConfirmarApagar() {
     if (!eventoParaApagar) return;
-
-    if (eventoParaApagar.status === 'publicado') {
-      notificarErro(
-        'Ação não permitida',
-        'É impossível apagar um evento que está atualmente publicado.'
-      );
-      setEventoParaApagar(null);
-      return;
-    }
 
     setProcessandoApagar(true);
 

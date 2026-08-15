@@ -52,6 +52,7 @@ export default function DashboardDiretor() {
     let query = supabase
       .from('eventos')
       .select('*, lotes_ingresso(id, preco, quantidade_total, quantidade_vendida)')
+      .eq('apagado_pelo_diretor', false)
       .order('criado_em', { ascending: false });
     if (perfil?.atletica_id) {
       query = query.eq('atletica_id', perfil.atletica_id);

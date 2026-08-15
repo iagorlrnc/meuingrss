@@ -96,6 +96,8 @@ function ConteudoDetalheEvento() {
       query = query.eq('slug', eventoId);
     }
 
+    query = query.eq('apagado_pelo_diretor', false);
+
     const { data } = await query.single();
 
     if (data) {

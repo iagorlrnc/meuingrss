@@ -178,3 +178,60 @@ export async function gerarSlugUnico(
 
   return slugCandidato;
 }
+
+export function ordenarEventosPorPrioridade<T extends { status: string; data_evento: string }>(
+  eventos: T[]
+): T[] {
+  const agora = new Date();
+
+  function obterPrioridade(e: T): number {
+    if (e.status === 'cancelado') return 3;
+    const ehEncerrado = e.status === 'encerrado' || new Date(e.data_evento) < agora;
+    if (ehEncerrado) return 2;
+    return 1;
+  }
+
+  return [...eventos].sort((a, b) => {
+    const pA = obterPrioridade(a);
+    const pB = obterPrioridade(b);
+
+    if (pA !== pB) {
+      return pA - pB;
+    }
+
+    if (pA === 1) {
+      return new Date(a.data_evento).getTime() - new Date(b.data_evento).getTime();
+    }
+
+    return new Date(b.data_evento).getTime() - new Date(a.data_evento).getTime();
+  });
+}
+
+export function formatarCidadeEstado(cidadeStr?: string | null, estadoStr?: string | null): string {
+  if (!cidadeStr || !cidadeStr.trim()) return '';
+  const c = cidadeStr.trim();
+  if (!estadoStr || !estadoStr.trim()) return c;
+  const uf = estadoStr.trim().toUpperCase();
+  const cUpper = c.toUpperCase();
+  if (cUpper.endsWith(`- ${uf}`) || cUpper.endsWith(`, ${uf}`) || cUpper.endsWith(`/${uf}`)) {
+    return c;
+  }
+  return `${c} - ${uf}`;
+}
+
+export function matchFiltroCidade(cidadeObjeto?: string | null, cidadeFiltro?: string | null): boolean {
+  if (!cidadeFiltro || !cidadeFiltro.trim()) return true;
+  const f = cidadeFiltro.trim().toLowerCase();
+  if (
+    f === 'todas' ||
+    f === 'todas as cidades' ||
+    f === 'todas-as-cidades' ||
+    f === 'qualquer' ||
+    f === 'all'
+  ) {
+    return true;
+  }
+  if (!cidadeObjeto) return false;
+  const obj = cidadeObjeto.trim().toLowerCase();
+  return obj === f || obj.startsWith(`${f} -`) || obj.startsWith(`${f},`) || obj.startsWith(`${f}/`);
+}

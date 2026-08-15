@@ -8,7 +8,7 @@ import CampoTexto from '@/componentes/ui/CampoTexto';
 import { criarClienteNavegador } from '@/lib/supabase/cliente';
 import { usarAutenticacao } from '@/contextos/ContextoAutenticacao';
 import { useNotificacao } from '@/componentes/ui/Notificacao';
-import { formatarData, mascararMoeda, desmascararMoeda, gerarSlugUnico } from '@/lib/utilitarios';
+import { formatarData, mascararMoeda, desmascararMoeda, gerarSlugUnico, formatarCidadeEstado } from '@/lib/utilitarios';
 import {
   ArrowLeft,
   Plus,
@@ -179,7 +179,7 @@ export default function PaginaCriarEvento() {
         imagem_url: imagemUrl.trim() || null,
         data_evento: dataObj.toISOString(),
         local: local.trim(),
-        cidade: cidade.trim(),
+        cidade: formatarCidadeEstado(cidade, estado),
         status: publicar ? ('publicado' as const) : ('rascunho' as const),
       };
 
