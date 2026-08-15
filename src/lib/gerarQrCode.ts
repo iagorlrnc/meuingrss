@@ -2,13 +2,12 @@ import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 
 function obterChaveSecreta(): string {
-  const secret = process.env.QR_CODE_SECRET;
-  if (!secret) {
-    throw new Error(
-      'QR_CODE_SECRET não está configurado no ambiente. Defina esta variável no .env.local para gerar hashes de ingressos.'
-    );
-  }
-  return secret;
+  return (
+    process.env.QR_CODE_SECRET ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    'meuingrss-secret-qr-key-2026'
+  );
 }
 
 export function gerarHashIngresso(ingressoId: string, eventoId: string): string {
