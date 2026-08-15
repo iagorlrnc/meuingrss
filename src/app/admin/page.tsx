@@ -257,16 +257,16 @@ export default function DashboardAdmin() {
 
       {}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-        <Link href="/admin/eventos"><Cartao variante="gradiente" interativo className="text-center py-6"><CalendarDays className="w-8 h-8 text-primaria-400 mx-auto mb-2" /><p className="font-bold text-sm">Gerenciar Eventos</p></Cartao></Link>
-        <Link href="/admin/usuarios"><Cartao variante="gradiente" interativo className="text-center py-6"><Users className="w-8 h-8 text-blue-400 mx-auto mb-2" /><p className="font-bold text-sm">Gerenciar Usuários</p></Cartao></Link>
-        <Link href="/admin/atleticas"><Cartao variante="gradiente" interativo className="text-center py-6"><Shield className="w-8 h-8 text-amber-400 mx-auto mb-2" /><p className="font-bold text-sm">Gerenciar Atléticas</p></Cartao></Link>
+        <Link href="/eventos"><Cartao variante="gradiente" interativo className="text-center py-6"><CalendarDays className="w-8 h-8 text-primaria-400 mx-auto mb-2" /><p className="font-bold text-sm">Gerenciar Eventos</p></Cartao></Link>
+        <Link href="/usuarios"><Cartao variante="gradiente" interativo className="text-center py-6"><Users className="w-8 h-8 text-blue-400 mx-auto mb-2" /><p className="font-bold text-sm">Gerenciar Usuários</p></Cartao></Link>
+        <Link href="/atleticas"><Cartao variante="gradiente" interativo className="text-center py-6"><Shield className="w-8 h-8 text-amber-400 mx-auto mb-2" /><p className="font-bold text-sm">Gerenciar Atléticas</p></Cartao></Link>
       </div>
 
       {}
       <Cartao variante="vidro">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold font-titulo flex items-center gap-2"><Activity size={20} className="text-amber-400" /> Atividade Recente</h3>
-          <Link href="/admin/eventos"><Botao variante="fantasma" tamanho="sm">Ver todos</Botao></Link>
+          <Link href="/eventos"><Botao variante="fantasma" tamanho="sm">Ver todos</Botao></Link>
         </div>
         <div className="space-y-3">
           {eventosRecentes.map(evento => (

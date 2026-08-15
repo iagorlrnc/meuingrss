@@ -4,6 +4,7 @@ import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { usarAutenticacao } from '@/contextos/ContextoAutenticacao';
+import { construirUrl } from '@/lib/dominios';
 import Botao from '@/componentes/ui/Botao';
 import CampoTexto from '@/componentes/ui/CampoTexto';
 import Modal from '@/componentes/ui/Modal';
@@ -55,11 +56,11 @@ function FormularioEntrar() {
         }
 
         if (perfil?.role === 'diretor') {
-          window.location.href = '/diretor';
+          window.location.href = construirUrl('diretoria', '/');
           return;
         }
         if (perfil?.role === 'admin') {
-          window.location.href = '/admin';
+          window.location.href = construirUrl('dev', '/');
           return;
         }
       }

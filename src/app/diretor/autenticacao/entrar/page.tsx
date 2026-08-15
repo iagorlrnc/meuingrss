@@ -31,7 +31,7 @@ function FormularioEntrarDiretor() {
   const { entrar } = usarAutenticacao();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const redirecionar = searchParams.get('redirecionar') || '/diretor';
+  const redirecionar = searchParams.get('redirecionar') || '/';
 
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
@@ -240,7 +240,7 @@ function FormularioEntrarDiretor() {
             <p className="text-xs text-slate-400">
               Sua atlética ainda não tem cadastro?{' '}
               <Link
-                href="/diretor/autenticacao/cadastro"
+                href="/autenticacao/cadastro"
                 className="text-[#00e5ff] hover:text-[#00e5ff]/80 underline font-bold transition-colors ml-1"
               >
                 Cadastrar Atlética

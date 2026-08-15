@@ -251,7 +251,7 @@ export default function DashboardDiretor() {
 
       {}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-        <Link href="/diretor/eventos/novo">
+        <Link href="/eventos/novo">
           <Cartao variante="gradiente" interativo className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-primaria-500/20 flex items-center justify-center">
               <CalendarPlus className="w-6 h-6 text-primaria-400" />
@@ -263,7 +263,7 @@ export default function DashboardDiretor() {
             <ArrowRight size={18} className="text-texto-terciario" />
           </Cartao>
         </Link>
-        <Link href="/diretor/validar-entrada">
+        <Link href="/validar-entrada">
           <Cartao variante="gradiente" interativo className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-sucesso/20 flex items-center justify-center">
               <ScanLine className="w-6 h-6 text-sucesso" />
@@ -281,13 +281,13 @@ export default function DashboardDiretor() {
       <Cartao variante="vidro">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold font-titulo">Eventos Recentes</h3>
-          <Link href="/diretor/eventos"><Botao variante="fantasma" tamanho="sm">Ver todos</Botao></Link>
+          <Link href="/eventos"><Botao variante="fantasma" tamanho="sm">Ver todos</Botao></Link>
         </div>
 
         {eventosRecentes.length > 0 ? (
           <div className="space-y-3">
             {eventosRecentes.map(evento => (
-              <Link key={evento.id} href={`/diretor/eventos/${evento.slug || evento.id}/vendas`}
+              <Link key={evento.id} href={`/eventos/${evento.slug || evento.id}/vendas`}
                 className="flex items-center gap-4 p-3 rounded-xl hover:bg-fundo-hover transition-all">
                 <div className="w-10 h-10 rounded-lg bg-primaria-500/10 flex items-center justify-center flex-shrink-0">
                   <CalendarDays size={18} className="text-primaria-400" />

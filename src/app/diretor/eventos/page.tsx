@@ -116,7 +116,7 @@ export default function PaginaEventosDiretor() {
           <h1 className="text-2xl sm:text-3xl font-black font-titulo">Meus <span className="gradiente-texto">Eventos</span></h1>
           <p className="text-texto-secundario mt-1">{eventos.length} evento(s) criado(s)</p>
         </div>
-        <Link href="/diretor/eventos/novo"><Botao icone={<CalendarPlus size={16} />}>Novo Evento</Botao></Link>
+        <Link href="/eventos/novo"><Botao icone={<CalendarPlus size={16} />}>Novo Evento</Botao></Link>
       </div>
 
       {eventos.length > 0 ? (
@@ -150,9 +150,9 @@ export default function PaginaEventosDiretor() {
                 </div>
 
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <Link href={`/diretor/eventos/${e.slug || e.id}/vendas`}><Botao variante="contorno" tamanho="sm" icone={<BarChart3 size={14} />}>Vendas</Botao></Link>
-                  <Link href={`/diretor/eventos/${e.slug || e.id}/lotes`}><Botao variante="contorno" tamanho="sm" icone={<Ticket size={14} />}>Lotes</Botao></Link>
-                  <Link href={`/diretor/eventos/${e.slug || e.id}/editar`}><Botao variante="fantasma" tamanho="sm" icone={<Edit size={14} />}>Editar</Botao></Link>
+                  <Link href={`/eventos/${e.slug || e.id}/vendas`}><Botao variante="contorno" tamanho="sm" icone={<BarChart3 size={14} />}>Vendas</Botao></Link>
+                  <Link href={`/eventos/${e.slug || e.id}/lotes`}><Botao variante="contorno" tamanho="sm" icone={<Ticket size={14} />}>Lotes</Botao></Link>
+                  <Link href={`/eventos/${e.slug || e.id}/editar`}><Botao variante="fantasma" tamanho="sm" icone={<Edit size={14} />}>Editar</Botao></Link>
                   
                   <button
                     type="button"
@@ -179,7 +179,7 @@ export default function PaginaEventosDiretor() {
           descricao="Sua atlética ainda não possui eventos cadastrados. Clique no botão abaixo para publicar o primeiro evento!"
           icone={<CalendarPlus className="w-7 h-7" />}
           acao={
-            <Link href="/diretor/eventos/novo">
+            <Link href="/eventos/novo">
               <Botao icone={<Plus size={16} />}>Criar Novo Evento</Botao>
             </Link>
           }

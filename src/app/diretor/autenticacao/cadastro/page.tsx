@@ -117,7 +117,7 @@ export default function PaginaCadastroDiretor() {
       setCarregando(false);
     } else {
       // Redireciona diretamente para a tela de login do diretor exibindo o pop-up modal
-      window.location.href = '/diretor/autenticacao/entrar?pendente=1';
+      window.location.href = '/autenticacao/entrar?pendente=1';
     }
   }
 
@@ -136,7 +136,7 @@ export default function PaginaCadastroDiretor() {
         <div>
           {/* Navegação Superior */}
           <Link
-            href="/diretor/autenticacao/entrar"
+            href="/autenticacao/entrar"
             className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-white transition-all uppercase tracking-wider bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full border border-white/10 w-fit mb-12"
           >
             <ArrowLeft size={14} />
@@ -214,7 +214,7 @@ export default function PaginaCadastroDiretor() {
         {/* Botão de voltar visível apenas no mobile */}
         <div className="w-full max-w-xl lg:hidden mb-6">
           <Link
-            href="/diretor/autenticacao/entrar"
+            href="/autenticacao/entrar"
             className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-white transition-all uppercase tracking-wider bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full border border-white/10"
           >
             <ArrowLeft size={14} />
@@ -628,7 +628,7 @@ export default function PaginaCadastroDiretor() {
             <p className="text-xs text-slate-400">
               Já possui uma conta de diretor cadastrada?{' '}
               <Link
-                href="/diretor/autenticacao/entrar"
+                href="/autenticacao/entrar"
                 className="text-[#00e5ff] hover:text-[#00e5ff]/80 underline font-bold transition-colors ml-1"
               >
                 Entrar no Painel

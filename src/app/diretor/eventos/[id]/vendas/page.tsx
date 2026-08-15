@@ -250,7 +250,7 @@ export default function PaginaVendas() {
     return (
       <div className="text-center py-12">
         <p className="text-texto-secundario mb-4">Evento não encontrado.</p>
-        <Link href="/diretor/eventos">
+        <Link href="/eventos">
           <Botao variante="contorno">Voltar para Meus Eventos</Botao>
         </Link>
       </div>
@@ -266,7 +266,7 @@ export default function PaginaVendas() {
     <div className="max-w-6xl mx-auto pb-12">
       {/* Botão de Voltar */}
       <Link
-        href="/diretor/eventos"
+        href="/eventos"
         className="inline-flex items-center gap-2 text-sm text-texto-secundario hover:text-texto-principal transition-colors mb-6"
       >
         <ArrowLeft size={16} /> Voltar para Meus Eventos
@@ -282,7 +282,7 @@ export default function PaginaVendas() {
           <p className="text-texto-secundario">Relatório e Gestão de Vendas & Compradores</p>
         </div>
 
-        <Link href={`/diretor/eventos/${evento.id}/lotes`}>
+        <Link href={`/eventos/${evento.slug || evento.id}/lotes`}>
           <Botao variante="contorno" icone={<Ticket size={16} />}>
             Gerenciar Lotes
           </Botao>

@@ -68,7 +68,7 @@ export default function PaginaEditarEvento() {
 
     if (error || !data || data.apagado_pelo_diretor) {
       notificarErro('Erro', 'Evento não encontrado');
-      router.push('/diretor/eventos');
+      router.push('/eventos');
       return;
     }
 
@@ -201,7 +201,7 @@ export default function PaginaEditarEvento() {
       if (error) throw error;
 
       sucesso('Evento atualizado com sucesso!');
-      router.push('/diretor/eventos');
+      router.push('/eventos');
     } catch {
       notificarErro('Erro ao atualizar', 'Tente novamente');
     }
@@ -219,7 +219,7 @@ export default function PaginaEditarEvento() {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <Link href="/diretor/eventos" className="inline-flex items-center gap-2 text-sm text-texto-secundario hover:text-texto-principal transition-colors mb-6">
+      <Link href="/eventos" className="inline-flex items-center gap-2 text-sm text-texto-secundario hover:text-texto-principal transition-colors mb-6">
         <ArrowLeft size={16} /> Voltar
       </Link>
 
@@ -367,7 +367,7 @@ export default function PaginaEditarEvento() {
         </Cartao>
 
         <div className="flex flex-col sm:flex-row gap-3">
-          <Link href="/diretor/eventos" className="flex-1">
+          <Link href="/eventos" className="flex-1">
             <Botao type="button" variante="contorno" tamanho="lg" larguraTotal>
               Cancelar
             </Botao>

@@ -64,25 +64,31 @@ export async function middleware(request: NextRequest) {
     return resRewr;
   }
 
-  // --- BLOQUEIO DE ACESSO A ROTAS RESERVADAS (DIRECIONA PARA 404 NOT FOUND) ---
-  // Se o usuário tentar acessar explicitamente /diretoria, /dev, /diretor, /admin ou /cliente no caminho da URL
-  const ehCaminhoReservado =
-    pathname.startsWith('/diretor') ||
-    pathname.startsWith('/diretoria') ||
-    pathname.startsWith('/admin') ||
-    pathname.startsWith('/dev') ||
-    pathname.startsWith('/cliente');
+  const ehAreaDiretor = subdominio === 'diretoria';
+  const ehAreaAdmin = subdominio === 'dev';
 
-  if (ehCaminhoReservado) {
+  // Redireciona acessos legados com /diretor, /diretoria, /admin ou /dev para URLs limpas no respectivo subdomínio
+  if (pathname.startsWith('/diretor') || pathname.startsWith('/diretoria')) {
+    const caminhoLimpo = pathname.replace(/^\/(diretor|diretoria)/, '') || '/';
+    const urlLimpa = request.nextUrl.clone();
+    urlLimpa.host = dominioDiretoria;
+    urlLimpa.pathname = caminhoLimpo;
+    return redirecionarComCookies(urlLimpa);
+  }
+
+  if (pathname.startsWith('/admin') || pathname.startsWith('/dev')) {
+    const caminhoLimpo = pathname.replace(/^\/(admin|dev)/, '') || '/';
+    const urlLimpa = request.nextUrl.clone();
+    urlLimpa.host = dominioDev;
+    urlLimpa.pathname = caminhoLimpo;
+    return redirecionarComCookies(urlLimpa);
+  }
+
+  if (pathname.startsWith('/cliente')) {
     const url404 = request.nextUrl.clone();
     url404.pathname = '/_not-found';
     return reescreverComCookies(url404);
   }
-
-  // --- LÓGICA DE AUTENTICAÇÃO E REESCRITA INTERNA (APP ROUTER) ---
-
-  const ehAreaDiretor = subdominio === 'diretoria';
-  const ehAreaAdmin = subdominio === 'dev';
   const rotasClienteProtegidas = ['/meus-ingressos', '/checkout'];
   const precisaAuthCliente = rotasClienteProtegidas.some((rota) => pathname.startsWith(rota)) || pathname.includes('/checkout');
 

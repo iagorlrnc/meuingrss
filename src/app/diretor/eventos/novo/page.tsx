@@ -216,7 +216,7 @@ export default function PaginaCriarEvento() {
         publicar ? 'Seu evento já está visível para os clientes' : 'Você pode publicar depois'
       );
 
-      router.push('/diretor/eventos');
+      router.push('/eventos');
     } catch (err) {
       notificarErro('Erro ao salvar', 'Tente novamente');
       console.error(err);
@@ -227,7 +227,7 @@ export default function PaginaCriarEvento() {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <Link href="/diretor/eventos" className="inline-flex items-center gap-2 text-sm text-texto-secundario hover:text-texto-principal transition-colors mb-6">
+      <Link href="/eventos" className="inline-flex items-center gap-2 text-sm text-texto-secundario hover:text-texto-principal transition-colors mb-6">
         <ArrowLeft size={16} /> Voltar
       </Link>
 

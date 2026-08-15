@@ -238,7 +238,7 @@ export default function PaginaGerenciarLotes() {
     return (
       <div className="text-center py-12">
         <p className="text-texto-secundario mb-4">Evento não encontrado.</p>
-        <Link href="/diretor/eventos">
+        <Link href="/eventos">
           <Botao variante="contorno">Voltar para Meus Eventos</Botao>
         </Link>
       </div>
@@ -253,7 +253,7 @@ export default function PaginaGerenciarLotes() {
     <div className="max-w-5xl mx-auto pb-12">
       {/* Botão de voltar */}
       <Link
-        href="/diretor/eventos"
+        href="/eventos"
         className="inline-flex items-center gap-2 text-sm text-texto-secundario hover:text-texto-principal transition-colors mb-6"
       >
         <ArrowLeft size={16} /> Voltar para Meus Eventos

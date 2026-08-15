@@ -12,7 +12,7 @@ import { Shield, Mail, Lock, ArrowLeft, Settings, Ticket } from 'lucide-react';
 function FormularioEntrarAdmin() {
   const { entrar } = usarAutenticacao();
   const searchParams = useSearchParams();
-  const redirecionar = searchParams.get('redirecionar') || '/admin';
+  const redirecionar = searchParams.get('redirecionar') || '/';
 
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');

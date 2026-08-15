@@ -21,7 +21,7 @@ export default function LayoutDiretor({
     if (!carregando && !ehPaginaAutenticacao) {
       if (perfil?.status === 'pendente') {
         sair().then(() => {
-          router.push('/diretor/autenticacao/entrar?pendente=1');
+          router.push('/autenticacao/entrar?pendente=1');
         });
       } else if (
         !usuario ||
@@ -29,7 +29,7 @@ export default function LayoutDiretor({
         perfil.status !== 'ativo' ||
         (perfil.role !== 'diretor' && perfil.role !== 'admin')
       ) {
-        router.push('/diretor/autenticacao/entrar');
+        router.push('/autenticacao/entrar');
       }
     }
   }, [carregando, usuario, perfil, ehPaginaAutenticacao, router, sair]);
