@@ -1,0 +1,156 @@
+'use client';
+
+import { useState, Suspense } from 'react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { usarAutenticacao } from '@/contextos/ContextoAutenticacao';
+import CampoTexto from '@/componentes/ui/CampoTexto';
+import Carregando from '@/componentes/ui/Carregando';
+import { criarClienteNavegador } from '@/lib/supabase/cliente';
+import { Shield, Mail, Lock, ArrowLeft, Settings, Ticket } from 'lucide-react';
+
+function FormularioEntrarAdmin() {
+  const { entrar } = usarAutenticacao();
+  const searchParams = useSearchParams();
+  const redirecionar = searchParams.get('redirecionar') || '/admin';
+
+  const [email, setEmail] = useState('');
+  const [senha, setSenha] = useState('');
+  const [erro, setErro] = useState('');
+  const [carregando, setCarregando] = useState(false);
+  const supabase = criarClienteNavegador();
+
+  async function aoSubmeter(e: React.FormEvent) {
+    e.preventDefault();
+    setErro('');
+    setCarregando(true);
+
+    
+    const resultado = await entrar(email, senha);
+
+    if (resultado.erro) {
+      setErro(
+        resultado.erro.includes('Invalid login')
+          ? 'Credenciais administrativas incorretas'
+          : resultado.erro
+      );
+      setCarregando(false);
+      return;
+    }
+
+    
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (user) {
+      const { data: perfil } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (!perfil || perfil.role !== 'admin') {
+        setErro('Acesso restrito. Esta conta não possui privilégios de administrador da plataforma.');
+        await supabase.auth.signOut();
+        setCarregando(false);
+        return;
+      }
+    }
+
+    
+    window.location.href = redirecionar;
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-fundo-principal">
+      {}
+      <div className="w-96 h-96 rounded-full bg-amber-500/10 blur-3xl absolute -top-20 -left-20 pointer-events-none" />
+      <div className="w-96 h-96 rounded-full bg-red-500/10 blur-3xl absolute bottom-10 right-0 pointer-events-none" />
+
+      <div className="w-full max-w-md relative z-10">
+        {}
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 text-sm text-texto-secundario hover:text-texto-principal transition-colors mb-8"
+        >
+          <ArrowLeft size={16} />
+          Voltar ao site principal
+        </Link>
+
+        {}
+        <div className="vidro-forte rounded-3xl p-8 shadow-glass animar-entrar-baixo border border-amber-500/30">
+          {}
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#ff007a] via-[#8b5cf6] to-[#026cdf] flex items-center justify-center shadow-lg shadow-purple-500/20 shrink-0">
+              <Ticket className="w-6 h-6 text-white transform -rotate-12" />
+            </div>
+            <div>
+              <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 text-[10px] font-bold tracking-wider uppercase mb-1 border border-amber-500/20">
+                <Shield size={12} /> Acesso Restrito
+              </div>
+              <h1 className="text-xl font-bold font-titulo text-texto-principal">
+                Portal do Administrador
+              </h1>
+            </div>
+          </div>
+
+          {}
+          <form onSubmit={aoSubmeter} className="space-y-5">
+            <CampoTexto
+              rotulo="Email administrativo"
+              type="email"
+              placeholder="admin@meuingrss.com.br"
+              value={email}
+              onChange={(e) => setEmail((e.target as HTMLInputElement).value)}
+              icone={<Mail size={18} />}
+              required
+            />
+
+            <CampoTexto
+              rotulo="Chave de Acesso / Senha"
+              type="password"
+              placeholder="••••••••••••"
+              value={senha}
+              onChange={(e) => setSenha((e.target as HTMLInputElement).value)}
+              icone={<Lock size={18} />}
+              required
+            />
+
+            {erro && (
+              <div className="p-4 rounded-xl bg-erro/10 border border-erro/20 text-xs font-medium text-erro leading-relaxed">
+                {erro}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={carregando}
+              className="w-full py-3.5 px-6 rounded-xl font-bold text-sm text-black bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {carregando ? (
+                <Carregando tamanho="sm" texto="Autenticando..." />
+              ) : (
+                'Acessar Painel Global'
+              )}
+            </button>
+          </form>
+
+          {}
+          <div className="mt-8 pt-6 border-t border-borda-sutil text-center">
+            <p className="text-[11px] text-texto-terciario flex items-center justify-center gap-1.5">
+              <Shield size={12} className="text-amber-400" />
+              Sessão protegida por log de auditoria global.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function PaginaEntrarAdmin() {
+  return (
+    <Suspense fallback={<Carregando telaCheia texto="Carregando portal do administrador..." />}>
+      <FormularioEntrarAdmin />
+    </Suspense>
+  );
+}
