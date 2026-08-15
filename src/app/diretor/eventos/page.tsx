@@ -11,7 +11,6 @@ import { criarClienteNavegador } from '@/lib/supabase/cliente';
 import { usarAutenticacao } from '@/contextos/ContextoAutenticacao';
 import { useNotificacao } from '@/componentes/ui/Notificacao';
 import { formatarDataCurta, formatarMoeda } from '@/lib/utilitarios';
-import { construirUrl } from '@/lib/dominios';
 import { CalendarPlus, BarChart3, Edit, Eye, Plus, Ticket, Trash2, AlertTriangle, X } from 'lucide-react';
 
 import type { Evento, LoteIngresso } from '@/tipos';
@@ -144,9 +143,6 @@ export default function PaginaEventosDiretor() {
                     <Distintivo status={e.status} />
                   </div>
                   <p className="text-sm text-texto-secundario">{formatarDataCurta(e.data_evento)} • {e.local}</p>
-                  <p className="text-xs text-[#00e5ff] font-mono mt-0.5 truncate">
-                    meuingrss.com.br/eventos/{e.slug || e.id}
-                  </p>
                   <div className="flex gap-4 mt-2 text-xs text-texto-terciario">
                     <span>{vendidos} vendidos</span>
                     <span>Receita: {formatarMoeda(receita)}</span>
@@ -154,18 +150,9 @@ export default function PaginaEventosDiretor() {
                 </div>
 
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <a
-                    href={construirUrl('cliente', `/eventos/${e.slug || e.id}`)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Botao variante="fantasma" tamanho="sm" icone={<Eye size={14} />}>
-                      Ver no site
-                    </Botao>
-                  </a>
-                  <Link href={`/diretor/eventos/${e.id}/vendas`}><Botao variante="contorno" tamanho="sm" icone={<BarChart3 size={14} />}>Vendas</Botao></Link>
-                  <Link href={`/diretor/eventos/${e.id}/lotes`}><Botao variante="contorno" tamanho="sm" icone={<Ticket size={14} />}>Lotes</Botao></Link>
-                  <Link href={`/diretor/eventos/${e.id}/editar`}><Botao variante="fantasma" tamanho="sm" icone={<Edit size={14} />}>Editar</Botao></Link>
+                  <Link href={`/diretor/eventos/${e.slug || e.id}/vendas`}><Botao variante="contorno" tamanho="sm" icone={<BarChart3 size={14} />}>Vendas</Botao></Link>
+                  <Link href={`/diretor/eventos/${e.slug || e.id}/lotes`}><Botao variante="contorno" tamanho="sm" icone={<Ticket size={14} />}>Lotes</Botao></Link>
+                  <Link href={`/diretor/eventos/${e.slug || e.id}/editar`}><Botao variante="fantasma" tamanho="sm" icone={<Edit size={14} />}>Editar</Botao></Link>
                   
                   <button
                     type="button"

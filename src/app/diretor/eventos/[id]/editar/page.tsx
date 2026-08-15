@@ -48,18 +48,31 @@ export default function PaginaEditarEvento() {
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
 
+  const [idReal, setIdReal] = useState('');
+
   async function buscarEvento() {
-    const { data, error } = await supabase
+    const eventoIdParam = typeof params.id === 'string' ? params.id : Array.isArray(params.id) ? params.id[0] : '';
+    const ehUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventoIdParam);
+
+    let query = supabase
       .from('eventos')
-      .select('id, titulo, descricao, imagem_url, data_evento, local, cidade, status, atletica_id, apagado_pelo_diretor')
-      .eq('id', params.id)
-      .single();
+      .select('id, slug, titulo, descricao, imagem_url, data_evento, local, cidade, status, atletica_id, apagado_pelo_diretor');
+
+    if (ehUUID) {
+      query = query.eq('id', eventoIdParam);
+    } else {
+      query = query.eq('slug', eventoIdParam);
+    }
+
+    const { data, error } = await query.maybeSingle();
 
     if (error || !data || data.apagado_pelo_diretor) {
       notificarErro('Erro', 'Evento não encontrado');
       router.push('/diretor/eventos');
       return;
     }
+
+    setIdReal(data.id);
 
     let cidadeInicial = data.cidade || '';
     let estadoInicial = 'TO';
@@ -164,7 +177,7 @@ export default function PaginaEditarEvento() {
     setSalvando(true);
 
     try {
-      const eventoId = params.id as string;
+      const eventoId = idReal || (params.id as string);
       const slugGerado = await gerarSlugUnico(supabase, titulo.trim(), eventoId);
 
       const cidadeFormatada = formatarCidadeEstado(cidade, estado);

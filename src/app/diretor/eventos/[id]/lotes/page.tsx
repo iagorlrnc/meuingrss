@@ -54,13 +54,29 @@ export default function PaginaGerenciarLotes() {
 
   async function buscarDados() {
     try {
-      const [eventoRes, lotesRes] = await Promise.all([
-        supabase.from('eventos').select('id, titulo, status, atletica_id').eq('id', params.id).single(),
-        supabase.from('lotes_ingresso').select('id, evento_id, nome_lote, preco, quantidade_total, quantidade_vendida, ordem, ativo').eq('evento_id', params.id).order('ordem', { ascending: true })
-      ]);
+      const eventoIdParam = typeof params.id === 'string' ? params.id : Array.isArray(params.id) ? params.id[0] : '';
+      const ehUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventoIdParam);
 
-      if (eventoRes.data) setEvento(eventoRes.data);
-      if (lotesRes.data) setLotes(lotesRes.data);
+      let queryEvento = supabase.from('eventos').select('id, slug, titulo, status, atletica_id');
+      if (ehUUID) {
+        queryEvento = queryEvento.eq('id', eventoIdParam);
+      } else {
+        queryEvento = queryEvento.eq('slug', eventoIdParam);
+      }
+
+      const { data: eventoData } = await queryEvento.maybeSingle();
+
+      if (eventoData) {
+        setEvento(eventoData);
+
+        const { data: lotesData } = await supabase
+          .from('lotes_ingresso')
+          .select('id, evento_id, nome_lote, preco, quantidade_total, quantidade_vendida, ordem, ativo')
+          .eq('evento_id', eventoData.id)
+          .order('ordem', { ascending: true });
+
+        if (lotesData) setLotes(lotesData);
+      }
     } catch (err) {
       console.error(err);
       notificarErro('Erro', 'Não foi possível carregar os lotes.');

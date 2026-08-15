@@ -89,13 +89,28 @@ export default function PaginaVendas() {
   async function buscar() {
     setCarregando(true);
     try {
-      const eventoRes = await supabase
-        .from('eventos')
-        .select('id, titulo, status, data_evento, local, cidade, lotes_ingresso(id, nome_lote, preco, quantidade_total, quantidade_vendida)')
-        .eq('id', params.id)
-        .single();
+      const eventoIdParam = typeof params.id === 'string' ? params.id : Array.isArray(params.id) ? params.id[0] : '';
+      const ehUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventoIdParam);
 
-      if (eventoRes.data) setEvento(eventoRes.data);
+      let queryEvento = supabase
+        .from('eventos')
+        .select('id, slug, titulo, status, data_evento, local, cidade, lotes_ingresso(id, nome_lote, preco, quantidade_total, quantidade_vendida)');
+
+      if (ehUUID) {
+        queryEvento = queryEvento.eq('id', eventoIdParam);
+      } else {
+        queryEvento = queryEvento.eq('slug', eventoIdParam);
+      }
+
+      const { data: eventoData } = await queryEvento.maybeSingle();
+
+      if (!eventoData) {
+        setCarregando(false);
+        return;
+      }
+
+      setEvento(eventoData);
+      const realEventoId = eventoData.id;
 
       // Tenta a consulta com join direto
       let { data: ingressosData, error: erroIngressos } = await supabase
@@ -113,7 +128,7 @@ export default function PaginaVendas() {
           lote:lotes_ingresso(id, nome_lote, preco),
           comprador:profiles!ingressos_comprador_id_fkey(id, nome, email, telefone, cpf, avatar_url)
         `)
-        .eq('evento_id', params.id)
+        .eq('evento_id', realEventoId)
         .order('data_compra', { ascending: false });
 
       // Se houver erro de relacionamento ambíguo no Supabase, realiza a busca com fallback
@@ -133,7 +148,7 @@ export default function PaginaVendas() {
             validado_por,
             lote:lotes_ingresso(id, nome_lote, preco)
           `)
-          .eq('evento_id', params.id)
+          .eq('evento_id', realEventoId)
           .order('data_compra', { ascending: false });
 
         if (ingressosBase && ingressosBase.length > 0) {

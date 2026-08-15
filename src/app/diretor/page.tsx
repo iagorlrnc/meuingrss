@@ -10,7 +10,6 @@ import Carregando from '@/componentes/ui/Carregando';
 import { criarClienteNavegador } from '@/lib/supabase/cliente';
 import { usarAutenticacao } from '@/contextos/ContextoAutenticacao';
 import { formatarMoeda, formatarDataCurta } from '@/lib/utilitarios';
-import { construirUrl } from '@/lib/dominios';
 import {
   Ticket,
   DollarSign,
@@ -23,7 +22,6 @@ import {
   Lock,
   ArrowLeft,
   ShieldCheck,
-  Eye,
 } from 'lucide-react';
 
 import type { Evento, LoteIngresso } from '@/tipos';
@@ -289,32 +287,17 @@ export default function DashboardDiretor() {
         {eventosRecentes.length > 0 ? (
           <div className="space-y-3">
             {eventosRecentes.map(evento => (
-              <div key={evento.id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-fundo-hover transition-all">
+              <Link key={evento.id} href={`/diretor/eventos/${evento.slug || evento.id}/vendas`}
+                className="flex items-center gap-4 p-3 rounded-xl hover:bg-fundo-hover transition-all">
                 <div className="w-10 h-10 rounded-lg bg-primaria-500/10 flex items-center justify-center flex-shrink-0">
                   <CalendarDays size={18} className="text-primaria-400" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <Link href={`/diretor/eventos/${evento.id}/vendas`} className="hover:text-primaria-400 transition-colors">
-                    <p className="text-sm font-medium texto-limitado-1">{evento.titulo}</p>
-                  </Link>
+                  <p className="text-sm font-medium texto-limitado-1">{evento.titulo}</p>
                   <p className="text-xs text-texto-terciario">{formatarDataCurta(evento.data_evento)}</p>
-                  <p className="text-[11px] text-[#00e5ff] font-mono truncate">
-                    meuingrss.com.br/eventos/{evento.slug || evento.id}
-                  </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <a
-                    href={construirUrl('cliente', `/eventos/${evento.slug || evento.id}`)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Botao variante="fantasma" tamanho="sm" icone={<Eye size={14} />}>
-                      Ver no site
-                    </Botao>
-                  </a>
-                  <Distintivo status={evento.status} />
-                </div>
-              </div>
+                <Distintivo status={evento.status} />
+              </Link>
             ))}
           </div>
         ) : (

@@ -9,7 +9,6 @@ import CampoTexto from '@/componentes/ui/CampoTexto';
 import { criarClienteNavegador } from '@/lib/supabase/cliente';
 import { usarAutenticacao } from '@/contextos/ContextoAutenticacao';
 import { formatarMoeda, formatarDataCurta } from '@/lib/utilitarios';
-import { construirUrl } from '@/lib/dominios';
 import {
   Users,
   Shield,
@@ -22,7 +21,6 @@ import {
   Lock,
   ArrowLeft,
   Settings,
-  Eye,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -272,33 +270,21 @@ export default function DashboardAdmin() {
         </div>
         <div className="space-y-3">
           {eventosRecentes.map(evento => (
-            <div key={evento.id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-fundo-hover transition-all">
+            <Link key={evento.id} href={`/eventos/${evento.slug || evento.id}`} target="_blank" className="flex items-center gap-4 p-3 rounded-xl hover:bg-fundo-hover transition-all">
               <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
                 <CalendarDays size={18} className="text-amber-400" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium texto-limitado-1">{evento.titulo}</p>
                 <p className="text-xs text-texto-terciario">{evento.atletica?.nome} • {formatarDataCurta(evento.criado_em)}</p>
-                <p className="text-[11px] text-[#00e5ff] font-mono truncate">
-                  meuingrss.com.br/eventos/{evento.slug || evento.id}
-                </p>
               </div>
               <div className="flex items-center gap-2">
-                <a
-                  href={construirUrl('cliente', `/eventos/${evento.slug || evento.id}`)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Botao variante="fantasma" tamanho="sm" icone={<Eye size={14} />}>
-                    Ver no site
-                  </Botao>
-                </a>
                 <Distintivo status={evento.status} />
                 {evento.apagado_pelo_diretor && (
                   <Distintivo texto="Apagado pelo Diretor" cor="text-red-400 bg-red-950/80 border-red-800/40 text-xs font-black uppercase tracking-wider" />
                 )}
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       </Cartao>
