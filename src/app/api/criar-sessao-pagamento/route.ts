@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { data: comprador } = await supabase
-      .from('perfis')
+      .from('profiles')
       .select('nome, email, telefone')
       .eq('id', comprador_id)
       .maybeSingle();
@@ -296,11 +296,13 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({ url: checkoutUrl, preference_id: preference.id });
     } catch (mpErr: unknown) {
+      const msg = mpErr instanceof Error ? mpErr.message : 'Falha na comunicação com o Mercado Pago';
       logger.error('Erro ao comunicar com a API do Mercado Pago', mpErr);
-      return NextResponse.json({ erro: 'Falha ao processar pagamento com a operadora de cartão.' }, { status: 400 });
+      return NextResponse.json({ erro: `Falha no Mercado Pago: ${msg}` }, { status: 400 });
     }
   } catch (error: unknown) {
+    const mensagemErro = error instanceof Error ? error.message : 'Ocorreu um erro interno ao processar sua solicitação.';
     logger.error('Erro não tratado na rota de criação de sessão de pagamento', error);
-    return NextResponse.json({ erro: 'Ocorreu um erro interno ao processar sua solicitação.' }, { status: 500 });
+    return NextResponse.json({ erro: mensagemErro }, { status: 500 });
   }
 }
