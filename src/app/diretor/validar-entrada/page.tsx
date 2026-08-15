@@ -17,8 +17,6 @@ import {
   Ticket,
   Clock,
   AlertTriangle,
-  Wifi,
-  WifiOff,
 } from 'lucide-react';
 
 type ResultadoTipo = 'sucesso' | 'erro' | null;
@@ -40,8 +38,12 @@ export default function PaginaValidarEntrada() {
   const [processando, setProcessando] = useState(false);
   const [totalValidados, setTotalValidados] = useState(0);
   const [erroCamera, setErroCamera] = useState<string | null>(null);
+
   const scannerRef = useRef<any>(null);
   const scannerAtivo = useRef(false);
+  const processandoRef = useRef(false);
+  const ultimoHashLidoRef = useRef<string | null>(null);
+
   const supabase = criarClienteNavegador();
 
   useEffect(() => {
@@ -98,15 +100,14 @@ export default function PaginaValidarEntrada() {
   }
 
   const handleScan = useCallback(async (textoDecodificado: string) => {
-    if (processando || !eventoSelecionado || !perfil?.id) return;
+    if (processandoRef.current || ultimoHashLidoRef.current === textoDecodificado || !eventoSelecionado || !perfil?.id) return;
+    
+    processandoRef.current = true;
+    ultimoHashLidoRef.current = textoDecodificado;
     setProcessando(true);
 
-    // Pausar o scanner para evitar leituras duplicadas
-    try {
-      if (scannerRef.current && scannerAtivo.current) {
-        await scannerRef.current.pause(true);
-      }
-    } catch { /* Ignorar erro ao pausar */ }
+    // Parar a câmera para congelar o fluxo e não ler o mesmo QR repetidamente
+    await pararScanner();
 
     try {
       const { data, error } = await supabase.rpc('validar_ingresso', {
@@ -164,7 +165,8 @@ export default function PaginaValidarEntrada() {
     }
 
     setProcessando(false);
-  }, [eventoSelecionado, supabase, perfil, processando]);
+    processandoRef.current = false;
+  }, [eventoSelecionado, supabase, perfil]);
 
   async function pararScanner() {
     if (scannerRef.current) {
@@ -184,9 +186,10 @@ export default function PaginaValidarEntrada() {
     setResultado(null);
     setErroCamera(null);
     setEscaneando(true);
+    processandoRef.current = false;
 
-    // Aguardar o elemento do DOM estar disponível
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Aguardar a renderização do elemento #leitor-qr no DOM
+    await new Promise(resolve => setTimeout(resolve, 150));
 
     try {
       const { Html5Qrcode } = await import('html5-qrcode');
@@ -208,7 +211,7 @@ export default function PaginaValidarEntrada() {
           handleScan(decodedText);
         },
         () => {
-          // Ignorar: chamado a cada frame sem QR encontrado
+          // Ignorar frames sem QR
         }
       );
 
@@ -242,19 +245,11 @@ export default function PaginaValidarEntrada() {
 
   async function continuarEscaneando() {
     setResultado(null);
+    setProcessando(false);
+    processandoRef.current = false;
+    ultimoHashLidoRef.current = null;
 
-    try {
-      if (scannerRef.current) {
-        const state = scannerRef.current.getState?.();
-        // State 3 = PAUSED — pode resumir
-        if (state === 3) {
-          scannerRef.current.resume();
-          return;
-        }
-      }
-    } catch { /* Ignorar erro ao resumir */ }
-
-    // Se não conseguiu resumir, reiniciar o scanner
+    await pararScanner();
     await iniciarScanner();
   }
 
@@ -263,6 +258,8 @@ export default function PaginaValidarEntrada() {
     setEscaneando(false);
     setResultado(null);
     setErroCamera(null);
+    processandoRef.current = false;
+    ultimoHashLidoRef.current = null;
   }
 
   return (
@@ -283,7 +280,6 @@ export default function PaginaValidarEntrada() {
           value={eventoSelecionado}
           onChange={(e) => {
             setEventoSelecionado(e.target.value);
-            // Reset ao trocar de evento
             fecharScanner();
           }}
           className="w-full bg-fundo-input border border-borda-sutil rounded-xl px-4 py-3 text-base sm:text-sm min-h-[44px] text-texto-principal focus:outline-none focus:border-primaria-500"
@@ -295,7 +291,7 @@ export default function PaginaValidarEntrada() {
         </select>
       </Cartao>
 
-      {/* Área do Scanner */}
+      {/* Área do Scanner / Resultado */}
       {eventoSelecionado && (
         <Cartao variante="elevado" className="mb-6">
           {resultado ? (
@@ -349,9 +345,10 @@ export default function PaginaValidarEntrada() {
               <Botao
                 onClick={continuarEscaneando}
                 className="mt-6"
-                icone={<RotateCcw size={16} />}
+                tamanho="lg"
+                icone={<RotateCcw size={18} />}
               >
-                Escanear Próximo
+                Escanear Próximo Ingresso
               </Botao>
             </div>
           ) : processando ? (
