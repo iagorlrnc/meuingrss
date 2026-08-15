@@ -1,19 +1,19 @@
 import { TipoSubdominio } from '@/tipos';
 
-const DOMINIO_PRINCIPAL = process.env.NEXT_PUBLIC_DOMINIO_PRINCIPAL || 'localhost:3000';
-const SUBDOMINIO_DIRETOR = process.env.NEXT_PUBLIC_SUBDOMINIO_DIRETOR || 'diretor.localhost:3000';
-const SUBDOMINIO_ADMIN = process.env.NEXT_PUBLIC_SUBDOMINIO_ADMIN || 'admin.localhost:3000';
-const PROTOCOLO = process.env.NEXT_PUBLIC_PROTOCOLO || 'http';
+const DOMINIO_PRINCIPAL = process.env.NEXT_PUBLIC_DOMINIO_PRINCIPAL || 'meuingrss.com.br';
+const SUBDOMINIO_DIRETOR = process.env.NEXT_PUBLIC_SUBDOMINIO_DIRETOR || 'diretoria.meuingrss.com.br';
+const SUBDOMINIO_ADMIN = process.env.NEXT_PUBLIC_SUBDOMINIO_ADMIN || 'dev.meuingrss.com.br';
+const PROTOCOLO = process.env.NEXT_PUBLIC_PROTOCOLO || 'https';
 
 export function obterSubdominio(hostname: string): TipoSubdominio {
   
   const hostSemPorta = hostname.split(':')[0];
 
-  if (hostSemPorta.startsWith('diretor.')) {
+  if (hostSemPorta.startsWith('diretoria.')) {
     return 'diretor';
   }
 
-  if (hostSemPorta.startsWith('admin.')) {
+  if (hostSemPorta.startsWith('dev.')) {
     return 'admin';
   }
 
@@ -34,13 +34,14 @@ export function construirUrl(subdominio: TipoSubdominio, caminho: string = '/'):
       dominio = DOMINIO_PRINCIPAL;
   }
 
+  const dominioLimpo = dominio.replace(/\/+$/, '');
   const caminhoFormatado = caminho.startsWith('/') ? caminho : `/${caminho}`;
-  return `${PROTOCOLO}://${dominio}${caminhoFormatado}`;
+  return `${PROTOCOLO}://${dominioLimpo}${caminhoFormatado}`;
 }
 
 export function obterDominioCookie(): string | undefined {
   const dom = process.env.NEXT_PUBLIC_DOMINIO_COOKIE;
-  return dom && dom !== 'localhost' ? dom : undefined;
+  return dom && !dom.includes('localhost') ? dom.replace(/\/+$/, '') : undefined;
 }
 
 export function ehDominioPrincipal(hostname: string): boolean {

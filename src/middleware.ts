@@ -8,12 +8,10 @@ export async function middleware(request: NextRequest) {
   const hostname = request.headers.get('host') || '';
   const subdominio = obterSubdominio(hostname);
 
-  
   let response = NextResponse.next({
     request: { headers: request.headers },
   });
 
-  
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder',
@@ -40,21 +38,12 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  
-  const ehAreaDiretor = subdominio === 'diretor' || pathname.startsWith('/diretor');
-  const ehAreaAdmin = subdominio === 'admin' || pathname.startsWith('/admin');
-  const rotasClienteProtegidas = ['/meus-ingressos', '/checkout', '/cliente/meus-ingressos'];
-  const precisaAuthCliente = rotasClienteProtegidas.some((rota) => pathname.startsWith(rota)) || pathname.includes('/checkout');
-
-  // Só executa o fetch de autenticação se a rota exigir verificação de permissão
-  let user = null;
-  if (ehAreaDiretor || ehAreaAdmin || precisaAuthCliente) {
-    const { data } = await supabase.auth.getUser();
-    user = data.user;
-  }
+  const protocolo = process.env.NEXT_PUBLIC_PROTOCOLO || 'https';
+  const dominioDiretor = (process.env.NEXT_PUBLIC_SUBDOMINIO_DIRETOR || 'diretoria.meuingrss.com.br').replace(/\/+$/, '');
+  const dominioAdmin = (process.env.NEXT_PUBLIC_SUBDOMINIO_ADMIN || 'dev.meuingrss.com.br').replace(/\/+$/, '');
 
   // Helper para preservar cookies em redirecionamentos e reescritas
-  function redirecionarComCookies(url: URL): NextResponse {
+  function redirecionarComCookies(url: string | URL): NextResponse {
     const resRedir = NextResponse.redirect(url);
     response.cookies.getAll().forEach((c) => resRedir.cookies.set(c.name, c.value, c));
     return resRedir;
@@ -66,20 +55,77 @@ export async function middleware(request: NextRequest) {
     return resRewr;
   }
 
-  // --- REGRA 1: ÁREA DO DIRETOR ---
+  // --- REDIRECIONAMENTOS DE EXCLUSIVIDADE & HIGIENIZAÇÃO DE URL ---
+
+  // 1. Acesso a rotas de Diretor tentado fora do subdomínio de Diretoria (redireciona para subdomínio exclusivo)
+  if (subdominio !== 'diretor' && (pathname.startsWith('/diretor') || pathname.startsWith('/diretoria'))) {
+    const caminhoLimpo = pathname
+      .replace(/^\/diretor\b/, '')
+      .replace(/^\/diretoria\b/, '');
+    const urlDestino = `${protocolo}://${dominioDiretor}${caminhoLimpo || '/'}${request.nextUrl.search}`;
+    return redirecionarComCookies(urlDestino);
+  }
+
+  // 2. Acesso a rotas de Admin tentado fora do subdomínio de Admin (dev) (redireciona para subdomínio exclusivo)
+  if (subdominio !== 'admin' && (pathname.startsWith('/admin') || pathname.startsWith('/dev'))) {
+    const caminhoLimpo = pathname
+      .replace(/^\/admin\b/, '')
+      .replace(/^\/dev\b/, '');
+    const urlDestino = `${protocolo}://${dominioAdmin}${caminhoLimpo || '/'}${request.nextUrl.search}`;
+    return redirecionarComCookies(urlDestino);
+  }
+
+  // 3. Se estiver NO subdomínio de Diretoria mas a URL ainda contiver /diretor ou /diretoria no caminho exposto
+  if (subdominio === 'diretor' && (pathname.startsWith('/diretor') || pathname.startsWith('/diretoria'))) {
+    const caminhoLimpo = pathname
+      .replace(/^\/diretor\b/, '')
+      .replace(/^\/diretoria\b/, '');
+    const urlDestino = `${protocolo}://${hostname}${caminhoLimpo || '/'}${request.nextUrl.search}`;
+    return redirecionarComCookies(urlDestino);
+  }
+
+  // 4. Se estiver NO subdomínio de Admin (dev) mas a URL ainda contiver /admin ou /dev no caminho exposto
+  if (subdominio === 'admin' && (pathname.startsWith('/admin') || pathname.startsWith('/dev'))) {
+    const caminhoLimpo = pathname
+      .replace(/^\/admin\b/, '')
+      .replace(/^\/dev\b/, '');
+    const urlDestino = `${protocolo}://${hostname}${caminhoLimpo || '/'}${request.nextUrl.search}`;
+    return redirecionarComCookies(urlDestino);
+  }
+
+  // 5. Se no subdomínio Principal a URL contiver /cliente no caminho exposto, redireciona para a rota limpa
+  if (subdominio === 'cliente' && pathname.startsWith('/cliente')) {
+    const caminhoLimpo = pathname.replace(/^\/cliente\b/, '');
+    const urlDestino = `${protocolo}://${hostname}${caminhoLimpo || '/'}${request.nextUrl.search}`;
+    return redirecionarComCookies(urlDestino);
+  }
+
+  // --- LÓGICA DE AUTENTICAÇÃO E REESCRITA INTERNA (APP ROUTER) ---
+
+  const ehAreaDiretor = subdominio === 'diretor';
+  const ehAreaAdmin = subdominio === 'admin';
+  const rotasClienteProtegidas = ['/meus-ingressos', '/checkout'];
+  const precisaAuthCliente = rotasClienteProtegidas.some((rota) => pathname.startsWith(rota)) || pathname.includes('/checkout');
+
+  let user = null;
+  if (ehAreaDiretor || ehAreaAdmin || precisaAuthCliente) {
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
+  }
+
+  // --- REGRAS DO SUBDOMÍNIO DIRETORIA ---
   if (ehAreaDiretor) {
-    const ehAuthDiretor = pathname.includes('/autenticacao/entrar') || pathname.includes('/autenticacao/cadastro');
+    const ehAuthDiretor = pathname === '/autenticacao/entrar' || pathname === '/autenticacao/cadastro';
 
     if (ehAuthDiretor) {
-      if (pathname.startsWith('/diretor/')) return response;
       const url = request.nextUrl.clone();
-      url.pathname = pathname.includes('/autenticacao/cadastro') ? '/diretor/autenticacao/cadastro' : '/diretor/autenticacao/entrar';
+      url.pathname = `/diretor${pathname}`;
       return reescreverComCookies(url);
     }
 
     if (!user) {
       const urlLogin = request.nextUrl.clone();
-      urlLogin.pathname = '/diretor/autenticacao/entrar';
+      urlLogin.pathname = '/autenticacao/entrar';
       urlLogin.searchParams.set('redirecionar', pathname);
       return redirecionarComCookies(urlLogin);
     }
@@ -93,24 +139,21 @@ export async function middleware(request: NextRequest) {
 
     if (!perfil || (perfil.role !== 'diretor' && perfil.role !== 'admin')) {
       const urlLogin = request.nextUrl.clone();
-      urlLogin.pathname = '/diretor/autenticacao/entrar';
+      urlLogin.pathname = '/autenticacao/entrar';
       urlLogin.searchParams.set('erro', 'permissao_negada');
       return redirecionarComCookies(urlLogin);
     }
-
-    if (pathname.startsWith('/diretor')) return response;
 
     const url = request.nextUrl.clone();
     url.pathname = pathname === '/' ? '/diretor' : `/diretor${pathname}`;
     return reescreverComCookies(url);
   }
 
-  // --- REGRA 2: ÁREA DO ADMIN ---
+  // --- REGRAS DO SUBDOMÍNIO DEV / ADMIN ---
   if (ehAreaAdmin) {
-    const ehLoginAdmin = pathname.includes('/autenticacao/entrar');
+    const ehLoginAdmin = pathname === '/autenticacao/entrar';
 
     if (ehLoginAdmin) {
-      if (pathname.startsWith('/admin/')) return response;
       const url = request.nextUrl.clone();
       url.pathname = '/admin/autenticacao/entrar';
       return reescreverComCookies(url);
@@ -118,7 +161,7 @@ export async function middleware(request: NextRequest) {
 
     if (!user) {
       const urlLogin = request.nextUrl.clone();
-      urlLogin.pathname = '/admin/autenticacao/entrar';
+      urlLogin.pathname = '/autenticacao/entrar';
       urlLogin.searchParams.set('redirecionar', pathname);
       return redirecionarComCookies(urlLogin);
     }
@@ -132,27 +175,25 @@ export async function middleware(request: NextRequest) {
 
     if (!perfil || perfil.role !== 'admin') {
       const urlLogin = request.nextUrl.clone();
-      urlLogin.pathname = '/admin/autenticacao/entrar';
+      urlLogin.pathname = '/autenticacao/entrar';
       urlLogin.searchParams.set('erro', 'permissao_negada');
       return redirecionarComCookies(urlLogin);
     }
-
-    if (pathname.startsWith('/admin')) return response;
 
     const url = request.nextUrl.clone();
     url.pathname = pathname === '/' ? '/admin' : `/admin${pathname}`;
     return reescreverComCookies(url);
   }
 
-  // --- REGRA 3: ÁREA DO CLIENTE & APIs ---
+  // --- REGRAS DO SUBDOMÍNIO CLIENTE (PRINCIPAL) & APIS ---
   if (precisaAuthCliente && !user) {
     const urlLogin = request.nextUrl.clone();
-    urlLogin.pathname = '/cliente/autenticacao/entrar';
+    urlLogin.pathname = '/autenticacao/entrar';
     urlLogin.searchParams.set('redirecionar', pathname);
     return redirecionarComCookies(urlLogin);
   }
 
-  if (pathname.startsWith('/cliente') || pathname.startsWith('/api')) {
+  if (pathname.startsWith('/api')) {
     return response;
   }
 

@@ -57,15 +57,15 @@ export async function GET(request: Request) {
             atualizado_em: new Date().toISOString(),
           });
         } else {
-          const protocolo = process.env.NEXT_PUBLIC_PROTOCOLO || 'http';
+          const protocolo = process.env.NEXT_PUBLIC_PROTOCOLO || 'https';
 
           if (perfil.role === 'diretor') {
-            const dominioDiretor = process.env.NEXT_PUBLIC_SUBDOMINIO_DIRETOR || 'diretor.meuingrss.local:3000';
+            const dominioDiretor = (process.env.NEXT_PUBLIC_SUBDOMINIO_DIRETOR || 'diretoria.meuingrss.com.br').replace(/\/+$/, '');
             return NextResponse.redirect(new URL(`${protocolo}://${dominioDiretor}/`));
           }
 
           if (perfil.role === 'admin') {
-            const dominioAdmin = process.env.NEXT_PUBLIC_SUBDOMINIO_ADMIN || 'admin.meuingrss.local:3000';
+            const dominioAdmin = (process.env.NEXT_PUBLIC_SUBDOMINIO_ADMIN || 'dev.meuingrss.com.br').replace(/\/+$/, '');
             return NextResponse.redirect(new URL(`${protocolo}://${dominioAdmin}/`));
           }
         }

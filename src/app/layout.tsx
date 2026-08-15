@@ -16,7 +16,11 @@ export const viewport: Viewport = {
   themeColor: "#080c14",
 };
 
+const dominioPrincipal = (process.env.NEXT_PUBLIC_DOMINIO_PRINCIPAL || 'meuingrss.com.br').replace(/\/+$/, '');
+const protocoloConfig = process.env.NEXT_PUBLIC_PROTOCOLO || 'https';
+
 export const metadata: Metadata = {
+  metadataBase: new URL(`${protocoloConfig}://${dominioPrincipal}`),
   title: "MeuIngrss",
   description: "A plataforma definitiva para compra de ingressos de festas organizadas por atléticas universitárias. Encontre os melhores eventos, compre com segurança e entre com QR Code.",
   keywords: ["ingressos", "festas universitárias", "atlética", "eventos", "QR Code", "calourada"],

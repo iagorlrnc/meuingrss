@@ -4,9 +4,13 @@ import Link from 'next/link';
 import { usarCookies } from '@/contextos/ContextoCookies';
 import { Ticket, CreditCard, ShieldCheck } from 'lucide-react';
 import Logo from '@/componentes/ui/Logo';
+import { construirUrl } from '@/lib/dominios';
 
 export default function Rodape() {
   const { abrirBanner } = usarCookies();
+
+  const urlLoginDiretor = construirUrl('diretor', '/autenticacao/entrar');
+  const urlLoginAdmin = construirUrl('admin', '/autenticacao/entrar');
 
   return (
     <footer className="border-t border-white/10 bg-[#060910] text-slate-400 font-sans relative z-10 pb-safe">
@@ -79,14 +83,14 @@ export default function Rodape() {
                 </Link>
               </li>
               <li>
-                <Link href="/diretor/autenticacao/entrar" className="hover:text-[#ff007a] transition-colors">
+                <a href={urlLoginDiretor} className="hover:text-[#ff007a] transition-colors">
                   Painel do Diretor
-                </Link>
+                </a>
               </li>
               <li>
-                <Link href="/admin/autenticacao/entrar" className="hover:text-amber-400 transition-colors">
+                <a href={urlLoginAdmin} className="hover:text-amber-400 transition-colors">
                   Administração
-                </Link>
+                </a>
               </li>
             </ul>
           </div>

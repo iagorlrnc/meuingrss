@@ -41,12 +41,12 @@ O **meuingrss** foi desenvolvido para transformar a gestão de festas e recepç�
 - **Gestão de Ingressos**: Acesso à carteira digital de ingressos com QR Code dinâmico em tempo real.
 - **Exportação em PDF**: Emissão do ingresso em arquivo PDF otimizado para impressão ou visualização offline.
 
-### 🎪 2. Portal do Diretor da Atlética (`diretor.meuingrss.com.br`)
+### 🎪 2. Portal do Diretor da Atlética (`diretoria.meuingrss.com.br`)
 - **Gestão de Eventos e Lotes**: Criação de festas, configuração de lotes progressivos (1º lote, 2º lote, etc.), limites de quantidade e data/hora de abertura/fechamento.
 - **Scanner Presencial de QR Code**: Validador embutido no navegador (`html5-qrcode`) que utiliza a câmera do celular/tablet para realizar a leitura rápida na portaria do evento.
 - **Métricas e Dashboards de Vendas**: Acompanhamento de receita total, ingressos vendidos, taxa de check-in em tempo real e ticket médio.
 
-### 👑 3. Portal de Administração Geral (`admin.meuingrss.com.br`)
+### 👑 3. Portal de Administração Geral (`dev.meuingrss.com.br`)
 - **Onboarding de Atléticas**: Aprovação e cadastro de novas atléticas parceiras na plataforma.
 - **Visão Global Financeira**: Controle consolidado de vendas, repasses e conciliação de pagamentos.
 - **Auditoria & Segurança**: Gerenciamento de usuários, permissões e status do sistema.
@@ -60,8 +60,8 @@ A aplicação utiliza o **Middleware do Next.js** para realizar o roteamento din
 | Subdomínio | Ambiente Dev Local | Função / Destino no App Router |
 | :--- | :--- | :--- |
 | **Cliente** (`meuingrss.com.br`) | `meuingrss.local:3000` | `src/app/cliente` |
-| **Diretor** (`diretor.meuingrss.com.br`) | `diretor.meuingrss.local:3000` | `src/app/diretor` |
-| **Admin Geral** (`admin.meuingrss.com.br`) | `admin.meuingrss.local:3000` | `src/app/admin` |
+| **Diretor** (`diretoria.meuingrss.com.br`) | `diretoria.meuingrss.local:3000` | `src/app/diretor` |
+| **Admin Geral** (`dev.meuingrss.com.br`) | `dev.meuingrss.local:3000` | `src/app/admin` |
 
 ---
 

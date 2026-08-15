@@ -203,8 +203,8 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
 
   const entrarComGoogle = async () => {
     const origens = typeof window !== 'undefined' ? window.location.origin : '';
-    const protocolo = process.env.NEXT_PUBLIC_PROTOCOLO || 'http';
-    const dominio = process.env.NEXT_PUBLIC_DOMINIO_PRINCIPAL || 'meuingrss.local:3000';
+    const protocolo = process.env.NEXT_PUBLIC_PROTOCOLO || 'https';
+    const dominio = (process.env.NEXT_PUBLIC_DOMINIO_PRINCIPAL || 'meuingrss.com.br').replace(/\/+$/, '');
     const urlRedirecionamento = origens || `${protocolo}://${dominio}`;
 
     await supabase.auth.signInWithOAuth({

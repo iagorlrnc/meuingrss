@@ -21,10 +21,10 @@ import { useState } from 'react';
 import Logo from '@/componentes/ui/Logo';
 
 const itensMenu = [
-  { href: '/diretor', rel: '/', icone: LayoutDashboard, rotulo: 'Dashboard' },
-  { href: '/diretor/atletica', rel: '/atletica', icone: Trophy, rotulo: 'Atlética' },
-  { href: '/diretor/eventos', rel: '/eventos', icone: CalendarDays, rotulo: 'Meus Eventos' },
-  { href: '/diretor/validar-entrada', rel: '/validar-entrada', icone: ScanLine, rotulo: 'Validar Entrada' },
+  { href: '/', icone: LayoutDashboard, rotulo: 'Dashboard' },
+  { href: '/atletica', icone: Trophy, rotulo: 'Atlética' },
+  { href: '/eventos', icone: CalendarDays, rotulo: 'Meus Eventos' },
+  { href: '/validar-entrada', icone: ScanLine, rotulo: 'Validar Entrada' },
 ];
 
 export default function MenuLateralDiretor() {
@@ -33,14 +33,14 @@ export default function MenuLateralDiretor() {
   const [recolhido, setRecolhido] = useState(false);
   const [mobileAberto, setMobileAberto] = useState(false);
 
-  const protocolo = process.env.NEXT_PUBLIC_PROTOCOLO || 'http';
-  const dominioPrincipal = process.env.NEXT_PUBLIC_DOMINIO_PRINCIPAL || 'localhost:3000';
+  const protocolo = process.env.NEXT_PUBLIC_PROTOCOLO || 'https';
+  const dominioPrincipal = (process.env.NEXT_PUBLIC_DOMINIO_PRINCIPAL || 'meuingrss.com.br').replace(/\/+$/, '');
 
   return (
     <>
       {/* Top Mobile Navigation Bar (< md) */}
       <div className="md:hidden fixed top-0 left-0 right-0 h-16 pt-safe bg-[#080c14]/95 backdrop-blur-md border-b border-borda-sutil z-40 px-4 flex items-center justify-between">
-        <Logo href="/diretor" subtitulo="Painel do Diretor" tamanhoIcone="sm" tamanhoTexto="sm" />
+        <Logo href="/" subtitulo="Painel do Diretor" tamanhoIcone="sm" tamanhoTexto="sm" />
 
         <button
           onClick={() => setMobileAberto(!mobileAberto)}
@@ -61,7 +61,7 @@ export default function MenuLateralDiretor() {
 
           <aside className="relative z-10 w-72 bg-[#0b101d] border-r border-borda-sutil flex flex-col h-full shadow-2xl p-4 animate-in slide-in-from-left duration-200">
             <div className="flex items-center justify-between pb-4 border-b border-borda-sutil">
-              <Logo href="/diretor" subtitulo="Painel do Diretor" tamanhoIcone="sm" tamanhoTexto="sm" aoClicar={() => setMobileAberto(false)} />
+              <Logo href="/" subtitulo="Painel do Diretor" tamanhoIcone="sm" tamanhoTexto="sm" aoClicar={() => setMobileAberto(false)} />
               <button
                 onClick={() => setMobileAberto(false)}
                 className="p-1.5 rounded-lg text-texto-terciario hover:text-texto-principal hover:bg-fundo-hover"
@@ -74,9 +74,7 @@ export default function MenuLateralDiretor() {
               {itensMenu.map((item) => {
                 const ativo =
                   pathname === item.href ||
-                  pathname === item.rel ||
-                  (item.href !== '/diretor' && pathname.startsWith(item.href)) ||
-                  (item.rel !== '/' && pathname.startsWith(item.rel));
+                  (item.href !== '/' && pathname.startsWith(item.href));
 
                 return (
                   <Link
@@ -137,7 +135,7 @@ export default function MenuLateralDiretor() {
       >
         <div className="h-16 flex items-center justify-between px-4 border-b border-borda-sutil">
           {!recolhido && (
-            <Logo href="/diretor" subtitulo="Painel do Diretor" tamanhoIcone="sm" tamanhoTexto="sm" />
+            <Logo href="/" subtitulo="Painel do Diretor" tamanhoIcone="sm" tamanhoTexto="sm" />
           )}
           <button
             onClick={() => setRecolhido(!recolhido)}
@@ -151,9 +149,7 @@ export default function MenuLateralDiretor() {
           {itensMenu.map((item) => {
             const ativo =
               pathname === item.href ||
-              pathname === item.rel ||
-              (item.href !== '/diretor' && pathname.startsWith(item.href)) ||
-              (item.rel !== '/' && pathname.startsWith(item.rel));
+              (item.href !== '/' && pathname.startsWith(item.href));
 
             return (
               <Link

@@ -142,8 +142,8 @@ export async function POST(request: NextRequest) {
 
     // 6. Resolução dinâmica e limpa da URL Base do sistema
     const hostHeader = request.headers.get('x-forwarded-host') || request.headers.get('host') || '';
-    const dominioPrincipal = process.env.NEXT_PUBLIC_DOMINIO_PRINCIPAL || 'localhost:3000';
-    const protocoloConfig = process.env.NEXT_PUBLIC_PROTOCOLO || 'http';
+    const dominioPrincipal = (process.env.NEXT_PUBLIC_DOMINIO_PRINCIPAL || 'meuingrss.com.br').replace(/\/+$/, '');
+    const protocoloConfig = process.env.NEXT_PUBLIC_PROTOCOLO || 'https';
 
     // Validar se o host enviado corresponde aos domínios confiáveis do sistema
     let baseUrl = `${protocoloConfig}://${dominioPrincipal}`;
