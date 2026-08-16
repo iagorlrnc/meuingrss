@@ -38,6 +38,7 @@ export default function DashboardDiretor() {
   const [senha, setSenha] = useState('');
   const [erroLogin, setErroLogin] = useState('');
   const [processandoLogin, setProcessandoLogin] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState('');
 
   const supabase = criarClienteNavegador();
 
@@ -186,11 +187,16 @@ export default function DashboardDiretor() {
                 larguraTotal
                 tamanho="lg"
                 carregando={processandoLogin}
+                disabled={processandoLogin || !turnstileToken}
               >
                 Entrar no Painel do Diretor
               </Botao>
 
-              <CaptchaCloudflare />
+              <CaptchaCloudflare
+                onVerify={(token) => setTurnstileToken(token)}
+                onExpire={() => setTurnstileToken('')}
+                onError={() => setTurnstileToken('')}
+              />
             </form>
 
             <div className="mt-8 pt-6 border-t border-borda-sutil text-center space-y-2">

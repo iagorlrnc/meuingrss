@@ -24,6 +24,7 @@ function FormularioEntrar() {
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(false);
   const [modalPendenteAberto, setModalPendenteAberto] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState('');
 
   async function aoSubmeter(e: React.FormEvent) {
     e.preventDefault();
@@ -156,12 +157,16 @@ function FormularioEntrar() {
               larguraTotal
               tamanho="lg"
               carregando={carregando}
-              disabled={bloqueado || carregando}
+              disabled={bloqueado || carregando || !turnstileToken}
             >
               {bloqueado ? `Aguarde ${segundosRestantes}s` : 'Entrar'}
             </Botao>
 
-            <CaptchaCloudflare />
+            <CaptchaCloudflare
+              onVerify={(token) => setTurnstileToken(token)}
+              onExpire={() => setTurnstileToken('')}
+              onError={() => setTurnstileToken('')}
+            />
           </form>
 
           {}

@@ -21,6 +21,7 @@ function FormularioEntrarAdmin() {
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState('');
   const supabase = criarClienteNavegador();
 
   async function aoSubmeter(e: React.FormEvent) {
@@ -141,7 +142,7 @@ function FormularioEntrarAdmin() {
 
             <button
               type="submit"
-              disabled={carregando || bloqueado}
+              disabled={carregando || bloqueado || !turnstileToken}
               className="w-full py-3.5 px-6 rounded-xl font-bold text-sm text-black bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {carregando ? (
@@ -153,7 +154,11 @@ function FormularioEntrarAdmin() {
               )}
             </button>
 
-            <CaptchaCloudflare />
+            <CaptchaCloudflare
+              onVerify={(token) => setTurnstileToken(token)}
+              onExpire={() => setTurnstileToken('')}
+              onError={() => setTurnstileToken('')}
+            />
           </form>
 
           {}

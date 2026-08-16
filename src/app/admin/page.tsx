@@ -45,6 +45,7 @@ export default function DashboardAdmin() {
   const [senha, setSenha] = useState('');
   const [erroLogin, setErroLogin] = useState('');
   const [processandoLogin, setProcessandoLogin] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState('');
 
   const supabase = criarClienteNavegador();
 
@@ -190,7 +191,7 @@ export default function DashboardAdmin() {
 
               <button
                 type="submit"
-                disabled={processandoLogin}
+                disabled={processandoLogin || !turnstileToken}
                 className="w-full py-3.5 px-6 rounded-xl font-bold text-sm text-black bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {processandoLogin ? (
@@ -200,7 +201,11 @@ export default function DashboardAdmin() {
                 )}
               </button>
 
-              <CaptchaCloudflare />
+              <CaptchaCloudflare
+                onVerify={(token) => setTurnstileToken(token)}
+                onExpire={() => setTurnstileToken('')}
+                onError={() => setTurnstileToken('')}
+              />
             </form>
 
             <div className="mt-8 pt-6 border-t border-borda-sutil text-center">

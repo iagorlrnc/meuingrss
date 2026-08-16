@@ -22,6 +22,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import Link from 'next/link';
+import MapPicker from '@/componentes/mapa/MapPicker';
 
 interface LoteForm {
   nome_lote: string;
@@ -43,6 +44,9 @@ export default function PaginaCriarEvento() {
   const [local, setLocal] = useState('');
   const [cidade, setCidade] = useState('');
   const [estado, setEstado] = useState('TO');
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
+  const [localDefinido, setLocalDefinido] = useState<boolean>(true);
 
   // Data e horário mínimo (momento atual em fuso local)
   const dataMinima = (() => {
@@ -166,6 +170,11 @@ export default function PaginaCriarEvento() {
       return;
     }
 
+    if (localDefinido && (latitude === null || longitude === null)) {
+      notificarErro('Localização no mapa obrigatória', 'Por favor, selecione a localização no mapa ou marque "Local não definido".');
+      return;
+    }
+
     setSalvando(true);
 
     try {
@@ -180,6 +189,9 @@ export default function PaginaCriarEvento() {
         data_evento: dataObj.toISOString(),
         local: local.trim(),
         cidade: formatarCidadeEstado(cidade, estado),
+        latitude: localDefinido ? latitude : null,
+        longitude: localDefinido ? longitude : null,
+        local_definido: localDefinido,
         status: publicar ? ('publicado' as const) : ('rascunho' as const),
       };
 
@@ -358,6 +370,22 @@ export default function PaginaCriarEvento() {
               </div>
             </div>
             <CampoTexto rotulo="Local" placeholder="Nome do espaço / endereço" value={local} onChange={(e) => setLocal((e.target as HTMLInputElement).value)} icone={<MapPin size={18} />} required />
+            <MapPicker
+              lat={latitude}
+              lng={longitude}
+              localDefinido={localDefinido}
+              onChange={(lat, lng) => {
+                setLatitude(lat);
+                setLongitude(lng);
+              }}
+              onLocalDefinidoChange={(def) => {
+                setLocalDefinido(def);
+                if (!def) {
+                  setLatitude(null);
+                  setLongitude(null);
+                }
+              }}
+            />
           </div>
         </Cartao>
 

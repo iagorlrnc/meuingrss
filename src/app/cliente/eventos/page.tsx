@@ -233,7 +233,7 @@ function ConteudoEventos() {
                         </div>
 
                         <Botao variante="festiva" tamanho="sm" className="px-2 sm:px-4 py-1 text-[10px] sm:text-xs min-h-[32px] sm:min-h-[36px]">
-                          Comprar
+                          Detalhes
                         </Botao>
                       </>
                     )}

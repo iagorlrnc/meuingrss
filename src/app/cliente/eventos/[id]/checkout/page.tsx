@@ -33,6 +33,7 @@ function ConteudoCheckout() {
   const [carregando, setCarregando] = useState(true);
   const [processando, setProcessando] = useState(false);
   const [erro, setErro] = useState('');
+  const [turnstileToken, setTurnstileToken] = useState('');
   const supabase = criarClienteNavegador();
 
   async function buscarDados() {
@@ -293,13 +294,18 @@ function ConteudoCheckout() {
                 larguraTotal
                 tamanho="xl"
                 carregando={processando}
+                disabled={processando || !turnstileToken}
                 onClick={processarPagamento}
                 icone={<CreditCard size={20} />}
               >
                 Pagar {formatarMoeda(totalFinal)}
               </Botao>
 
-              <CaptchaCloudflare />
+              <CaptchaCloudflare
+                onVerify={(token) => setTurnstileToken(token)}
+                onExpire={() => setTurnstileToken('')}
+                onError={() => setTurnstileToken('')}
+              />
 
               <p className="text-[10px] text-texto-terciario text-center mt-4">
                 Ao clicar em "Pagar", você será redirecionado para o ambiente seguro do Mercado Pago.

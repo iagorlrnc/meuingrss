@@ -54,6 +54,10 @@ export interface Evento {
   data_evento: string;
   local: string;
   cidade: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  endereco_formatado?: string | null;
+  local_definido?: boolean;
   status: StatusEvento;
   apagado_pelo_diretor?: boolean;
   criado_em: string;

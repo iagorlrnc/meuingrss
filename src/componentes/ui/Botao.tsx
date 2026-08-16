@@ -60,7 +60,7 @@ const Botao = memo(
           disabled={disabled || carregando}
           className={cn(
             'inline-flex items-center justify-center font-semibold transition-all duration-200 cursor-pointer touch-manipulation select-none active:scale-[0.98]',
-            'disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none',
+            'disabled:opacity-50 disabled:cursor-not-allowed',
             estilosVariante[variante],
             estilosTamanho[tamanho],
             larguraTotal && 'w-full',
