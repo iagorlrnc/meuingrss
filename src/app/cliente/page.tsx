@@ -261,7 +261,7 @@ function ConteudoPaginaInicial() {
                     <div className="pt-2 flex flex-wrap items-center gap-4">
                       <Link href={`/eventos/${eventoDestaque.slug || eventoDestaque.id}`}>
                         <Botao variante={esgotadoHero ? 'fantasma' : 'festiva'} tamanho="xl" disabled={esgotadoHero}>
-                          {esgotadoHero ? 'INGRESSOS ESGOTADOS' : 'COMPRAR INGRESSO'}
+                          {esgotadoHero ? 'INGRESSOS ESGOTADOS' : 'DETALHES'}
                           <ChevronRight size={18} className="ml-1" />
                         </Botao>
                       </Link>
@@ -459,7 +459,7 @@ function ConteudoPaginaInicial() {
                           </div>
 
                           <Botao variante="festiva" tamanho="sm" className="px-2 sm:px-4 py-1 text-[10px] sm:text-xs min-h-[32px] sm:min-h-[36px]">
-                            Comprar
+                            Detalhes
                           </Botao>
                         </>
                       )}

@@ -171,6 +171,7 @@ function ComponenteDetalheEvento({ eventoInicial }: ConteudoDetalheEventoProps) 
   }
 
   function aoComprar() {
+    if (!podeComprar) return;
     if (!usuario) {
       router.push(`/autenticacao/entrar?redirecionar=/eventos/${params.id}`);
       return;
@@ -205,6 +206,31 @@ function ComponenteDetalheEvento({ eventoInicial }: ConteudoDetalheEventoProps) 
 
   const lote = obterLoteSelecionado();
   const disponiveis = lotesDisponiveis();
+  const statusEvento = evento?.status;
+  const ehPublicado = statusEvento === 'publicado';
+  const ehCancelado = statusEvento === 'cancelado';
+  const ehEncerrado = statusEvento === 'encerrado' || (evento?.data_evento ? new Date(evento.data_evento) < new Date() : false);
+  const podeComprar = ehPublicado && !ehCancelado && !ehEncerrado;
+
+  const textoBotaoDesktop = ehCancelado
+    ? 'CANCELADO'
+    : ehEncerrado
+    ? 'ENCERRADO'
+    : !ehPublicado
+    ? (statusEvento ? statusEvento.toUpperCase() : 'NÃO PUBLICADO')
+    : usuario
+    ? 'COMPRAR INGRESSO'
+    : 'ENTRAR PARA COMPRAR';
+
+  const textoBotaoMobile = ehCancelado
+    ? 'CANCELADO'
+    : ehEncerrado
+    ? 'ENCERRADO'
+    : !ehPublicado
+    ? (statusEvento ? statusEvento.toUpperCase() : 'NÃO PUBLICADO')
+    : usuario
+    ? 'COMPRAR'
+    : 'ENTRAR';
 
   return (
     <div className="min-h-screen bg-[#080c14] text-white">
@@ -466,6 +492,8 @@ function ComponenteDetalheEvento({ eventoInicial }: ConteudoDetalheEventoProps) 
                         </p>
                         {!l.ativo ? (
                           <span className="text-[10px] font-black uppercase text-slate-400">Inativo</span>
+                        ) : !podeComprar ? (
+                          <span className="text-[10px] font-black uppercase text-red-500">Indisponível</span>
                         ) : l.quantidade_total - l.quantidade_vendida > 0 ? (
                           <span className="text-[10px] font-black uppercase text-emerald-400">Disponível</span>
                         ) : (
@@ -571,14 +599,18 @@ function ComponenteDetalheEvento({ eventoInicial }: ConteudoDetalheEventoProps) 
                       return (
                         <button
                           key={l.id}
+                          disabled={!podeComprar}
                           onClick={() => {
+                            if (!podeComprar) return;
                             setLoteSelecionado(l.id);
                             setQuantidade(1);
                           }}
                           className={`w-full p-3.5 rounded-md border text-left transition-all ${
-                            selecionado
-                              ? 'border-[#ff007a] bg-[#ff007a]/15 shadow-lg'
-                              : 'border-white/10 bg-[#162036] hover:border-white/30'
+                            !podeComprar
+                              ? 'border-white/5 bg-[#162036]/50 opacity-60 cursor-not-allowed'
+                              : selecionado
+                              ? 'border-[#ff007a] bg-[#ff007a]/15 shadow-lg cursor-pointer'
+                              : 'border-white/10 bg-[#162036] hover:border-white/30 cursor-pointer'
                           }`}
                         >
                           <div className="flex items-center justify-between">
@@ -589,8 +621,10 @@ function ComponenteDetalheEvento({ eventoInicial }: ConteudoDetalheEventoProps) 
                           </div>
                           <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-400">
                             <Users size={12} />
-                            <span>{restantes} ingressos restantes</span>
-                            {restantes <= 15 && (
+                            <span>
+                              {podeComprar ? `${restantes} ingressos restantes` : 'Indisponível'}
+                            </span>
+                            {podeComprar && restantes <= 15 && (
                               <span className="text-red-400 font-bold">• Poucas vagas</span>
                             )}
                           </div>
@@ -604,8 +638,9 @@ function ComponenteDetalheEvento({ eventoInicial }: ConteudoDetalheEventoProps) 
                       <span className="text-xs font-black uppercase text-slate-300">Quantidade</span>
                       <div className="flex items-center gap-3">
                         <button
-                          onClick={() => setQuantidade(Math.max(1, quantidade - 1))}
-                          className="w-8 h-8 rounded-md bg-[#080c14] flex items-center justify-center text-white hover:bg-[#ff007a] transition-colors"
+                          disabled={!podeComprar || quantidade <= 1}
+                          onClick={() => podeComprar && setQuantidade(Math.max(1, quantidade - 1))}
+                          className="w-8 h-8 rounded-md bg-[#080c14] flex items-center justify-center text-white hover:bg-[#ff007a] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#080c14]"
                         >
                           <Minus size={14} />
                         </button>
@@ -613,11 +648,13 @@ function ComponenteDetalheEvento({ eventoInicial }: ConteudoDetalheEventoProps) 
                           {quantidade}
                         </span>
                         <button
+                          disabled={!podeComprar || (lote && quantidade >= Math.min(5, lote.quantidade_total - lote.quantidade_vendida))}
                           onClick={() => {
+                            if (!podeComprar || !lote) return;
                             const max = lote.quantidade_total - lote.quantidade_vendida;
                             setQuantidade(Math.min(5, max, quantidade + 1));
                           }}
-                          className="w-8 h-8 rounded-md bg-[#080c14] flex items-center justify-center text-white hover:bg-[#ff007a] transition-colors"
+                          className="w-8 h-8 rounded-md bg-[#080c14] flex items-center justify-center text-white hover:bg-[#ff007a] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#080c14]"
                         >
                           <Plus size={14} />
                         </button>
@@ -638,10 +675,10 @@ function ComponenteDetalheEvento({ eventoInicial }: ConteudoDetalheEventoProps) 
                     larguraTotal
                     tamanho="xl"
                     onClick={aoComprar}
-                    disabled={!loteSelecionado}
-                    variante="festiva"
+                    disabled={!podeComprar || !loteSelecionado}
+                    variante={podeComprar ? 'festiva' : 'fantasma'}
                   >
-                    {usuario ? 'COMPRAR INGRESSO' : 'ENTRAR PARA COMPRAR'}
+                    {textoBotaoDesktop}
                   </Botao>
 
                   <div className="flex items-center justify-center gap-2 text-[10px] uppercase font-bold text-slate-400 pt-1">
@@ -650,10 +687,28 @@ function ComponenteDetalheEvento({ eventoInicial }: ConteudoDetalheEventoProps) 
                   </div>
                 </>
               ) : (
-                <div className="text-center py-8">
+                <div className="text-center py-8 space-y-4">
                   <Clock className="w-10 h-10 text-slate-500 mx-auto mb-2" />
-                  <p className="text-sm font-bold uppercase text-white">Ingressos Esgotados</p>
-                  <p className="text-xs text-slate-400 mt-1">Acompanhe as atualizações de novos lotes.</p>
+                  <p className="text-sm font-bold uppercase text-white">
+                    {ehCancelado ? 'Evento Cancelado' : ehEncerrado ? 'Evento Encerrado' : 'Ingressos Esgotados'}
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {ehCancelado
+                      ? 'Este evento foi cancelado pela organização.'
+                      : ehEncerrado
+                      ? 'As vendas para este evento foram encerradas.'
+                      : 'Acompanhe as atualizações de novos lotes.'}
+                  </p>
+                  {!podeComprar && (
+                    <Botao
+                      larguraTotal
+                      tamanho="xl"
+                      disabled={true}
+                      variante="fantasma"
+                    >
+                      {textoBotaoDesktop}
+                    </Botao>
+                  )}
                 </div>
               )}
             </div>
@@ -661,23 +716,27 @@ function ComponenteDetalheEvento({ eventoInicial }: ConteudoDetalheEventoProps) 
         </div>
       </main>
 
-      {disponiveis.length > 0 && (
+      {(disponiveis.length > 0 || !podeComprar) && (
         <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#0b101d]/95 backdrop-blur-md px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] border-t border-white/20 shadow-2xl flex items-center justify-between gap-3">
           <div>
-            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Total ({quantidade}x)</span>
+            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+              {podeComprar ? `Total (${quantidade}x)` : 'Status'}
+            </span>
             <span className="text-lg font-black text-[#00e5ff]">
-              {lote ? formatarMoeda(lote.preco * quantidade) : 'Selecione'}
+              {podeComprar
+                ? lote ? formatarMoeda(lote.preco * quantidade) : 'Selecione'
+                : ehCancelado ? 'Cancelado' : ehEncerrado ? 'Encerrado' : 'Indisponível'}
             </span>
           </div>
 
           <Botao
             tamanho="md"
             onClick={aoComprar}
-            disabled={!loteSelecionado}
-            variante="festiva"
+            disabled={!podeComprar || !loteSelecionado}
+            variante={podeComprar ? 'festiva' : 'fantasma'}
             className="flex-1 max-w-[200px]"
           >
-            {usuario ? 'COMPRAR' : 'ENTRAR'}
+            {textoBotaoMobile}
           </Botao>
         </div>
       )}
