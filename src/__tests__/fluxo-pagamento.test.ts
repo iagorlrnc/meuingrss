@@ -9,6 +9,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import crypto from 'crypto';
 
 // ========================================================================
 // Funções puras extraídas para teste unitário
@@ -27,7 +28,6 @@ function validarAssinaturaLocal(
   if (!xSignatureHeader || !xRequestIdHeader || !dataId || !secret) return false;
 
   try {
-    const crypto = require('crypto');
     const parts = xSignatureHeader.split(',');
     let ts = '';
     let hashV1 = '';
@@ -126,7 +126,6 @@ function mapearStatusGateway(statusGateway: string): string {
 
 describe('Validação de Assinatura HMAC do Webhook', () => {
   const secret = 'test-webhook-secret-123';
-  const crypto = require('crypto');
 
   function gerarAssinaturaValida(dataId: string, requestId: string): string {
     const ts = String(Math.floor(Date.now() / 1000));

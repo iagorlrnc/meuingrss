@@ -54,7 +54,7 @@ type StatusPedido = 'aguardando' | 'aprovado' | 'cancelado' | 'erro' | null;
 const INGRESSOS_POR_PAGINA = 20;
 
 // Cache em memória para carregamento instantâneo (0ms) por usuário ao alternar de aba
-let cacheIngressosPorUsuario: Record<string, IngressoCompleto[]> = {};
+const cacheIngressosPorUsuario: Record<string, IngressoCompleto[]> = {};
 
 function ConteudoMeusIngressos() {
   const { usuario, perfil, carregando: carregandoAuth } = usarAutenticacao();

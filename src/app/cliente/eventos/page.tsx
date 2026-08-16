@@ -42,8 +42,6 @@ function ConteudoEventos() {
     setCidade(c);
   }, [searchParams]);
 
-  useEffect(() => { buscarEventos(); }, []);
-
   async function buscarEventos() {
     if (!cacheEventos) setCarregando(true);
     const { data } = await supabase
@@ -63,6 +61,8 @@ function ConteudoEventos() {
     }
     setCarregando(false);
   }
+
+  useEffect(() => { buscarEventos(); }, []);
 
   const eventosFiltrados = eventos.filter(e => {
     const matchBusca = !busca ||

@@ -64,6 +64,29 @@ function ConteudoPaginaInicial() {
     carregarCidades();
   }, [supabase]);
 
+  async function buscarEventos() {
+    setCarregando(true);
+    const { data } = await supabase
+      .from('eventos')
+      .select(`
+        id, slug, titulo, descricao, imagem_url, data_evento, local, cidade, status, apagado_pelo_diretor,
+        atletica:atleticas(id, nome, logo_url),
+        lotes_ingresso(id, evento_id, nome_lote, preco, quantidade_total, quantidade_vendida, ordem, ativo)
+      `)
+      .eq('apagado_pelo_diretor', false)
+      .in('status', ['publicado', 'encerrado', 'cancelado'])
+      .order('data_evento', { ascending: true })
+      .range(0, 49);
+
+    if (data) {
+      const validos = (data as unknown as (EventoComLote & { apagado_pelo_diretor?: boolean })[]).filter(e => !e.apagado_pelo_diretor);
+      const ordenados = ordenarEventosPorPrioridade(validos);
+      salvarVariosEventosCache(ordenados as unknown as import('@/lib/cacheEventos').EventoCompleto[]);
+      setEventos(ordenados);
+    }
+    setCarregando(false);
+  }
+
   useEffect(() => {
     buscarEventos();
   }, []);
@@ -92,29 +115,6 @@ function ConteudoPaginaInicial() {
 
     return () => clearInterval(interval);
   }, [eventosHero.length]);
-
-  async function buscarEventos() {
-    setCarregando(true);
-    const { data } = await supabase
-      .from('eventos')
-      .select(`
-        id, slug, titulo, descricao, imagem_url, data_evento, local, cidade, status, apagado_pelo_diretor,
-        atletica:atleticas(id, nome, logo_url),
-        lotes_ingresso(id, evento_id, nome_lote, preco, quantidade_total, quantidade_vendida, ordem, ativo)
-      `)
-      .eq('apagado_pelo_diretor', false)
-      .in('status', ['publicado', 'encerrado', 'cancelado'])
-      .order('data_evento', { ascending: true })
-      .limit(12);
-
-    if (data) {
-      const validos = (data as unknown as (EventoComLote & { apagado_pelo_diretor?: boolean })[]).filter(e => !e.apagado_pelo_diretor);
-      const ordenados = ordenarEventosPorPrioridade(validos);
-      salvarVariosEventosCache(ordenados as unknown as import('@/lib/cacheEventos').EventoCompleto[]);
-      setEventos(ordenados);
-    }
-    setCarregando(false);
-  }
 
   function proximoDestaque() {
     if (eventosHero.length <= 1 || !visivelHero) return;

@@ -80,12 +80,6 @@ export default function PaginaVendas() {
   const [ingressoSelecionado, setIngressoSelecionado] = useState<IngressoComDetalhes | null>(null);
   const [codigoCopiado, setCodigoCopiado] = useState(false);
 
-  useEffect(() => {
-    if (params.id) {
-      buscar();
-    }
-  }, [params.id]);
-
   async function buscar() {
     setCarregando(true);
     try {

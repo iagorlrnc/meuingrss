@@ -41,14 +41,6 @@ export default function DashboardDiretor() {
 
   const supabase = criarClienteNavegador();
 
-  useEffect(() => {
-    if (perfil && (perfil.role === 'diretor' || perfil.role === 'admin')) {
-      buscarDados();
-    } else {
-      setCarregandoDados(false);
-    }
-  }, [perfil]);
-
   async function buscarDados() {
     let query = supabase
       .from('eventos')
@@ -58,19 +50,18 @@ export default function DashboardDiretor() {
     if (perfil?.atletica_id) {
       query = query.eq('atletica_id', perfil.atletica_id);
     }
-
-    const { data: todosEventos } = await query;
-
-    if (todosEventos) {
-      const eventos = (todosEventos as Evento[]).filter((e: Evento) => !e.apagado_pelo_diretor);
+    const { data } = await query;
+    if (data) {
+      const eventos = data as (Evento & { lotes_ingresso?: LoteIngresso[] })[];
       setEventosRecentes(eventos.slice(0, 5));
 
-      const ativos = eventos.filter((e: Evento) => e.status === 'publicado').length;
       let totalVendido = 0;
       let receita = 0;
+      let ativos = 0;
 
-      eventos.forEach((e: Evento) => {
-        e.lotes_ingresso?.forEach((l: LoteIngresso) => {
+      eventos.forEach((ev) => {
+        if (ev.status === 'publicado') ativos++;
+        ev.lotes_ingresso?.forEach((l) => {
           totalVendido += l.quantidade_vendida;
           receita += l.quantidade_vendida * l.preco;
         });
@@ -80,6 +71,14 @@ export default function DashboardDiretor() {
     }
     setCarregandoDados(false);
   }
+
+  useEffect(() => {
+    if (perfil && (perfil.role === 'diretor' || perfil.role === 'admin')) {
+      buscarDados();
+    } else {
+      setCarregandoDados(false);
+    }
+  }, [perfil]);
 
   async function aoSubmeterLogin(e: React.FormEvent) {
     e.preventDefault();

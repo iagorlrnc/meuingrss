@@ -24,12 +24,6 @@ export default function PaginaEventosDiretor() {
   const [processandoApagar, setProcessandoApagar] = useState(false);
   const supabase = criarClienteNavegador();
 
-  useEffect(() => {
-    if (!carregandoAuth) {
-      buscar();
-    }
-  }, [carregandoAuth, perfil]);
-
   async function buscar() {
     setCarregando(true);
     try {
@@ -38,34 +32,16 @@ export default function PaginaEventosDiretor() {
         return;
       }
 
-      let idAtletica = perfil.atletica_id;
-
-      if (!idAtletica && perfil.id) {
-        const { data: usuarioPerfil } = await supabase
-          .from('profiles')
-          .select('atletica_id')
-          .eq('id', perfil.id)
-          .maybeSingle();
-
-        if (usuarioPerfil?.atletica_id) {
-          idAtletica = usuarioPerfil.atletica_id;
-        }
-      }
-
       let query = supabase
         .from('eventos')
-        .select('*, lotes_ingresso(*)')
-        .eq('apagado_pelo_diretor', false)
-        .order('criado_em', { ascending: false });
+        .select('*, lotes_ingresso(*)');
 
-      if (idAtletica) {
-        query = query.eq('atletica_id', idAtletica);
+      if (perfil.role !== 'admin') {
+        query = query.eq('organizador_id', perfil.id);
       }
 
-      const { data, error } = await query;
-      if (error) {
-        console.error('Erro ao buscar eventos do diretor:', error);
-      }
+      const { data } = await query.order('criado_em', { ascending: false });
+
       if (data) {
         setEventos((data as (Evento & { lotes_ingresso?: LoteIngresso[] })[]).filter((e) => !e.apagado_pelo_diretor));
       }
@@ -75,6 +51,12 @@ export default function PaginaEventosDiretor() {
       setCarregando(false);
     }
   }
+
+  useEffect(() => {
+    if (!carregandoAuth) {
+      buscar();
+    }
+  }, [carregandoAuth, perfil]);
 
   function tentarApagarEvento(e: Evento & { lotes_ingresso?: LoteIngresso[] }) {
     setEventoParaApagar(e);
@@ -205,7 +187,7 @@ export default function PaginaEventosDiretor() {
 
             <div className="space-y-3">
               <p className="text-sm text-texto-principal">
-                Tem certeza que deseja apagar o evento <strong className="text-white">"{eventoParaApagar.titulo}"</strong>?
+                Tem certeza que deseja apagar o evento <strong className="text-white">&quot;{eventoParaApagar.titulo}&quot;</strong>?
               </p>
 
               <div className="p-3 rounded-xl bg-erro/10 border border-erro/20 text-xs text-erro leading-relaxed">

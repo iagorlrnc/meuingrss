@@ -94,6 +94,70 @@ export default function PaginaConfiguracaoAtletica() {
   const refInputLogo = useRef<HTMLInputElement>(null);
   const refInputCapa = useRef<HTMLInputElement>(null);
 
+  async function carregarDadosAtletica() {
+    setCarregando(true);
+    try {
+      let idParaBuscar = perfil?.atletica_id;
+
+      // Se não tiver atletica_id diretamente no perfil, buscar se existe alguma atletica vinculada
+      if (!idParaBuscar && perfil?.id) {
+        const { data: usuarioPerfil } = await supabase
+          .from('profiles')
+          .select('atletica_id')
+          .eq('id', perfil.id)
+          .maybeSingle();
+
+        if (usuarioPerfil?.atletica_id) {
+          idParaBuscar = usuarioPerfil.atletica_id;
+        }
+      }
+
+      let query = supabase.from('atleticas').select('*');
+
+      if (idParaBuscar) {
+        query = query.eq('id', idParaBuscar);
+      }
+
+      const { data, error } = await query.maybeSingle();
+
+      if (error) {
+        console.error('Erro ao buscar atlética:', error);
+      }
+
+      if (data) {
+        const a = data as unknown as import('@/tipos').Atletica;
+        setAtleticaId(a.id);
+        setNome(a.nome || '');
+        setFaculdade(a.faculdade || '');
+        setCidade(a.cidade || '');
+        setDescricao(a.descricao || '');
+        setLogoUrl(a.logo_url || '');
+        setCapaUrl(a.capa_url || '');
+
+        setCorPrimaria((a as unknown as Record<string, string>).cor_primaria || '#FF6B00');
+        setCorSecundaria((a as unknown as Record<string, string>).cor_secundaria || '#000000');
+
+        const inst = (a as unknown as Record<string, string>).instagram || '';
+        const whatsappLimpo = ((a as unknown as Record<string, string>).whatsapp || '').replace(/\D/g, '');
+        const emailCont = (a as unknown as Record<string, string>).email_contato || (a as unknown as Record<string, string>).email || '';
+        const pix = (a as unknown as Record<string, string>).chave_pix || '';
+
+        setInstagram(inst ? inst.replace('@', '') : '');
+        setWhatsapp(whatsappLimpo);
+        setEmailContato(emailCont);
+        setChavePix(pix);
+      } else {
+        setNome('Sua Atlética');
+        setFaculdade('Sua Faculdade');
+        setCidade('Sua Cidade');
+      }
+    } catch (e) {
+      console.error('Falha ao carregar atlética:', e);
+    } finally {
+      setCarregando(false);
+    }
+  }
+
   useEffect(() => {
     if (perfil) {
       carregarDadosAtletica();
@@ -140,92 +204,6 @@ export default function PaginaConfiguracaoAtletica() {
     }
     setEditando(false);
     notificarInfo('Edição cancelada', 'As alterações não salvas foram descartadas.');
-  }
-
-  async function carregarDadosAtletica() {
-    setCarregando(true);
-    try {
-      let idParaBuscar = perfil?.atletica_id;
-
-      // Se não tiver atletica_id diretamente no perfil, buscar se existe alguma atletica vinculada
-      if (!idParaBuscar && perfil?.id) {
-        const { data: usuarioPerfil } = await supabase
-          .from('profiles')
-          .select('atletica_id')
-          .eq('id', perfil.id)
-          .maybeSingle();
-
-        if (usuarioPerfil?.atletica_id) {
-          idParaBuscar = usuarioPerfil.atletica_id;
-        }
-      }
-
-      if (idParaBuscar) {
-        setAtleticaId(idParaBuscar);
-        const { data: atl, error } = await supabase
-          .from('atleticas')
-          .select('id, nome, faculdade, cidade, logo_url, capa_url, descricao, cor_primaria, cor_secundaria, instagram, whatsapp, email_contato, chave_pix, status')
-          .eq('id', idParaBuscar)
-          .maybeSingle();
-
-        if (error) {
-          console.error('Erro ao buscar atlética:', error);
-        }
-
-        if (atl) {
-          const vNome = atl.nome || '';
-          const vFaculdade = atl.faculdade || '';
-          const vCidade = atl.cidade || '';
-          const vDescricao = atl.descricao || '';
-          const vLogoUrl = atl.logo_url || '';
-          const vCapaUrl = atl.capa_url || '';
-          const vCorPrimaria = atl.cor_primaria || '#ff007a';
-          const vCorSecundaria = atl.cor_secundaria || '#8b5cf6';
-          const vInstagram = atl.instagram || '';
-          const vWhatsapp = formatarTelefone(atl.whatsapp || '');
-          const vEmailContato = atl.email_contato || '';
-          const vChavePix = atl.chave_pix || '';
-
-          setNome(vNome);
-          setFaculdade(vFaculdade);
-          setCidade(vCidade);
-          setDescricao(vDescricao);
-          setLogoUrl(vLogoUrl);
-          setCapaUrl(vCapaUrl);
-          setCorPrimaria(vCorPrimaria);
-          setCorSecundaria(vCorSecundaria);
-          setInstagram(vInstagram);
-          setWhatsapp(vWhatsapp);
-          setEmailContato(vEmailContato);
-          setChavePix(vChavePix);
-          setStatus(atl.status || 'ativa');
-
-          setDadosSnapshot({
-            nome: vNome,
-            faculdade: vFaculdade,
-            cidade: vCidade,
-            descricao: vDescricao,
-            logoUrl: vLogoUrl,
-            capaUrl: vCapaUrl,
-            corPrimaria: vCorPrimaria,
-            corSecundaria: vCorSecundaria,
-            instagram: vInstagram,
-            whatsapp: vWhatsapp,
-            emailContato: vEmailContato,
-            chavePix: vChavePix,
-          });
-        }
-      } else {
-        // Diretor ainda sem atlética cadastrada - carregar valores padrão baseados no perfil
-        setNome('Sua Atlética');
-        setFaculdade('Sua Faculdade');
-        setCidade('Sua Cidade');
-      }
-    } catch (e) {
-      console.error('Falha ao carregar atlética:', e);
-    } finally {
-      setCarregando(false);
-    }
   }
 
   const [enviandoImagem, setEnviandoImagem] = useState(false);
@@ -321,7 +299,7 @@ export default function PaginaConfiguracaoAtletica() {
 
       if (atleticaId) {
         // Tenta atualizar incluindo novos campos, com fallback gracioso se algum campo não existir na tabela
-        let { error: errUpdate } = await supabase
+        const { error: errUpdate } = await supabase
           .from('atleticas')
           .update(dadosAtletica)
           .eq('id', atleticaId);

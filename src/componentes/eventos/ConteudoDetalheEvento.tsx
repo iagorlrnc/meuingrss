@@ -60,36 +60,6 @@ function ComponenteDetalheEvento({ eventoInicial }: ConteudoDetalheEventoProps) 
 
   const supabase = criarClienteNavegador();
 
-  useEffect(() => {
-    if (eventoInicial) {
-      salvarEventoCache(eventoInicial);
-      setEvento(eventoInicial);
-      setCarregando(false);
-      const lotes = eventoInicial.lotes_ingresso
-        .filter(l => l.ativo && l.quantidade_vendida < l.quantidade_total)
-        .sort((a, b) => a.ordem - b.ordem);
-      if (lotes.length > 0 && !loteSelecionado) {
-        setLoteSelecionado(lotes[0].id);
-      }
-    } else if (eventoId) {
-      const cache = obterEventoCache(eventoId);
-      if (cache) {
-        setEvento(cache);
-        setCarregando(false);
-        const lotes = cache.lotes_ingresso
-          .filter(l => l.ativo && l.quantidade_vendida < l.quantidade_total)
-          .sort((a, b) => a.ordem - b.ordem);
-        if (lotes.length > 0 && !loteSelecionado) {
-          setLoteSelecionado(lotes[0].id);
-        }
-      }
-    }
-    buscarEvento();
-    if (searchParams.get('pagamento_cancelado') === 'true') {
-      setBannerCancelamento(true);
-    }
-  }, [eventoId, searchParams, eventoInicial]);
-
   async function buscarEvento() {
     if (!eventoId) return;
     if (!obterEventoCache(eventoId) && !eventoInicial) {
@@ -130,6 +100,36 @@ function ComponenteDetalheEvento({ eventoInicial }: ConteudoDetalheEventoProps) 
     }
     setCarregando(false);
   }
+
+  useEffect(() => {
+    if (eventoInicial) {
+      salvarEventoCache(eventoInicial);
+      setEvento(eventoInicial);
+      setCarregando(false);
+      const lotes = eventoInicial.lotes_ingresso
+        .filter(l => l.ativo && l.quantidade_vendida < l.quantidade_total)
+        .sort((a, b) => a.ordem - b.ordem);
+      if (lotes.length > 0 && !loteSelecionado) {
+        setLoteSelecionado(lotes[0].id);
+      }
+    } else if (eventoId) {
+      const cache = obterEventoCache(eventoId);
+      if (cache) {
+        setEvento(cache);
+        setCarregando(false);
+        const lotes = cache.lotes_ingresso
+          .filter(l => l.ativo && l.quantidade_vendida < l.quantidade_total)
+          .sort((a, b) => a.ordem - b.ordem);
+        if (lotes.length > 0 && !loteSelecionado) {
+          setLoteSelecionado(lotes[0].id);
+        }
+      }
+    }
+    buscarEvento();
+    if (searchParams.get('pagamento_cancelado') === 'true') {
+      setBannerCancelamento(true);
+    }
+  }, [eventoId, searchParams, eventoInicial]);
 
   async function aoCompartilhar() {
     if (!evento) return;
