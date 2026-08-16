@@ -12,7 +12,6 @@ import {
   CheckCircle,
   HelpCircle,
   ArrowRight,
-  Sparkles,
 } from 'lucide-react';
 
 export default function PaginaTermosEPrivacidade() {

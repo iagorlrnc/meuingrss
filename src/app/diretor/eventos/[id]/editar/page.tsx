@@ -19,7 +19,6 @@ import {
   Upload,
   Trash2,
   ChevronDown,
-  AlertCircle,
 } from 'lucide-react';
 import Link from 'next/link';
 import MapPicker from '@/componentes/mapa/MapPicker';

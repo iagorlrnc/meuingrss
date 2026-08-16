@@ -14,15 +14,9 @@ import {
   Mail,
   Lock,
   ArrowLeft,
-  ShieldCheck,
   Clock,
-  Eye,
-  EyeOff,
   TrendingUp,
   QrCode,
-  CheckCircle2,
-  Sparkles,
-  Shield,
   ArrowRight
 } from 'lucide-react';
 
@@ -52,6 +46,13 @@ function FormularioEntrarDiretor() {
       setModalPendenteAberto(true);
     }
   }, [searchParams]);
+
+  function fecharModalPendente() {
+    setModalPendenteAberto(false);
+    if (typeof window !== 'undefined' && window.history) {
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  }
 
   async function aoSubmeter(e: React.FormEvent) {
     e.preventDefault();
@@ -336,7 +337,7 @@ function FormularioEntrarDiretor() {
       {/* Modal Pop-up de Aguardando Aprovação */}
       <Modal
         aberto={modalPendenteAberto}
-        aoFechar={() => setModalPendenteAberto(false)}
+        aoFechar={fecharModalPendente}
         tamanho="sm"
       >
         <div className="text-center space-y-4 py-2">
@@ -353,13 +354,13 @@ function FormularioEntrarDiretor() {
           </p>
 
           <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 font-medium">
-            ⏳ Você receberá a permissão de acesso ao painel assim que o administrador aprovar seu credenciamento.
+            Você receberá a permissão de acesso ao painel assim que o administrador aprovar seu credenciamento.
           </div>
 
           <Botao
             variante="festiva"
             larguraTotal
-            onClick={() => setModalPendenteAberto(false)}
+            onClick={fecharModalPendente}
           >
             Entendido
           </Botao>

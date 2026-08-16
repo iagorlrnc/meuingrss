@@ -142,11 +142,14 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
     if (error) {
       // 2. Registrar erro e atualizar contador do IP
       const errStatus = await checarRateLimitOuRegistrar('registrar_erro', tipoContexto);
-      let msgFinal = error.message.includes('Invalid login')
-        ? tipoContexto === 'admin'
+      let msgFinal = error.message;
+      if (error.message.includes('Email not confirmed')) {
+        msgFinal = 'Seu e-mail de cadastro ainda não foi confirmado. Verifique sua caixa de entrada ou aguarde a aprovação do administrador.';
+      } else if (error.message.includes('Invalid login')) {
+        msgFinal = tipoContexto === 'admin'
           ? 'Credenciais administrativas incorretas'
-          : 'Email ou senha incorretos'
-        : error.message;
+          : 'Email ou senha incorretos';
+      }
 
       if (errStatus.mensagem) {
         msgFinal = `${msgFinal}. ${errStatus.mensagem}`;
@@ -187,10 +190,14 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
     // Validação estrita: Bloquear atribuição pública do papel de 'admin'
     const roleValido: 'cliente' | 'diretor' = role === 'diretor' ? 'diretor' : 'cliente';
 
-    const { data: authData, error } = await supabase.auth.signUp({
-      email,
-      password: senha,
-      options: {
+    // 1. Tenta resgatar a sessão prévia estabelecida por OTP (se houver)
+    const { data: { session } } = await supabase.auth.getSession();
+    let userObj: User | null = session?.user || null;
+
+    if (userObj) {
+      // Se o usuário já está logado via OTP, grava a senha diretamente no auth.users
+      const { error: errUpdate } = await supabase.auth.updateUser({
+        password: senha,
         data: {
           nome,
           role: roleValido,
@@ -206,40 +213,36 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
           atletica_cidade: metadadosAdicionais.atleticaCidade || null,
           atletica_estado: metadadosAdicionais.atleticaEstado || 'TO',
         },
-      },
-    });
+      });
 
-    let userObj = authData?.user;
+      if (errUpdate) {
+        console.error('Erro ao definir senha do usuário via updateUser:', errUpdate);
+      }
+    } else {
+      // Se não há sessão OTP prévia, faz o signUp definindo a senha
+      const { data: authData, error } = await supabase.auth.signUp({
+        email,
+        password: senha,
+        options: {
+          data: {
+            nome,
+            role: roleValido,
+            telefone: metadadosAdicionais.telefone || null,
+            cpf: metadadosAdicionais.cpf || null,
+            cargo: metadadosAdicionais.cargo || null,
+            atleticaNome: metadadosAdicionais.atleticaNome || null,
+            atleticaSigla: metadadosAdicionais.atleticaSigla || null,
+            atleticaCidade: metadadosAdicionais.atleticaCidade || null,
+            atleticaEstado: metadadosAdicionais.atleticaEstado || 'TO',
+            atletica_nome: metadadosAdicionais.atleticaNome || null,
+            atletica_sigla: metadadosAdicionais.atleticaSigla || null,
+            atletica_cidade: metadadosAdicionais.atleticaCidade || null,
+            atletica_estado: metadadosAdicionais.atleticaEstado || 'TO',
+          },
+        },
+      });
 
-    // Se o usuário foi pré-criado/verificado via OTP na etapa anterior, recupera a sessão ativa
-    if (!userObj) {
-      const { data: userData } = await supabase.auth.getUser();
-      if (userData?.user) {
-        userObj = userData.user;
-        try {
-          await supabase.auth.updateUser({
-            password: senha,
-            data: {
-              nome,
-              role: roleValido,
-              telefone: metadadosAdicionais.telefone || null,
-              cpf: metadadosAdicionais.cpf || null,
-              cargo: metadadosAdicionais.cargo || null,
-              atleticaNome: metadadosAdicionais.atleticaNome || null,
-              atleticaSigla: metadadosAdicionais.atleticaSigla || null,
-              atleticaCidade: metadadosAdicionais.atleticaCidade || null,
-              atleticaEstado: metadadosAdicionais.atleticaEstado || 'TO',
-              atletica_nome: metadadosAdicionais.atleticaNome || null,
-              atletica_sigla: metadadosAdicionais.atleticaSigla || null,
-              atletica_cidade: metadadosAdicionais.atleticaCidade || null,
-              atletica_estado: metadadosAdicionais.atleticaEstado || 'TO',
-            },
-          });
-        } catch (uErr) {
-          console.error('Erro ao atualizar usuário auth:', uErr);
-        }
-      } else if (error) {
-        // Erro real de signup sem usuário logado
+      if (error) {
         const errStatus = await checarRateLimitOuRegistrar('registrar_erro');
         let msgFinal = error.message;
         if (errStatus.mensagem) {
@@ -252,6 +255,7 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
           rateLimitData: errStatus,
         };
       }
+      userObj = authData?.user || null;
     }
 
     if (userObj) {

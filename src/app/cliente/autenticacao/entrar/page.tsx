@@ -11,7 +11,7 @@ import Modal from '@/componentes/ui/Modal';
 import Carregando from '@/componentes/ui/Carregando';
 import CaptchaCloudflare from '@/componentes/ui/CaptchaCloudflare';
 import { useRateLimitAuth } from '@/hooks/useRateLimitAuth';
-import { Ticket, Mail, Lock, ArrowLeft, Clock, ShieldAlert } from 'lucide-react';
+import { Ticket, Mail, Lock, ArrowLeft, Clock } from 'lucide-react';
 
 function FormularioEntrar() {
   const { entrar, entrarComGoogle } = usarAutenticacao();

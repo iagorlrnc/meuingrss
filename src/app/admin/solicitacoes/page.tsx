@@ -12,12 +12,10 @@ import type { Perfil, Atletica } from '@/tipos';
 import {
   Check,
   X,
-  Building2,
   Trophy,
   User,
   Mail,
   Phone,
-  Shield,
   Clock,
   Search,
   ClipboardList,
@@ -236,13 +234,7 @@ export default function PaginaSolicitacoesAdmin() {
     );
   });
 
-  if (carregando) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <Carregando tamanho="lg" />
-      </div>
-    );
-  }
+
 
   return (
     <div className="space-y-6">

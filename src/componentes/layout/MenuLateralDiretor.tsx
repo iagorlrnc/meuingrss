@@ -10,7 +10,6 @@ import {
   CalendarDays,
   ScanLine,
   LogOut,
-  Ticket,
   ExternalLink,
   ChevronLeft,
   ChevronRight,

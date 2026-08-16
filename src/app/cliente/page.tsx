@@ -11,20 +11,12 @@ import { formatarData, formatarDataHora, formatarMoeda, ordenarEventosPorPriorid
 import type { Evento, LoteIngresso } from '@/tipos';
 import BarraNavegacaoMobile from '@/componentes/layout/BarraNavegacaoMobile';
 import {
-  Search,
   MapPin,
   Calendar,
   Ticket,
   Users,
-  Sparkles,
-  Zap,
-  CheckCircle2,
-  Clock,
   ChevronRight,
-  ChevronLeft,
   Flame,
-  Home,
-  Trophy,
 } from 'lucide-react';
 
 import { obterCidadesCache, obterOuBuscarCidades, salvarVariosEventosCache } from '@/lib/cacheEventos';

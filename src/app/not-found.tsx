@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Compass, Home, ArrowLeft, Ticket, CalendarDays } from 'lucide-react';
+import { Home, ArrowLeft, Ticket, CalendarDays } from 'lucide-react';
 import Botao from '@/componentes/ui/Botao';
 import Logo from '@/componentes/ui/Logo';
 

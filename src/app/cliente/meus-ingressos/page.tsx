@@ -25,19 +25,15 @@ import {
   MapPin, 
   QrCode, 
   Download, 
-  Info, 
-  User, 
   Building2, 
   Loader2, 
   CheckCircle2,
-  FileText,
   ShieldCheck,
   XCircle,
   Clock,
   RefreshCw,
   AlertTriangle,
 } from 'lucide-react';
-import QRCode from 'qrcode';
 import { gerarPdfIngresso } from '@/lib/gerarPdfIngresso';
 import { gerarQrCodeDataUrlComLogo } from '@/lib/gerarQrCode';
 

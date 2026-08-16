@@ -52,7 +52,7 @@ export default function PaginaGestaoAtleticas() {
     buscar();
   }
 
-  if (carregando) return <div className="flex items-center justify-center h-96"><Carregando tamanho="lg" /></div>;
+
 
   return (
     <div>

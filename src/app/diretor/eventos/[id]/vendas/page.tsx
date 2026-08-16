@@ -13,7 +13,6 @@ import { criarClienteNavegador } from '@/lib/supabase/cliente';
 import { useNotificacao } from '@/componentes/ui/Notificacao';
 import {
   formatarMoeda,
-  formatarDataCurta,
   formatarDataHora,
   formatarTelefone,
   formatarCPF,
@@ -25,23 +24,12 @@ import {
   DollarSign,
   Users,
   TrendingUp,
-  BarChart3,
   Search,
-  User,
   Mail,
   Phone,
   CreditCard,
-  QrCode,
-  Calendar,
   Eye,
   X,
-  Copy,
-  Check,
-  Filter,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  Sparkles,
 } from 'lucide-react';
 
 import type { Evento, LoteIngresso, Ingresso } from '@/tipos';

@@ -15,7 +15,6 @@ import {
   ExternalLink,
   ChevronLeft,
   ChevronRight,
-  Settings,
   Menu as MenuIcon,
   X,
 } from 'lucide-react';

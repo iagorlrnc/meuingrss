@@ -91,10 +91,6 @@ export function cn(...classes: (string | boolean | undefined | null)[]): string 
   return classes.filter(Boolean).join(' ');
 }
 
-export function esperar(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 export function formatarTelefone(valor: string): string {
   const apenasNumeros = valor.replace(/\D/g, '').slice(0, 11);
   if (apenasNumeros.length <= 2) {
@@ -293,8 +289,6 @@ export function avaliarSenha(senha: string): StatusValidacaoSenha {
   const temEspecial = /[^A-Za-z0-9]/.test(senha);
 
   const requisitosAtendidos = [temMinimo8, temMaiuscula, temNumero, temEspecial].filter(Boolean).length;
-  const valida = temMinimo8 && temMaiuscula && temNumero && temEspecial;
-
   if (!senha || senha.length === 0) {
     return {
       temMinimo8: false,

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, Suspense } from 'react';
-import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { usarAutenticacao } from '@/contextos/ContextoAutenticacao';
 import Botao from '@/componentes/ui/Botao';

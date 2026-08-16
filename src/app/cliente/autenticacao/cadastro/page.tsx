@@ -17,7 +17,6 @@ import {
   User,
   ArrowLeft,
   CheckCircle,
-  Sparkles,
   Phone,
   CreditCard,
   KeyRound,

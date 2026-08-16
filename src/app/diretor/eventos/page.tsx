@@ -11,7 +11,7 @@ import { criarClienteNavegador } from '@/lib/supabase/cliente';
 import { usarAutenticacao } from '@/contextos/ContextoAutenticacao';
 import { useNotificacao } from '@/componentes/ui/Notificacao';
 import { formatarDataCurta, formatarMoeda } from '@/lib/utilitarios';
-import { CalendarPlus, BarChart3, Edit, Eye, Plus, Ticket, Trash2, AlertTriangle, X } from 'lucide-react';
+import { CalendarPlus, BarChart3, Edit, Plus, Ticket, Trash2, AlertTriangle, X } from 'lucide-react';
 
 import type { Evento, LoteIngresso } from '@/tipos';
 
@@ -107,7 +107,7 @@ export default function PaginaEventosDiretor() {
     }
   }
 
-  if (carregando || carregandoAuth) return <div className="flex items-center justify-center h-96"><Carregando tamanho="lg" texto="Carregando eventos..." /></div>;
+
 
   return (
     <div>

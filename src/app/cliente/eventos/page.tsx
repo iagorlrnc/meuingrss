@@ -12,7 +12,7 @@ import { criarClienteNavegador } from '@/lib/supabase/cliente';
 import { formatarData, formatarMoeda, ordenarEventosPorPrioridade, matchFiltroCidade } from '@/lib/utilitarios';
 import type { Evento, LoteIngresso, Atletica } from '@/tipos';
 import BarraNavegacaoMobile from '@/componentes/layout/BarraNavegacaoMobile';
-import { Search, Calendar, MapPin, Users, Ticket, SlidersHorizontal } from 'lucide-react';
+import { Calendar, MapPin, Users, Ticket, SlidersHorizontal } from 'lucide-react';
 
 import { salvarVariosEventosCache } from '@/lib/cacheEventos';
 

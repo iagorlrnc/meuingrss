@@ -8,7 +8,7 @@ import CampoTexto from '@/componentes/ui/CampoTexto';
 import { criarClienteNavegador } from '@/lib/supabase/cliente';
 import { usarAutenticacao } from '@/contextos/ContextoAutenticacao';
 import { useNotificacao } from '@/componentes/ui/Notificacao';
-import { formatarData, mascararMoeda, desmascararMoeda, gerarSlugUnico, formatarCidadeEstado, tratarMudancaDataEvento } from '@/lib/utilitarios';
+import { mascararMoeda, desmascararMoeda, gerarSlugUnico, formatarCidadeEstado, tratarMudancaDataEvento } from '@/lib/utilitarios';
 import {
   ArrowLeft,
   Plus,

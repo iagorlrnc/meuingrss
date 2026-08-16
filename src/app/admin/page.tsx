@@ -21,7 +21,6 @@ import {
   Mail,
   Lock,
   ArrowLeft,
-  Settings,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -123,16 +122,9 @@ export default function DashboardAdmin() {
     setProcessandoLogin(false);
   }
 
-  if (carregandoAuth) {
-    return (
-      <div className="flex items-center justify-center min-h-[70vh]">
-        <Carregando tamanho="lg" texto="Carregando portal do administrador..." />
-      </div>
-    );
-  }
-
-  
   const estaAutenticadoAdmin = Boolean(usuario && perfil && perfil.role === 'admin');
+
+
 
   if (!estaAutenticadoAdmin) {
     return (

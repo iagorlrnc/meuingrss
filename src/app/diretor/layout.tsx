@@ -34,13 +34,7 @@ export default function LayoutDiretor({
     }
   }, [carregando, usuario, perfil, ehPaginaAutenticacao, router, sair]);
 
-  if (carregando) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#080c14]">
-        <Carregando tamanho="lg" texto="Carregando portal do diretor..." />
-      </div>
-    );
-  }
+
 
   // Se for qualquer página sob /autenticacao ou não estiver autenticado/ativo, renderiza sem a barra lateral
   if (ehPaginaAutenticacao || !usuario || !perfil || perfil.status !== 'ativo') {

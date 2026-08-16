@@ -22,13 +22,9 @@ import {
   MapPin,
   AtSign,
   Phone,
-  Mail,
-  QrCode,
   Trash2,
   Eye,
-  RefreshCw,
   Check,
-  Plus,
   FileText,
   Edit3,
   Lock,
@@ -360,14 +356,7 @@ export default function PaginaConfiguracaoAtletica() {
     }
   }
 
-  if (carregando) {
-    return (
-      <div className="flex flex-col items-center justify-center h-96 gap-4">
-        <Carregando tamanho="lg" />
-        <p className="text-sm text-texto-terciario animate-pulse">Carregando perfil da atlética...</p>
-      </div>
-    );
-  }
+
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto pb-12">

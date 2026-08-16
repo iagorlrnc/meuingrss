@@ -12,7 +12,7 @@ import { criarClienteNavegador } from '@/lib/supabase/cliente';
 import { useNotificacao } from '@/componentes/ui/Notificacao';
 import { formatarDataCurta, obterIniciais } from '@/lib/utilitarios';
 import type { Perfil, Atletica } from '@/tipos';
-import { Search, UserCheck, UserX, Users, Edit3, Building2, Check } from 'lucide-react';
+import { Search, Users, Edit3, Check } from 'lucide-react';
 
 export default function PaginaGestaoUsuarios() {
   const [usuarios, setUsuarios] = useState<Perfil[]>([]);

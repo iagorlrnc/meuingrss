@@ -19,17 +19,10 @@ import {
   Building2,
   Phone,
   Briefcase,
-  Shield,
   MapPin,
   Check,
-  Sparkles,
-  Eye,
-  EyeOff,
-  Percent,
   Clock,
   QrCode,
-  Award,
-  CheckCircle2,
   ChevronDown,
   Trophy,
   CreditCard,
@@ -255,7 +248,8 @@ export default function PaginaCadastroDiretor() {
       setErro(resultado.erro);
       setCarregando(false);
     } else {
-      // Redireciona diretamente para a tela de login do diretor exibindo o pop-up modal
+      // Encerra a sessão temporária de OTP e redireciona para a tela de login do diretor exibindo o modal
+      await supabase.auth.signOut();
       window.location.href = '/autenticacao/entrar?pendente=1';
     }
   }

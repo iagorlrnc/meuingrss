@@ -13,13 +13,7 @@ export default function LayoutAdmin({
   const pathname = usePathname();
   const { usuario, perfil, carregando } = usarAutenticacao();
 
-  if (carregando) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-fundo-principal">
-        <Carregando tamanho="lg" texto="Carregando portal administrativo..." />
-      </div>
-    );
-  }
+
 
   const ehPaginaLogin = pathname.includes('/autenticacao/entrar');
   const estaAutenticado = Boolean(usuario && perfil && perfil.role === 'admin');

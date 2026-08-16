@@ -116,16 +116,9 @@ export default function DashboardDiretor() {
     setProcessandoLogin(false);
   }
 
-  if (carregandoAuth) {
-    return (
-      <div className="flex items-center justify-center min-h-[70vh]">
-        <Carregando tamanho="lg" texto="Carregando portal do diretor..." />
-      </div>
-    );
-  }
-
-  
   const estaAutenticado = Boolean(usuario && perfil && (perfil.role === 'diretor' || perfil.role === 'admin'));
+
+
 
   if (!estaAutenticado) {
     return (

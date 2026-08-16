@@ -38,7 +38,6 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  const protocolo = process.env.NEXT_PUBLIC_PROTOCOLO || 'https';
   const dominioDiretoria = (
     process.env.NEXT_PUBLIC_SUBDOMINIO_DIRETORIA ||
     process.env.NEXT_PUBLIC_SUBDOMINIO_DIRETOR ||
