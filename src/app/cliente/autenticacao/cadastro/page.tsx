@@ -1,15 +1,29 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usarAutenticacao } from '@/contextos/ContextoAutenticacao';
 import Botao from '@/componentes/ui/Botao';
 import CampoTexto from '@/componentes/ui/CampoTexto';
 import { formatarTelefone, formatarCPF } from '@/lib/utilitarios';
-import { Ticket, Mail, Lock, User, ArrowLeft, CheckCircle, Sparkles, Phone, CreditCard } from 'lucide-react';
+import { criarClienteNavegador } from '@/lib/supabase/cliente';
+import {
+  Ticket,
+  Mail,
+  Lock,
+  User,
+  ArrowLeft,
+  CheckCircle,
+  Sparkles,
+  Phone,
+  CreditCard,
+  KeyRound,
+  ShieldCheck,
+} from 'lucide-react';
 
 export default function PaginaCadastro() {
   const { cadastrar, entrarComGoogle } = usarAutenticacao();
+  const supabase = criarClienteNavegador();
 
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
@@ -17,21 +31,122 @@ export default function PaginaCadastro() {
   const [cpf, setCpf] = useState('');
   const [senha, setSenha] = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
+
+  // Validação de E-mail via Código (OTP)
+  const [codigoEnviado, setCodigoEnviado] = useState(false);
+  const [enviandoCodigo, setEnviandoCodigo] = useState(false);
+  const [codigo, setCodigo] = useState('');
+  const [validandoCodigo, setValidandoCodigo] = useState(false);
+  const [emailVerificado, setEmailVerificado] = useState(false);
+  const [tempoReenvio, setTempoReenvio] = useState(0);
+
   const [erro, setErro] = useState('');
   const [sucesso, setSucesso] = useState(false);
   const [carregando, setCarregando] = useState(false);
+
+  // Contador regressivo para reenviar código
+  useEffect(() => {
+    if (tempoReenvio <= 0) return;
+    const interval = setInterval(() => {
+      setTempoReenvio((prev) => prev - 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [tempoReenvio]);
+
+  async function enviarCodigoValidacao() {
+    setErro('');
+    if (!email || !email.includes('@')) {
+      setErro('Informe um e-mail válido para receber o código.');
+      return;
+    }
+
+    setEnviandoCodigo(true);
+    try {
+      // Tenta enviar o OTP via Supabase Auth
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: true,
+        },
+      });
+
+      if (error) {
+        const msg = error.message || '';
+        if (msg.includes('rate limit') || msg.includes('over_email_send_rate_limit') || error.status === 429) {
+          setErro(
+            'Limite de envio de e-mails atingido (SMTP). Aguarde alguns minutos ou certifique-se de que o Custom SMTP está ativado.'
+          );
+        } else if (msg.includes('Error sending confirmation email') || msg.includes('confirmation email') || msg.includes('smtp') || msg.includes('SMTP')) {
+          setErro(
+            'Configuração de e-mail necessária: No painel do Supabase (Authentication -> Email Settings), altere o campo "Sender Email" (Remetente) para o mesmo e-mail/domínio validado no seu provedor (Resend / Brevo).'
+          );
+        } else {
+          setErro(msg);
+        }
+      } else {
+        setCodigoEnviado(true);
+        setTempoReenvio(60);
+      }
+    } catch {
+      setErro('Erro de conexão ao enviar o código de validação.');
+    } finally {
+      setEnviandoCodigo(false);
+    }
+  }
+
+  async function validarCodigoOtp() {
+    setErro('');
+    if (codigo.length < 6) {
+      setErro('Digite o código de 6 dígitos enviado para seu e-mail.');
+      return;
+    }
+
+    setValidandoCodigo(true);
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email,
+        token: codigo,
+        type: 'email',
+      });
+
+      if (error) {
+        setErro('Código de verificação inválido ou expirado.');
+      } else {
+        setEmailVerificado(true);
+      }
+    } catch {
+      setErro('Erro de conexão ao validar o código.');
+    } finally {
+      setValidandoCodigo(false);
+    }
+  }
 
   async function aoSubmeter(e: React.FormEvent) {
     e.preventDefault();
     setErro('');
 
+    if (!nome.trim()) {
+      setErro('Por favor, informe seu nome completo.');
+      return;
+    }
+
+    if (!cpf.trim()) {
+      setErro('Por favor, informe seu CPF.');
+      return;
+    }
+
+    if (!email.trim() || !email.includes('@')) {
+      setErro('Por favor, informe um e-mail válido.');
+      return;
+    }
+
     if (senha.length < 6) {
-      setErro('A senha deve ter pelo menos 6 caracteres');
+      setErro('A senha deve ter pelo menos 6 caracteres.');
       return;
     }
 
     if (senha !== confirmarSenha) {
-      setErro('As senhas não coincidem');
+      setErro('As senhas não coincidem.');
       return;
     }
 
@@ -66,9 +181,7 @@ export default function PaginaCadastro() {
             Cadastro realizado!
           </h2>
           <p className="text-sm text-slate-300 mb-6 leading-relaxed">
-            Sua conta foi criada com sucesso!
-            Enviamos um link de confirmação para{' '}
-            <strong className="text-white font-medium">{email}</strong>.
+            Sua conta foi criada e seu e-mail <strong className="text-white font-medium">{email}</strong> foi validado com sucesso!
           </p>
           <Link href="/autenticacao/entrar">
             <Botao variante="festiva" larguraTotal tamanho="lg">
@@ -134,15 +247,82 @@ export default function PaginaCadastro() {
               required
             />
 
-            <CampoTexto
-              rotulo="Email"
-              type="email"
-              placeholder="seu@email.com"
-              value={email}
-              onChange={(e) => setEmail((e.target as HTMLInputElement).value)}
-              icone={<Mail size={18} />}
-              required
-            />
+            {/* Campo E-mail + Botão de Envio de Código */}
+            <div className="space-y-2">
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <CampoTexto
+                    rotulo="Email"
+                    type="email"
+                    placeholder="seu@email.com"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail((e.target as HTMLInputElement).value);
+                      if (emailVerificado) setEmailVerificado(false);
+                      if (codigoEnviado) setCodigoEnviado(false);
+                    }}
+                    icone={<Mail size={18} />}
+                    disabled={emailVerificado}
+                    required
+                  />
+                </div>
+
+                {!emailVerificado && (
+                  <Botao
+                    type="button"
+                    variante="contorno"
+                    tamanho="md"
+                    disabled={enviandoCodigo || tempoReenvio > 0 || !email || !email.includes('@')}
+                    carregando={enviandoCodigo}
+                    onClick={enviarCodigoValidacao}
+                    className="shrink-0 h-[46px] text-xs font-bold whitespace-nowrap px-3 mt-6 border-white/20 hover:border-[#00e5ff]"
+                  >
+                    {tempoReenvio > 0 ? `${tempoReenvio}s` : codigoEnviado ? 'Reenviar' : 'Enviar Código'}
+                  </Botao>
+                )}
+              </div>
+
+              {/* Status de E-mail Verificado */}
+              {emailVerificado && (
+                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs font-bold text-emerald-400 animar-entrar-escala">
+                  <ShieldCheck size={16} />
+                  <span>E-mail verificado com sucesso!</span>
+                </div>
+              )}
+
+              {/* Caixa para Digitar e Confirmar Código (OTP) */}
+              {codigoEnviado && !emailVerificado && (
+                <div className="p-3.5 rounded-2xl bg-[#162036] border border-[#00e5ff]/30 space-y-3 animar-entrar-baixo">
+                  <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                    <KeyRound size={14} className="text-[#00e5ff]" />
+                    Digite o código de 6 dígitos enviado para seu e-mail:
+                  </label>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      maxLength={6}
+                      placeholder="000000"
+                      value={codigo}
+                      onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ''))}
+                      className="w-full bg-[#080c14] border border-white/15 rounded-xl px-4 py-2.5 text-center text-lg font-black font-mono tracking-widest text-white focus:outline-none focus:border-[#00e5ff]"
+                    />
+
+                    <Botao
+                      type="button"
+                      variante="festiva"
+                      tamanho="md"
+                      carregando={validandoCodigo}
+                      disabled={codigo.length < 6 || validandoCodigo}
+                      onClick={validarCodigoOtp}
+                      className="shrink-0 h-[44px] text-xs px-4"
+                    >
+                      Validar
+                    </Botao>
+                  </div>
+                </div>
+              )}
+            </div>
 
             <CampoTexto
               rotulo="Telefone / WhatsApp"
@@ -228,5 +408,3 @@ export default function PaginaCadastro() {
     </div>
   );
 }
-
-
