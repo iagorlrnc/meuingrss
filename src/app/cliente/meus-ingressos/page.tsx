@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { gerarPdfIngresso } from '@/lib/gerarPdfIngresso';
+import { gerarQrCodeDataUrlComLogo } from '@/lib/gerarQrCode';
 
 interface IngressoCompleto extends Ingresso {
   evento: Evento & {
@@ -276,12 +277,7 @@ function ConteudoMeusIngressos() {
   async function abrirDetalhesEQrCode(ingresso: IngressoCompleto) {
     setIngressoSelecionado(ingresso);
     try {
-      const url = await QRCode.toDataURL(ingresso.qr_code_hash, {
-        width: 320,
-        margin: 2,
-        color: { dark: '#111827', light: '#ffffff' },
-        errorCorrectionLevel: 'H',
-      });
+      const url = await gerarQrCodeDataUrlComLogo(ingresso.qr_code_hash, '/logomueingrss.png');
       setQrCodeUrl(url);
     } catch (err) {
       console.error('Erro ao gerar QR code:', err);
@@ -295,12 +291,7 @@ function ConteudoMeusIngressos() {
       // Garante que o QR code esteja gerado para inclusão no PDF
       let qrCode = qrCodeUrl;
       if (ingressoSelecionado?.id !== ingresso.id || !qrCode) {
-        qrCode = await QRCode.toDataURL(ingresso.qr_code_hash, {
-          width: 320,
-          margin: 2,
-          color: { dark: '#111827', light: '#ffffff' },
-          errorCorrectionLevel: 'H',
-        });
+        qrCode = await gerarQrCodeDataUrlComLogo(ingresso.qr_code_hash, '/logomueingrss.png');
       }
 
       await gerarPdfIngresso(
