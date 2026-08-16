@@ -9,7 +9,7 @@ import {
   CalendarDays,
   Users,
   ClipboardList,
-  Shield,
+  Trophy,
   BarChart3,
   LogOut,
   ExternalLink,
@@ -27,7 +27,7 @@ const itensMenu = [
   { href: '/eventos', icone: CalendarDays, rotulo: 'Eventos' },
   { href: '/usuarios', icone: Users, rotulo: 'Usuários' },
   { href: '/solicitacoes', icone: ClipboardList, rotulo: 'Solicitações' },
-  { href: '/atleticas', icone: Shield, rotulo: 'Atléticas' },
+  { href: '/atleticas', icone: Trophy, rotulo: 'Atléticas' },
   { href: '/relatorios', icone: BarChart3, rotulo: 'Relatórios' },
 ];
 

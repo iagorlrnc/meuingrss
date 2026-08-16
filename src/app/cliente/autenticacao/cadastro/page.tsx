@@ -277,20 +277,39 @@ export default function PaginaCadastro() {
               type="text"
               placeholder="Seu nome"
               value={nome}
-              onChange={(e) => setNome((e.target as HTMLInputElement).value)}
+              onChange={(e) => {
+                setErro('');
+                setNome((e.target as HTMLInputElement).value);
+              }}
               icone={<User size={18} />}
               required
             />
 
-            <CampoTexto
-              rotulo="CPF"
-              type="text"
-              placeholder="000.000.000-00"
-              value={cpf}
-              onChange={(e) => setCpf(formatarCPF((e.target as HTMLInputElement).value))}
-              icone={<CreditCard size={18} />}
-              required
-            />
+            <div className="space-y-1">
+              <CampoTexto
+                rotulo="CPF"
+                type="text"
+                placeholder="000.000.000-00"
+                value={cpf}
+                onChange={(e) => {
+                  setErro('');
+                  setCpf(formatarCPF((e.target as HTMLInputElement).value));
+                }}
+                icone={<CreditCard size={18} />}
+                required
+              />
+              {cpf.replace(/\D/g, '').length === 11 && (
+                validarCPF(cpf) ? (
+                  <p className="text-[11px] font-semibold text-emerald-400 pl-1 flex items-center gap-1">
+                    <span>✓</span> CPF válido
+                  </p>
+                ) : (
+                  <p className="text-[11px] font-semibold text-red-400 pl-1 flex items-center gap-1">
+                    <span>✕</span> CPF inválido. Verifique os números digitados.
+                  </p>
+                )
+              )}
+            </div>
 
             {/* Verificação de E-mail com Validação Instantânea */}
             <div className="space-y-2">
@@ -302,6 +321,7 @@ export default function PaginaCadastro() {
                     placeholder="seu@email.com"
                     value={email}
                     onChange={(e) => {
+                      setErro('');
                       const novoEmail = (e.target as HTMLInputElement).value;
                       setEmail(novoEmail);
                       if (novoEmail !== emailEnviado) {

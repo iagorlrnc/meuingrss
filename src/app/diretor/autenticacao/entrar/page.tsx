@@ -29,12 +29,15 @@ import {
 import { useRateLimitAuth } from '@/hooks/useRateLimitAuth';
 import CaptchaCloudflare from '@/componentes/ui/CaptchaCloudflare';
 
+import { construirUrl } from '@/lib/dominios';
+
 function FormularioEntrarDiretor() {
   const { entrar } = usarAutenticacao();
   const { bloqueado, segundosRestantes, mensagemRateLimit, aplicarStatus } = useRateLimitAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
   const redirecionar = searchParams.get('redirecionar') || '/';
+  const urlSitePrincipal = construirUrl('cliente', '/');
 
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
@@ -57,9 +60,50 @@ function FormularioEntrarDiretor() {
     setErro('');
     setCarregando(true);
 
+    const emailTratado = email.trim().toLowerCase();
+
+    // 1. Verifica preventivamente se o e-mail possui um cadastro pendente de aprovação
+    try {
+      const { data: statusResp } = await supabase.rpc('verificar_status_cadastro', {
+        p_email: emailTratado,
+      });
+
+      const infoStatus = Array.isArray(statusResp) ? statusResp[0] : statusResp;
+
+      if (infoStatus?.status === 'pendente') {
+        await supabase.auth.signOut();
+        setModalPendenteAberto(true);
+        setErro('Sua solicitação de cadastro para o painel de diretor está em análise pelo administrador. Aguarde a aprovação para acessar o sistema.');
+        setCarregando(false);
+        return;
+      }
+    } catch (eCheck) {
+      console.warn('Não foi possível pré-verificar o status do e-mail:', eCheck);
+    }
+
+    // 2. Realiza a tentativa de autenticação
     const resultado = await entrar(email, senha);
 
     if (resultado.erro) {
+      // Caso a senha esteja errada ou haja erro de login, verifica se a conta está pendente para dar o aviso correto
+      try {
+        const { data: perfilPendente } = await supabase
+          .from('profiles')
+          .select('status, role')
+          .eq('email', emailTratado)
+          .maybeSingle();
+
+        if (perfilPendente?.status === 'pendente' || (perfilPendente?.role === 'diretor' && perfilPendente?.status === 'pendente')) {
+          await supabase.auth.signOut();
+          setModalPendenteAberto(true);
+          setErro('Sua solicitação de cadastro para o painel de diretor está em análise pelo administrador. Aguarde a aprovação para acessar o sistema.');
+          setCarregando(false);
+          return;
+        }
+      } catch (errCheck) {
+        console.warn('Erro ao consultar perfil pendente:', errCheck);
+      }
+
       if (resultado.rateLimitData) {
         aplicarStatus(resultado.rateLimitData);
       }
@@ -68,6 +112,7 @@ function FormularioEntrarDiretor() {
       return;
     }
 
+    // 3. Validação da sessão ativada
     const { data: { user } } = await supabase.auth.getUser();
 
     if (user) {
@@ -80,12 +125,13 @@ function FormularioEntrarDiretor() {
       if (perfil?.status === 'pendente') {
         await supabase.auth.signOut();
         setModalPendenteAberto(true);
+        setErro('Sua solicitação de cadastro para o painel de diretor está em análise pelo administrador. Aguarde a aprovação para acessar o sistema.');
         setCarregando(false);
         return;
       }
 
       if (perfil?.status === 'bloqueado') {
-        setErro('Sua conta de diretor foi recusada ou está bloqueada pelo administrador.');
+        setErro('Sua solicitação de cadastro de diretor foi recusada ou está bloqueada pelo administrador.');
         await supabase.auth.signOut();
         setCarregando(false);
         return;
@@ -113,13 +159,13 @@ function FormularioEntrarDiretor() {
       <div className="hidden lg:flex lg:col-span-6 xl:col-span-7 flex-col justify-between p-12 xl:p-16 relative z-10 border-r border-white/10 bg-gradient-to-br from-[#0b101c]/90 via-[#080c14]/95 to-[#080c14]">
         <div>
           {/* Navegação Superior */}
-          <Link
-            href="/"
+          <a
+            href={urlSitePrincipal}
             className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-white transition-all uppercase tracking-wider bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full border border-white/10 w-fit mb-12"
           >
             <ArrowLeft size={14} />
             Voltar ao site principal
-          </Link>
+          </a>
 
           {/* Headline & Badges */}
           <div className="max-w-xl space-y-6">
@@ -174,13 +220,13 @@ function FormularioEntrarDiretor() {
       <div className="lg:col-span-6 xl:col-span-5 flex flex-col justify-center items-center p-3 sm:p-8 lg:p-12 relative z-10 w-full">
         {/* Botão de voltar visível apenas no mobile */}
         <div className="w-full max-w-md lg:hidden mb-4 sm:mb-6">
-          <Link
-            href="/"
+          <a
+            href={urlSitePrincipal}
             className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-white transition-all uppercase tracking-wider bg-white/5 hover:bg-white/10 px-3.5 py-2 rounded-full border border-white/10"
           >
             <ArrowLeft size={14} />
             Voltar ao site principal
-          </Link>
+          </a>
         </div>
 
         <div className="w-full max-w-md vidro-forte rounded-3xl p-5 sm:p-8 md:p-10 shadow-2xl animar-entrar-baixo border border-white/15 backdrop-blur-2xl bg-[#0d1322]/90">

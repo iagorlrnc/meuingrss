@@ -11,12 +11,14 @@ import CaptchaCloudflare from '@/componentes/ui/CaptchaCloudflare';
 import { criarClienteNavegador } from '@/lib/supabase/cliente';
 import { useRateLimitAuth } from '@/hooks/useRateLimitAuth';
 import { Shield, Mail, Lock, ArrowLeft, Ticket, Clock } from 'lucide-react';
+import { construirUrl } from '@/lib/dominios';
 
 function FormularioEntrarAdmin() {
   const { entrar } = usarAutenticacao();
   const { bloqueado, segundosRestantes, mensagemRateLimit, aplicarStatus } = useRateLimitAuth();
   const searchParams = useSearchParams();
   const redirecionar = searchParams.get('redirecionar') || '/';
+  const urlSitePrincipal = construirUrl('cliente', '/');
 
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
@@ -53,7 +55,7 @@ function FormularioEntrarAdmin() {
         .single();
 
       if (!perfil || perfil.role !== 'admin') {
-        setErro('Acesso restrito. Esta conta não possui privilégios de administrador da plataforma.');
+        setErro('Acesso negado. Apenas administradores do sistema.');
         await supabase.auth.signOut();
         setCarregando(false);
         return;
@@ -70,13 +72,13 @@ function FormularioEntrarAdmin() {
       <div className="w-96 h-96 rounded-full bg-red-500/10 blur-3xl absolute bottom-10 right-0 pointer-events-none" />
 
       <div className="w-full max-w-md relative z-10">
-        <Link
-          href="/"
+        <a
+          href={urlSitePrincipal}
           className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-white transition-all uppercase tracking-wider mb-4 sm:mb-6 bg-white/5 hover:bg-white/10 px-3.5 py-2 rounded-full border border-white/10"
         >
           <ArrowLeft size={14} />
           Voltar ao site principal
-        </Link>
+        </a>
 
         <div className="vidro-forte rounded-3xl p-5 sm:p-8 shadow-glass animar-entrar-baixo border border-amber-500/30 backdrop-blur-2xl bg-[#0d1322]/90">
           <div className="flex items-center gap-3.5 mb-6 sm:mb-8 pb-5 border-b border-white/10">

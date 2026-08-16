@@ -25,10 +25,12 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 
+import { construirUrl } from '@/lib/dominios';
 import type { Evento } from '@/tipos';
 
 export default function DashboardAdmin() {
   const { usuario, perfil, entrar, carregando: carregandoAuth } = usarAutenticacao();
+  const urlSitePrincipal = construirUrl('cliente', '/');
   const [stats, setStats] = useState({
     totalUsuarios: 0,
     totalEventos: 0,
@@ -139,13 +141,13 @@ export default function DashboardAdmin() {
         <div className="w-96 h-96 rounded-full bg-red-500/10 blur-3xl absolute bottom-10 right-0 pointer-events-none" />
 
         <div className="w-full max-w-md relative z-10">
-          <Link
-            href="/"
+          <a
+            href={urlSitePrincipal}
             className="inline-flex items-center gap-2 text-sm text-texto-secundario hover:text-texto-principal transition-colors mb-8"
           >
             <ArrowLeft size={16} />
             Voltar ao site principal
-          </Link>
+          </a>
 
           <div className="vidro-forte rounded-3xl p-8 shadow-glass animar-entrar-baixo border border-amber-500/30">
             <div className="flex items-center gap-3 mb-8">

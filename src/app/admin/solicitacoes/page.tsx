@@ -7,12 +7,13 @@ import CampoTexto from '@/componentes/ui/CampoTexto';
 import Carregando from '@/componentes/ui/Carregando';
 import { criarClienteNavegador } from '@/lib/supabase/cliente';
 import { useNotificacao } from '@/componentes/ui/Notificacao';
-import { formatarDataCurta, obterIniciais } from '@/lib/utilitarios';
+import { formatarDataCurta, formatarHora, obterIniciais } from '@/lib/utilitarios';
 import type { Perfil, Atletica } from '@/tipos';
 import {
   Check,
   X,
   Building2,
+  Trophy,
   User,
   Mail,
   Phone,
@@ -42,11 +43,11 @@ export default function PaginaSolicitacoesAdmin() {
     setCarregando(true);
 
     try {
-      // 1. Busca perfis com role 'diretor' ou status 'pendente'
+      // 1. Busca perfis com status 'pendente' ou vinculados a cadastro pendente
       const { data: perfis, error: errPerfis } = await supabase
         .from('profiles')
         .select('*, atletica:atleticas(*)')
-        .or('role.eq.diretor,status.eq.pendente')
+        .eq('status', 'pendente')
         .order('criado_em', { ascending: false });
 
       if (errPerfis) {
@@ -62,17 +63,34 @@ export default function PaginaSolicitacoesAdmin() {
 
       const mapaItens = new Map<string, SolicitacaoItem>();
 
+      // Inclui apenas se a solicitação (perfil ou atlética) estiver pendente de aprovação
       (perfis || []).forEach((p: any) => {
-        if (p.status === 'pendente' || p.role === 'diretor' || p.atletica?.status === 'pendente') {
+        if (p.status === 'pendente' || p.atletica?.status === 'pendente') {
           mapaItens.set(p.id, { perfil: p, atletica: p.atletica || null });
         }
       });
 
       (perfisAtlPendente || []).forEach((p: any) => {
-        if (!mapaItens.has(p.id)) {
-          mapaItens.set(p.id, { perfil: p, atletica: p.atletica || null });
+        if (p.status === 'pendente' || p.atletica?.status === 'pendente') {
+          if (!mapaItens.has(p.id)) {
+            mapaItens.set(p.id, { perfil: p, atletica: p.atletica || null });
+          }
         }
       });
+
+      // 3. Se houver perfil pendente sem atletica vinculada no objeto, busca se existe atletica pendente no banco para vincular
+      const { data: atleticasPendentes } = await supabase
+        .from('atleticas')
+        .select('*')
+        .eq('status', 'pendente');
+
+      if (atleticasPendentes && atleticasPendentes.length > 0) {
+        mapaItens.forEach((item) => {
+          if (!item.atletica && atleticasPendentes[0]) {
+            item.atletica = atleticasPendentes[0];
+          }
+        });
+      }
 
       setSolicitacoes(Array.from(mapaItens.values()));
     } catch (err) {
@@ -92,48 +110,47 @@ export default function PaginaSolicitacoesAdmin() {
     setProcessandoId(perfilId);
 
     try {
+      // 1. Tenta aprovar via RPC em banco (com SECURITY DEFINER para ultrapassar políticas de RLS e triggers estritos)
+      const { data: resRpc, error: errRpc } = await supabase.rpc('aprovar_diretor_e_atletica', {
+        p_perfil_id: perfilId,
+        p_atletica_id: atleticaId || null,
+      });
+
+      const resObj = resRpc as { sucesso?: boolean; erro?: string; mensagem?: string } | null;
+
+      if (!errRpc && resObj?.sucesso) {
+        sucesso(
+          'Solicitação Aprovada!',
+          'A Atlética e o Diretor foram ativados com sucesso e vinculados ao sistema.'
+        );
+        buscarSolicitacoes();
+        return;
+      }
+
+      // 2. Fallback via tabelas diretas caso a RPC ainda não esteja instalada no Supabase
       let idAtleticaEfetiva = atleticaId;
 
-      // Se o diretor não possuir uma atlética vinculada, cria uma atlética ativa automaticamente
+      // Se idAtleticaEfetiva for nulo, tenta resgatar uma atlética pendente existente no banco antes de criar
       if (!idAtleticaEfetiva) {
-        const { data: perfData } = await supabase
-          .from('profiles')
-          .select('nome')
-          .eq('id', perfilId)
-          .single();
-
-        const nomeAtl = perfData?.nome ? `Atlética de ${perfData.nome}` : 'Nova Atlética';
-
-        const { data: novAtl, error: errCriar } = await supabase
+        const { data: atlPendente } = await supabase
           .from('atleticas')
-          .insert({
-            nome: nomeAtl,
-            faculdade: nomeAtl,
-            cidade: 'Palmas',
-            estado: 'TO',
-            status: 'ativa',
-          })
           .select('id')
-          .single();
+          .eq('status', 'pendente')
+          .order('criado_em', { ascending: false })
+          .maybeSingle();
 
-        if (novAtl) {
-          idAtleticaEfetiva = novAtl.id;
-        } else if (errCriar) {
-          console.error('Erro ao criar atlética na aprovação:', errCriar);
-        }
-      } else {
-        // Ativar a atlética já vinculada
-        const { error: errAtl } = await supabase
-          .from('atleticas')
-          .update({ status: 'ativa' })
-          .eq('id', idAtleticaEfetiva);
-
-        if (errAtl) {
-          console.error('Erro ao ativar atlética:', errAtl);
+        if (atlPendente) {
+          idAtleticaEfetiva = atlPendente.id;
         }
       }
 
-      // Ativar perfil do Diretor vinculando a atlética
+      if (idAtleticaEfetiva) {
+        await supabase
+          .from('atleticas')
+          .update({ status: 'ativa' })
+          .eq('id', idAtleticaEfetiva);
+      }
+
       const { error: errPerfil } = await supabase
         .from('profiles')
         .update({
@@ -145,7 +162,10 @@ export default function PaginaSolicitacoesAdmin() {
 
       if (errPerfil) {
         console.error('Erro ao aprovar perfil:', errPerfil);
-        erro('Erro ao Aprovar', `Não foi possível aprovar a solicitação: ${errPerfil.message}`);
+        erro(
+          'Erro ao Aprovar',
+          `Não foi possível aprovar a solicitação: ${errPerfil.message || 'Verifique as permissões RLS no Supabase.'}`
+        );
       } else {
         sucesso(
           'Solicitação Aprovada!',
@@ -165,6 +185,21 @@ export default function PaginaSolicitacoesAdmin() {
     setProcessandoId(perfilId);
 
     try {
+      // 1. Tenta rejeitar via RPC em banco
+      const { data: resRpc, error: errRpc } = await supabase.rpc('rejeitar_diretor_e_atletica', {
+        p_perfil_id: perfilId,
+        p_atletica_id: atleticaId || null,
+      });
+
+      const resObj = resRpc as { sucesso?: boolean; erro?: string; mensagem?: string } | null;
+
+      if (!errRpc && resObj?.sucesso) {
+        sucesso('Solicitação Recusada', 'A solicitação de cadastro foi recusada com sucesso.');
+        buscarSolicitacoes();
+        return;
+      }
+
+      // 2. Fallback direto nas tabelas
       if (atleticaId) {
         await supabase
           .from('atleticas')
@@ -178,9 +213,9 @@ export default function PaginaSolicitacoesAdmin() {
         .eq('id', perfilId);
 
       if (errPerfil) {
-        erro('Erro ao Rejeitar', `Não foi possível rejeitar a solicitação: ${errPerfil.message}`);
+        erro('Erro ao Rejeitar', `Não foi possível rejeitar a solicitação: ${errPerfil.message || 'Verifique as permissões.'}`);
       } else {
-        sucesso('Solicitação Recusada', 'A solicitação de cadastro foi recusada.');
+        sucesso('Solicitação Recusada', 'A solicitação de cadastro foi recusada com sucesso.');
         buscarSolicitacoes();
       }
     } catch (errCatch) {
@@ -288,19 +323,24 @@ export default function PaginaSolicitacoesAdmin() {
                     <Clock size={13} className="text-slate-400 shrink-0" />
                     <span>Cadastrado em {formatarDataCurta(perfil.criado_em)}</span>
                   </p>
+                  {perfil.criado_em && (
+                    <p className="text-amber-300/80 text-[11px] font-mono pl-5 -mt-1">
+                      às {formatarHora(perfil.criado_em)}h
+                    </p>
+                  )}
                 </div>
 
                 {/* Coluna 2: Dados da Atlética */}
                 <div className="bg-[#162036]/60 p-3.5 rounded-xl border border-white/10 space-y-2">
                   <h4 className="font-extrabold uppercase tracking-wider text-slate-300 flex items-center gap-1.5 text-[11px]">
-                    <Building2 size={14} className="text-primaria-400" /> Dados da Atlética
+                    <Trophy size={14} className="text-amber-400" /> Dados da Atlética
                   </h4>
                   {atletica ? (
                     <>
                       <p className="font-bold text-white text-sm">{atletica.nome}</p>
                       {atletica.faculdade && (
                         <p className="text-slate-300 flex items-center gap-1.5">
-                          <Shield size={13} className="text-slate-400 shrink-0" />
+                          <Trophy size={13} className="text-slate-400 shrink-0" />
                           <span>{atletica.faculdade}</span>
                         </p>
                       )}

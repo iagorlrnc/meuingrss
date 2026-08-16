@@ -63,6 +63,16 @@ export function formatarDataCurta(dataISO?: string | null): string {
   }).format(data);
 }
 
+export function formatarHora(dataISO?: string | null): string {
+  if (!dataISO) return '';
+  const data = new Date(dataISO);
+  if (isNaN(data.getTime())) return '';
+  return new Intl.DateTimeFormat('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(data);
+}
+
 export function obterIniciais(nome: string): string {
   return nome
     .split(' ')

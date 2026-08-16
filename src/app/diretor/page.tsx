@@ -25,10 +25,12 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 
+import { construirUrl } from '@/lib/dominios';
 import type { Evento, LoteIngresso } from '@/tipos';
 
 export default function DashboardDiretor() {
   const { usuario, perfil, entrar, carregando: carregandoAuth } = usarAutenticacao();
+  const urlSitePrincipal = construirUrl('cliente', '/');
   const [stats, setStats] = useState({ totalVendido: 0, receita: 0, eventosAtivos: 0, eventosTotal: 0 });
   const [eventosRecentes, setEventosRecentes] = useState<(Evento & { lotes_ingresso?: LoteIngresso[] })[]>([]);
   const [carregandoDados, setCarregandoDados] = useState(true);
@@ -132,13 +134,13 @@ export default function DashboardDiretor() {
         <div className="orbe-rosa bottom-20 right-0 opacity-40" />
 
         <div className="w-full max-w-md relative z-10">
-          <Link
-            href="/"
+          <a
+            href={urlSitePrincipal}
             className="inline-flex items-center gap-2 text-sm text-texto-secundario hover:text-texto-principal transition-colors mb-8"
           >
             <ArrowLeft size={16} />
             Voltar ao site principal
-          </Link>
+          </a>
 
           <div className="vidro-forte rounded-3xl p-8 shadow-glass animar-entrar-baixo border border-primaria-500/20">
             <div className="flex items-center gap-3 mb-8">

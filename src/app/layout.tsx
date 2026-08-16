@@ -6,6 +6,7 @@ import { ProvedorCookies } from "@/contextos/ContextoCookies";
 import dynamic from "next/dynamic";
 
 const BannerCookies = dynamic(() => import("@/componentes/ui/BannerCookies"));
+const CarregadorNavegacaoGlobal = dynamic(() => import("@/componentes/ui/CarregadorNavegacaoGlobal"));
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -49,6 +50,7 @@ export default function LayoutRaiz({
         <ProvedorAutenticacao>
           <ProvedorCookies>
             <ProvedorNotificacao>
+              <CarregadorNavegacaoGlobal />
               {children}
               <BannerCookies />
             </ProvedorNotificacao>

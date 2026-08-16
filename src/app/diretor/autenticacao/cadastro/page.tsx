@@ -478,27 +478,49 @@ export default function PaginaCadastroDiretor() {
                   type="text"
                   placeholder="Ex: Carlos Silva"
                   value={nome}
-                  onChange={(e) => setNome((e.target as HTMLInputElement).value)}
+                  onChange={(e) => {
+                    setErro('');
+                    setNome((e.target as HTMLInputElement).value);
+                  }}
                   icone={<User size={18} />}
                   required
                 />
 
-                <CampoTexto
-                  rotulo="CPF"
-                  type="text"
-                  placeholder="000.000.000-00"
-                  value={cpf}
-                  onChange={(e) => setCpf(formatarCPF((e.target as HTMLInputElement).value))}
-                  icone={<CreditCard size={18} />}
-                  required
-                />
+                <div className="space-y-1">
+                  <CampoTexto
+                    rotulo="CPF"
+                    type="text"
+                    placeholder="000.000.000-00"
+                    value={cpf}
+                    onChange={(e) => {
+                      setErro('');
+                      setCpf(formatarCPF((e.target as HTMLInputElement).value));
+                    }}
+                    icone={<CreditCard size={18} />}
+                    required
+                  />
+                  {cpf.replace(/\D/g, '').length === 11 && (
+                    validarCPF(cpf) ? (
+                      <p className="text-[11px] font-semibold text-emerald-400 pl-1 flex items-center gap-1">
+                        <span>✓</span> CPF válido
+                      </p>
+                    ) : (
+                      <p className="text-[11px] font-semibold text-red-400 pl-1 flex items-center gap-1">
+                        <span>✕</span> CPF inválido. Verifique os números digitados.
+                      </p>
+                    )
+                  )}
+                </div>
 
                 <CampoTexto
                   rotulo="Telefone / WhatsApp"
                   type="tel"
                   placeholder="(63) 99999-9999"
                   value={telefone}
-                  onChange={(e) => setTelefone(formatarTelefone((e.target as HTMLInputElement).value))}
+                  onChange={(e) => {
+                    setErro('');
+                    setTelefone(formatarTelefone((e.target as HTMLInputElement).value));
+                  }}
                   icone={<Phone size={18} />}
                   maxLength={15}
                   required
@@ -514,7 +536,10 @@ export default function PaginaCadastroDiretor() {
                     </span>
                     <select
                       value={cargo}
-                      onChange={(e) => setCargo(e.target.value)}
+                      onChange={(e) => {
+                        setErro('');
+                        setCargo(e.target.value);
+                      }}
                       className="w-full bg-[#111a2e]/90 border border-white/10 rounded-xl px-4 py-3 pl-11 pr-10 text-sm text-white placeholder:text-slate-500 font-normal transition-all duration-300 ease-out hover:border-white/20 hover:bg-[#16223d] focus:outline-none focus:border-[#ff007a] focus:ring-2 focus:ring-[#ff007a]/25 appearance-none cursor-pointer"
                     >
                       <option value="" className="bg-[#0d1322] text-slate-400">
@@ -588,7 +613,10 @@ export default function PaginaCadastroDiretor() {
                   type="text"
                   placeholder="Ex: Atlética Cibernética"
                   value={atleticaNome}
-                  onChange={(e) => setAtleticaNome((e.target as HTMLInputElement).value)}
+                  onChange={(e) => {
+                    setErro('');
+                    setAtleticaNome((e.target as HTMLInputElement).value);
+                  }}
                   icone={<Trophy size={18} />}
                   required
                 />
@@ -598,7 +626,10 @@ export default function PaginaCadastroDiretor() {
                   type="text"
                   placeholder="Ex: UFT"
                   value={atleticaSigla}
-                  onChange={(e) => setAtleticaSigla((e.target as HTMLInputElement).value)}
+                  onChange={(e) => {
+                    setErro('');
+                    setAtleticaSigla((e.target as HTMLInputElement).value);
+                  }}
                   icone={<Building2 size={18} />}
                 />
 
@@ -609,7 +640,10 @@ export default function PaginaCadastroDiretor() {
                       type="text"
                       placeholder="Ex: Palmas"
                       value={atleticaCidade}
-                      onChange={(e) => setAtleticaCidade((e.target as HTMLInputElement).value)}
+                      onChange={(e) => {
+                        setErro('');
+                        setAtleticaCidade((e.target as HTMLInputElement).value);
+                      }}
                       icone={<MapPin size={18} />}
                     />
                   </div>
@@ -623,7 +657,10 @@ export default function PaginaCadastroDiretor() {
                       </span>
                       <select
                         value={atleticaEstado}
-                        onChange={(e) => setAtleticaEstado(e.target.value)}
+                        onChange={(e) => {
+                          setErro('');
+                          setAtleticaEstado(e.target.value);
+                        }}
                         className="w-full bg-[#111a2e]/90 border border-white/10 rounded-xl px-4 py-3 pl-11 pr-10 text-base sm:text-sm min-h-[44px] text-white placeholder:text-slate-500 font-normal transition-all duration-300 ease-out hover:border-white/20 hover:bg-[#16223d] focus:outline-none focus:border-[#8b5cf6] focus:ring-2 focus:ring-[#8b5cf6]/25 appearance-none cursor-pointer"
                       >
                         <option value="TO" className="bg-[#0d1322] text-white">
@@ -858,7 +895,7 @@ export default function PaginaCadastroDiretor() {
                 href="/autenticacao/entrar"
                 className="text-[#00e5ff] hover:text-[#00e5ff]/80 underline font-bold transition-colors ml-1"
               >
-                Entrar no Painel
+                Entrar
               </Link>
             </p>
           </div>
