@@ -205,23 +205,48 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
       },
     });
 
-    if (error) {
-      // 2. Registrar erro e atualizar contador do IP
-      const errStatus = await checarRateLimitOuRegistrar('registrar_erro');
-      let msgFinal = error.message;
-      if (errStatus.mensagem) {
-        msgFinal = `${msgFinal}. ${errStatus.mensagem}`;
-      }
+    let userObj = authData?.user;
 
-      return {
-        erro: msgFinal,
-        bloqueado: errStatus.bloqueado,
-        segundosRestantes: errStatus.segundosRestantes,
-        rateLimitData: errStatus,
-      };
+    // Se o usuário foi pré-criado/verificado via OTP na etapa anterior, recupera a sessão ativa
+    if (!userObj) {
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData?.user) {
+        userObj = userData.user;
+        try {
+          await supabase.auth.updateUser({
+            password: senha,
+            data: {
+              nome,
+              role: roleValido,
+              telefone: metadadosAdicionais.telefone || null,
+              cpf: metadadosAdicionais.cpf || null,
+              cargo: metadadosAdicionais.cargo || null,
+              atletica_nome: metadadosAdicionais.atleticaNome || null,
+              atletica_sigla: metadadosAdicionais.atleticaSigla || null,
+              atletica_cidade: metadadosAdicionais.atleticaCidade || null,
+              atletica_estado: metadadosAdicionais.atleticaEstado || 'TO',
+            },
+          });
+        } catch (uErr) {
+          console.error('Erro ao atualizar usuário auth:', uErr);
+        }
+      } else if (error) {
+        // Erro real de signup sem usuário logado
+        const errStatus = await checarRateLimitOuRegistrar('registrar_erro');
+        let msgFinal = error.message;
+        if (errStatus.mensagem) {
+          msgFinal = `${msgFinal}. ${errStatus.mensagem}`;
+        }
+        return {
+          erro: msgFinal,
+          bloqueado: errStatus.bloqueado,
+          segundosRestantes: errStatus.segundosRestantes,
+          rateLimitData: errStatus,
+        };
+      }
     }
 
-    if (authData?.user) {
+    if (userObj) {
       try {
         const userStatus = roleValido === 'diretor' ? 'pendente' : 'ativo';
 
@@ -244,12 +269,12 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
           if (atleticaCriada) {
             atleticaId = atleticaCriada.id;
           } else if (errAtl) {
-            // Silencioso no client para não vazar schema
+            console.error('Erro ao criar atlética:', errAtl);
           }
         }
 
         const { error: errProfile } = await supabase.from('profiles').upsert({
-          id: authData.user.id,
+          id: userObj.id,
           nome,
           email,
           role: roleValido,
@@ -262,10 +287,10 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
         });
 
         if (errProfile) {
-          // Silencioso no client
+          console.error('Erro ao atualizar perfil no cadastro:', errProfile);
         }
-      } catch {
-        // Ignorar erros no client
+      } catch (errCad) {
+        console.error('Exceção ao concluir cadastro:', errCad);
       }
 
       // Se for cadastro de diretor, deslogar imediatamente a sessão para impedir o auto-login
