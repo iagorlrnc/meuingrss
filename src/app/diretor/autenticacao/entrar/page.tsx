@@ -43,6 +43,7 @@ function FormularioEntrarDiretor() {
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(false);
   const [modalPendenteAberto, setModalPendenteAberto] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState('');
   const supabase = criarClienteNavegador();
 
   useEffect(() => {
@@ -251,13 +252,17 @@ function FormularioEntrarDiretor() {
               larguraTotal
               tamanho="lg"
               carregando={carregando}
-              disabled={bloqueado || carregando}
+              disabled={bloqueado || carregando || !turnstileToken}
               icone={<ArrowRight size={18} />}
             >
               {bloqueado ? `Aguarde ${segundosRestantes}s` : 'Acessar Painel do Diretor'}
             </Botao>
 
-            <CaptchaCloudflare />
+            <CaptchaCloudflare
+              onVerify={(token) => setTurnstileToken(token)}
+              onExpire={() => setTurnstileToken('')}
+              onError={() => setTurnstileToken('')}
+            />
           </form>
 
           {/* Chamada para Cadastro */}

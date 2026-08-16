@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usarAutenticacao } from '@/contextos/ContextoAutenticacao';
 import Botao from '@/componentes/ui/Botao';
 import CampoTexto from '@/componentes/ui/CampoTexto';
 import { formatarTelefone, formatarCPF, validarCPF } from '@/lib/utilitarios';
+import { criarClienteNavegador } from '@/lib/supabase/cliente';
 import {
   Ticket,
   Mail,
@@ -31,6 +32,7 @@ import {
   ChevronDown,
   Trophy,
   CreditCard,
+  KeyRound,
 } from 'lucide-react';
 
 import CaptchaCloudflare from '@/componentes/ui/CaptchaCloudflare';
@@ -66,6 +68,95 @@ export default function PaginaCadastroDiretor() {
   // Estados de controle da página
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(false);
+
+  const supabase = criarClienteNavegador();
+
+  // Validação de E-mail via Código (OTP)
+  const [codigoEnviado, setCodigoEnviado] = useState(false);
+  const [enviandoCodigo, setEnviandoCodigo] = useState(false);
+  const [codigo, setCodigo] = useState('');
+  const [validandoCodigo, setValidandoCodigo] = useState(false);
+  const [emailVerificado, setEmailVerificado] = useState(false);
+  const [tempoReenvio, setTempoReenvio] = useState(0);
+  const [emailEnviado, setEmailEnviado] = useState('');
+
+  useEffect(() => {
+    if (tempoReenvio <= 0) return;
+    const interval = setInterval(() => {
+      setTempoReenvio((prev) => prev - 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [tempoReenvio]);
+
+  async function enviarCodigoValidacao() {
+    setErro('');
+    if (!email || !email.includes('@')) {
+      setErro('Informe um e-mail válido para receber o código.');
+      return;
+    }
+
+    if (enviandoCodigo || (email === emailEnviado && tempoReenvio > 0)) return;
+
+    setEnviandoCodigo(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: true,
+        },
+      });
+
+      if (error) {
+        const msg = error.message || '';
+        if (msg.includes('rate limit') || msg.includes('over_email_send_rate_limit') || error.status === 429) {
+          setErro(
+            'Limite de envio de e-mails atingido (Supabase/SMTP). Aguarde alguns minutos ou certifique-se de que o Custom SMTP (Brevo) está ativado no Supabase.'
+          );
+        } else if (msg.includes('Error sending confirmation email') || msg.includes('confirmation email') || msg.includes('smtp') || msg.includes('SMTP')) {
+          setErro(
+            'Configuração de e-mail necessária: No painel do Supabase (Authentication -> Email Settings), altere o campo "Sender Email" (Remetente) para o mesmo e-mail validado na sua conta da Brevo.'
+          );
+        } else {
+          setErro(msg);
+        }
+      } else {
+        setCodigoEnviado(true);
+        setEmailEnviado(email);
+        setTempoReenvio(60);
+      }
+    } catch {
+      setErro('Erro de conexão ao enviar o código de validação.');
+    } finally {
+      setEnviandoCodigo(false);
+    }
+  }
+
+  async function validarCodigoOtp() {
+    setErro('');
+    if (codigo.length < 6) {
+      setErro('Digite o código de 6 dígitos enviado para seu e-mail.');
+      return;
+    }
+
+    setValidandoCodigo(true);
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email,
+        token: codigo,
+        type: 'email',
+      });
+
+      if (error) {
+        setErro('Código de verificação inválido ou expirado.');
+      } else {
+        setEmailVerificado(true);
+      }
+    } catch {
+      setErro('Erro de conexão ao validar o código.');
+    } finally {
+      setValidandoCodigo(false);
+    }
+  }
 
   function avancarEtapa1() {
     setErro('');
@@ -103,8 +194,13 @@ export default function PaginaCadastroDiretor() {
 
     setErro('');
 
-    if (!email.trim()) {
+    if (!email.trim() || !email.includes('@')) {
       setErro('Por favor, informe o email de acesso.');
+      return;
+    }
+
+    if (!emailVerificado) {
+      setErro('⚠️ Por favor, verifique seu e-mail enviando o código de 6 dígitos antes de concluir o cadastro.');
       return;
     }
 
@@ -584,15 +680,91 @@ export default function PaginaCadastroDiretor() {
                   </span>
                 </div>
 
-                <CampoTexto
-                  rotulo="Email corporativo ou da atlética"
-                  type="email"
-                  placeholder="diretor@atletica.com.br"
-                  value={email}
-                  onChange={(e) => setEmail((e.target as HTMLInputElement).value)}
-                  icone={<Mail size={18} />}
-                  required
-                />
+                {/* Verificação de E-mail com Validação Instantânea */}
+                <div className="space-y-2">
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1">
+                      <CampoTexto
+                        rotulo="Email corporativo ou da atlética"
+                        type="email"
+                        placeholder="diretor@atletica.com.br"
+                        value={email}
+                        onChange={(e) => {
+                          const novoEmail = (e.target as HTMLInputElement).value;
+                          setEmail(novoEmail);
+                          if (novoEmail !== emailEnviado) {
+                            setEmailVerificado(false);
+                            setCodigoEnviado(false);
+                            setTempoReenvio(0);
+                          }
+                        }}
+                        icone={<Mail size={18} />}
+                        required
+                      />
+                    </div>
+
+                    {!emailVerificado && (
+                      <Botao
+                        type="button"
+                        variante="contorno"
+                        tamanho="md"
+                        carregando={enviandoCodigo}
+                        disabled={!email || !email.includes('@') || enviandoCodigo || (email === emailEnviado && tempoReenvio > 0)}
+                        onClick={enviarCodigoValidacao}
+                        className="shrink-0 h-[46px] text-xs px-3.5 border-white/20 hover:border-[#00e5ff] text-slate-300 hover:text-white"
+                      >
+                        {email === emailEnviado && tempoReenvio > 0 ? `Aguarde ${tempoReenvio}s` : codigoEnviado ? 'Reenviar' : 'Verificar'}
+                      </Botao>
+                    )}
+                  </div>
+
+                  {!emailVerificado && email.includes('@') && !codigoEnviado && (
+                    <p className="text-[11px] font-semibold text-amber-400 flex items-center gap-1.5 pt-0.5">
+                      <span>⚠️ Clique no botão <strong>"Verificar"</strong> para receber o código no seu e-mail.</span>
+                    </p>
+                  )}
+
+                  {/* Status de E-mail Verificado */}
+                  {emailVerificado && (
+                    <div className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs font-bold text-emerald-400 animar-entrar-escala">
+                      <ShieldCheck size={16} />
+                      <span>E-mail verificado com sucesso!</span>
+                    </div>
+                  )}
+
+                  {/* Caixa para Digitar e Confirmar Código (OTP) */}
+                  {codigoEnviado && !emailVerificado && (
+                    <div className="p-3.5 rounded-2xl bg-[#162036] border border-[#00e5ff]/30 space-y-3 animar-entrar-baixo">
+                      <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                        <KeyRound size={14} className="text-[#00e5ff]" />
+                        Digite o código de 6 dígitos enviado para seu e-mail:
+                      </label>
+
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          maxLength={6}
+                          placeholder="000000"
+                          value={codigo}
+                          onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ''))}
+                          className="w-full bg-[#080c14] border border-white/15 rounded-xl px-4 py-2.5 text-center text-lg font-black font-mono tracking-widest text-white focus:outline-none focus:border-[#00e5ff]"
+                        />
+
+                        <Botao
+                          type="button"
+                          variante="festiva"
+                          tamanho="md"
+                          carregando={validandoCodigo}
+                          disabled={codigo.length < 6 || validandoCodigo}
+                          onClick={validarCodigoOtp}
+                          className="shrink-0 h-[44px] text-xs px-4"
+                        >
+                          Validar
+                        </Botao>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 <CampoTexto
                   rotulo="Senha"
@@ -655,6 +827,7 @@ export default function PaginaCadastroDiretor() {
                 <CaptchaCloudflare
                   onVerify={(token) => setTurnstileToken(token)}
                   onExpire={() => setTurnstileToken('')}
+                  onError={() => setTurnstileToken('')}
                 />
 
                 <div className="flex items-center gap-3 pt-2">
@@ -674,7 +847,7 @@ export default function PaginaCadastroDiretor() {
                       larguraTotal
                       tamanho="lg"
                       carregando={carregando}
-                      disabled={bloqueado || carregando}
+                      disabled={bloqueado || carregando || !turnstileToken}
                     >
                       {bloqueado ? `Aguarde ${segundosRestantes}s` : 'Cadastrar e Solicitar Acesso'}
                     </Botao>
