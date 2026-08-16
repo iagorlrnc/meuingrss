@@ -81,8 +81,25 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 2. Verificar se existe algum pagamento recusado/estornado para este pedido
-    //    (indica que o gateway rejeitou o pagamento)
+    // 2. Verificar se a transação foi estornada por falta de estoque no lote (proteção anti-sobrevenda)
+    const { data: transacaoProcessada } = await supabase
+      .from('transacoes_processadas')
+      .select('status')
+      .eq('comprador_id', compradorId)
+      .eq('evento_id', eventoId)
+      .eq('lote_id', loteId)
+      .order('criado_em', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (transacaoProcessada && (transacaoProcessada.status === 'refunded' || transacaoProcessada.status === 'charged_back' || transacaoProcessada.status === 'estoque_esgotado')) {
+      return NextResponse.json({
+        status_pedido: 'estoque_esgotado',
+        mensagem: 'O estoque do lote esgotou durante a compra. A emissão do ingresso foi impedida para evitar sobrevenda e o pagamento será estornado.',
+      });
+    }
+
+    // 3. Verificar se existe algum pagamento recusado/estornado para este pedido
     const { data: ingressosCancelados } = await supabase
       .from('ingressos')
       .select('id, status')
@@ -94,7 +111,6 @@ export async function GET(request: NextRequest) {
       .limit(1);
 
     if (ingressosCancelados && ingressosCancelados.length > 0) {
-      // Pagamento foi processado mas falhou/estornado
       return NextResponse.json({
         status_pedido: 'cancelado',
         mensagem: 'O pagamento foi cancelado ou estornado. Seu ingresso não foi gerado.',
