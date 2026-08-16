@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { usarAutenticacao } from '@/contextos/ContextoAutenticacao';
 import Botao from '@/componentes/ui/Botao';
 import CampoTexto from '@/componentes/ui/CampoTexto';
-import { formatarTelefone, formatarCPF, validarCPF } from '@/lib/utilitarios';
+import { formatarTelefone, formatarCPF, validarCPF, avaliarSenha } from '@/lib/utilitarios';
+import IndicadorForcaSenha from '@/componentes/ui/IndicadorForcaSenha';
 import { criarClienteNavegador } from '@/lib/supabase/cliente';
 import {
   Ticket,
@@ -61,8 +62,6 @@ export default function PaginaCadastroDiretor() {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
-  const [mostrarSenha, setMostrarSenha] = useState(false);
-  const [mostrarConfirmarSenha, setMostrarConfirmarSenha] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState('');
 
   // Estados de controle da página
@@ -204,8 +203,9 @@ export default function PaginaCadastroDiretor() {
       return;
     }
 
-    if (senha.length < 8) {
-      setErro('A senha deve ter pelo menos 8 caracteres');
+    const statusSenha = avaliarSenha(senha);
+    if (!statusSenha.valida) {
+      setErro('A senha deve conter no mínimo 8 caracteres, 1 letra maiúscula, 1 número e 1 caractere especial (!@#$...).');
       return;
     }
 
@@ -245,9 +245,6 @@ export default function PaginaCadastroDiretor() {
     }
   }
 
-  // Calculador simples de força da senha
-  const forcaSenha = senha.length === 0 ? 0 : senha.length < 8 ? 1 : senha.length < 12 ? 2 : 3;
-
   return (
     <div className="min-h-screen grid grid-cols-1 lg:grid-cols-12 bg-[#080c14] relative overflow-hidden">
       {/* Elementos visuais de fundo (Orbes Neon) */}
@@ -270,7 +267,7 @@ export default function PaginaCadastroDiretor() {
           {/* Headline & Badges */}
           <div className="space-y-6">
             <h1 className="text-3xl xl:text-4xl font-black font-titulo text-white leading-tight tracking-tight">
-              Aumente as vendas de ingressos dos seus eventos com o{' '}
+              <span className="text-slate-400">Aumente as vendas de ingressos dos seus eventos com o</span>{' '}
               <span className="font-black italic tracking-tighter text-white font-titulo inline-flex items-center gap-0.5">
                 Meu<span className="text-[#00e5ff]">ingrss</span>
               </span>
@@ -286,7 +283,7 @@ export default function PaginaCadastroDiretor() {
           <div className="space-y-3.5 mt-8">
             <div className="p-4 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 hover:border-[#00e5ff]/30 transition-all flex items-start gap-3.5 group">
               <div className="w-10 h-10 rounded-xl bg-[#00e5ff]/15 text-[#00e5ff] flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-110 transition-transform">
-                <Building2 size={20} />
+                <Trophy size={20} />
               </div>
               <div className="flex-1">
                 <h4 className="text-sm font-bold text-white group-hover:text-[#00e5ff] transition-colors">Perfil & Eventos da Atlética</h4>
@@ -302,7 +299,7 @@ export default function PaginaCadastroDiretor() {
               <div className="flex-1">
                 <h4 className="text-sm font-bold text-white group-hover:text-[#ff007a] transition-colors">Vendas & Lotes Automáticos</h4>
                 <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
-                  Crie eventos em minutos, programe viradas de lote por quantidade ou horário e acompanhe o faturamento ao vivo.
+                  Crie eventos em minutos, programe viradas de lote por quantidade ou horário e acompanhe o faturamento.
                 </p>
               </div>
             </div>
@@ -312,7 +309,7 @@ export default function PaginaCadastroDiretor() {
                 <QrCode size={20} />
               </div>
               <div className="flex-1">
-                <h4 className="text-sm font-bold text-white group-hover:text-[#8b5cf6] transition-colors">Check-in Ágil por QR Code</h4>
+                <h4 className="text-sm font-bold text-white group-hover:text-[#8b5cf6] transition-colors">Check-in por QR Code</h4>
                 <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
                   Validação instantânea de ingressos na portaria direto pelo celular da equipe da atlética, sem filas nem fraudes.
                 </p>
@@ -327,8 +324,8 @@ export default function PaginaCadastroDiretor() {
         {(nome || atleticaNome) && (
           <div className="p-4 rounded-2xl bg-[#162036]/60 border border-white/10 text-xs space-y-2 mt-6">
             <span className="text-[10px] font-black uppercase text-[#00e5ff] tracking-wider block">Resumo dos Dados</span>
-            {nome && <p className="text-slate-300">👤 <strong className="text-white">{nome}</strong> {cargo ? `(${cargo})` : ''}</p>}
-            {atleticaNome && <p className="text-slate-300">🏛️ <strong className="text-white">{atleticaNome}</strong> {atleticaSigla ? `[${atleticaSigla}]` : ''}</p>}
+            {nome && <p className="text-slate-300"><strong className="text-white">{nome}</strong> {cargo ? `(${cargo})` : ''}</p>}
+            {atleticaNome && <p className="text-slate-300"><strong className="text-white">{atleticaNome}</strong> {atleticaSigla ? `[${atleticaSigla}]` : ''}</p>}
           </div>
         )}
       </div>
@@ -413,7 +410,7 @@ export default function PaginaCadastroDiretor() {
                       : 'bg-[#162036] text-slate-400 border border-white/10'
                   }`}
                 >
-                  {etapa > 2 ? <Check size={18} className="stroke-[3]" /> : <Building2 size={18} />}
+                  {etapa > 2 ? <Check size={18} className="stroke-[3]" /> : <Trophy size={18} />}
                 </button>
                 <span className={`text-[11px] font-black uppercase tracking-wider leading-tight ${etapa >= 2 ? 'text-[#8b5cf6]' : 'text-slate-500'}`}>
                   2. Atlética
@@ -563,7 +560,7 @@ export default function PaginaCadastroDiretor() {
                 <div className="bg-[#162036]/50 p-4 rounded-xl border border-white/10 flex items-center justify-between">
                   <div>
                     <h2 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-                      <Building2 size={16} className="text-[#8b5cf6]" />
+                      <Trophy size={16} className="text-[#8b5cf6]" />
                       Etapa 2: Dados da Atlética
                     </h2>
                     <p className="text-xs text-slate-400 mt-0.5">
@@ -720,7 +717,7 @@ export default function PaginaCadastroDiretor() {
 
                   {!emailVerificado && email.includes('@') && !codigoEnviado && (
                     <p className="text-[11px] font-semibold text-amber-400 flex items-center gap-1.5 pt-0.5">
-                      <span>⚠️ Clique no botão <strong>"Verificar"</strong> para receber o código no seu e-mail.</span>
+                      <span>Clique em <strong>"Verificar"</strong> para receber o código no seu e-mail.</span>
                     </p>
                   )}
 
@@ -769,26 +766,12 @@ export default function PaginaCadastroDiretor() {
                 <CampoTexto
                   rotulo="Senha"
                   type="password"
-                  placeholder="Mínimo 6 caracteres"
+                  placeholder="Ex: Senha#2026"
                   value={senha}
                   onChange={(e) => setSenha((e.target as HTMLInputElement).value)}
                   icone={<Lock size={18} />}
                   required
                 />
-
-                {/* Indicador de Força da Senha */}
-                {senha.length > 0 && (
-                  <div className="flex items-center gap-2 -mt-2">
-                    <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden flex gap-1">
-                      <div className={`h-full flex-1 rounded-full transition-colors ${forcaSenha >= 1 ? 'bg-red-500' : 'bg-transparent'}`} />
-                      <div className={`h-full flex-1 rounded-full transition-colors ${forcaSenha >= 2 ? 'bg-amber-400' : 'bg-transparent'}`} />
-                      <div className={`h-full flex-1 rounded-full transition-colors ${forcaSenha >= 3 ? 'bg-emerald-400' : 'bg-transparent'}`} />
-                    </div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                      {forcaSenha === 1 ? 'Fraca' : forcaSenha === 2 ? 'Média' : 'Forte'}
-                    </span>
-                  </div>
-                )}
 
                 <CampoTexto
                   rotulo="Confirmar senha"
@@ -799,6 +782,8 @@ export default function PaginaCadastroDiretor() {
                   icone={<Lock size={18} />}
                   required
                 />
+
+                <IndicadorForcaSenha senha={senha} />
 
                 {bloqueado && (
                   <div className="p-4 rounded-2xl bg-red-500/15 border border-red-500/30 text-xs font-semibold text-red-400 flex items-start gap-3 animar-entrar-baixo">

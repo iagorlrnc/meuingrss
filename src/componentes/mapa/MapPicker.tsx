@@ -10,6 +10,7 @@ interface MapPickerProps {
   localDefinido: boolean;
   onChange: (lat: number, lng: number) => void;
   onLocalDefinidoChange: (localDefinido: boolean) => void;
+  ocultarCheckbox?: boolean;
 }
 
 const DEFAULT_CENTER: [number, number] = [-10.187933, -48.333664]; // Palmas / TO
@@ -20,6 +21,7 @@ export default function MapPicker({
   localDefinido,
   onChange,
   onLocalDefinidoChange,
+  ocultarCheckbox = false,
 }: MapPickerProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -195,22 +197,24 @@ export default function MapPicker({
       )}
 
       {/* Checkbox Local não definido */}
-      <div className="flex items-center gap-2.5 pt-1">
-        <input
-          type="checkbox"
-          id="checkbox-local-nao-definido"
-          checked={!localDefinido}
-          onChange={(e) => onLocalDefinidoChange(!e.target.checked)}
-          className="w-4 h-4 rounded bg-[#111a2e] border-white/20 text-[#ff007a] focus:ring-[#ff007a] cursor-pointer"
-        />
-        <label
-          htmlFor="checkbox-local-nao-definido"
-          className="text-xs font-medium text-slate-300 cursor-pointer select-none flex items-center gap-1.5"
-        >
-          <AlertCircle size={14} className="text-slate-400" />
-          Local não definido (oculta o mapa nos detalhes do evento)
-        </label>
-      </div>
+      {!ocultarCheckbox && (
+        <div className="flex items-center gap-2.5 pt-1">
+          <input
+            type="checkbox"
+            id="checkbox-local-nao-definido"
+            checked={!localDefinido}
+            onChange={(e) => onLocalDefinidoChange(!e.target.checked)}
+            className="w-4 h-4 rounded bg-[#111a2e] border-white/20 text-[#ff007a] focus:ring-[#ff007a] cursor-pointer"
+          />
+          <label
+            htmlFor="checkbox-local-nao-definido"
+            className="text-xs font-medium text-slate-300 cursor-pointer select-none flex items-center gap-1.5"
+          >
+            <AlertCircle size={14} className="text-slate-400" />
+            Local não definido (oculta o mapa nos detalhes do evento)
+          </label>
+        </div>
+      )}
     </div>
   );
 }

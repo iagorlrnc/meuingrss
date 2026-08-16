@@ -36,7 +36,7 @@ interface ContextoAuthType {
     turnstileToken?: string
   ) => Promise<ResultadoAuth>;
   sair: () => Promise<void>;
-  entrarComGoogle: () => Promise<void>;
+  entrarComGoogle: (redirecionarPara?: string) => Promise<void>;
 }
 
 const ContextoAuth = createContext<ContextoAuthType | null>(null);
@@ -289,18 +289,36 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
     window.location.href = '/';
   };
 
-  const entrarComGoogle = async () => {
-    const origens = typeof window !== 'undefined' ? window.location.origin : '';
-    const protocolo = process.env.NEXT_PUBLIC_PROTOCOLO || 'https';
-    const dominio = (process.env.NEXT_PUBLIC_DOMINIO_PRINCIPAL || 'meuingrss.com.br').replace(/\/+$/, '');
-    const urlRedirecionamento = origens || `${protocolo}://${dominio}`;
+  const entrarComGoogle = async (redirecionarPara?: string) => {
+    try {
+      const origens = typeof window !== 'undefined' ? window.location.origin : '';
+      const protocolo = process.env.NEXT_PUBLIC_PROTOCOLO || 'https';
+      const dominio = (process.env.NEXT_PUBLIC_DOMINIO_PRINCIPAL || 'meuingrss.com.br').replace(/\/+$/, '');
+      const urlRedirecionamento = origens || `${protocolo}://${dominio}`;
 
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${urlRedirecionamento}/autenticacao/callback`,
-      },
-    });
+      const callbackUrl = new URL(`${urlRedirecionamento}/autenticacao/callback`);
+      if (redirecionarPara && redirecionarPara !== '/') {
+        callbackUrl.searchParams.set('redirecionar', redirecionarPara);
+      }
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: callbackUrl.toString(),
+          queryParams: {
+            prompt: 'select_account',
+          },
+        },
+      });
+
+      if (error) {
+        console.error('Erro no signInWithOAuth:', error);
+        throw error;
+      }
+    } catch (err) {
+      console.error('Erro ao chamar autenticação Google:', err);
+      throw err;
+    }
   };
 
   return (
