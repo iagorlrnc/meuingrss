@@ -21,6 +21,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import Link from 'next/link';
+import MapPicker from '@/componentes/mapa/MapPicker';
 
 export default function PaginaEditarEvento() {
   const params = useParams();
@@ -37,6 +38,9 @@ export default function PaginaEditarEvento() {
   const [local, setLocal] = useState('');
   const [cidade, setCidade] = useState('');
   const [estado, setEstado] = useState('TO');
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
+  const [localDefinido, setLocalDefinido] = useState<boolean>(true);
 
   // Data e horário mínimo (momento atual em fuso local)
   const dataMinima = (() => {
@@ -51,20 +55,42 @@ export default function PaginaEditarEvento() {
   const [idReal, setIdReal] = useState('');
 
   async function buscarEvento() {
-    const eventoIdParam = typeof params.id === 'string' ? params.id : Array.isArray(params.id) ? params.id[0] : '';
-    const ehUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventoIdParam);
-
-    let query = supabase
-      .from('eventos')
-      .select('id, slug, titulo, descricao, imagem_url, data_evento, local, cidade, status, atletica_id, apagado_pelo_diretor');
-
-    if (ehUUID) {
-      query = query.eq('id', eventoIdParam);
-    } else {
-      query = query.eq('slug', eventoIdParam);
+    const rawParam = typeof params.id === 'string' ? params.id : Array.isArray(params.id) ? params.id[0] : '';
+    if (!rawParam) {
+      setCarregando(false);
+      return;
     }
 
-    const { data, error } = await query.maybeSingle();
+    const paramLimpo = decodeURIComponent(rawParam).trim();
+    const ehUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(paramLimpo);
+
+    let data: Record<string, any> | null = null;
+    let error = null;
+
+    if (ehUUID) {
+      const res = await supabase.from('eventos').select('*').eq('id', paramLimpo).maybeSingle();
+      data = res.data;
+      error = res.error;
+    } else {
+      const res = await supabase.from('eventos').select('*').eq('slug', paramLimpo).maybeSingle();
+      data = res.data;
+      error = res.error;
+    }
+
+    // Fallback: se não encontrou por slug/id principal, tenta pelo campo oposto
+    if (!data && !error) {
+      if (ehUUID) {
+        const resFallback = await supabase.from('eventos').select('*').eq('slug', paramLimpo).maybeSingle();
+        data = resFallback.data;
+      } else {
+        const resFallback = await supabase.from('eventos').select('*').eq('id', paramLimpo).maybeSingle();
+        data = resFallback.data;
+      }
+    }
+
+    if (error) {
+      console.error('Erro ao buscar evento para edição:', error);
+    }
 
     if (error || !data || data.apagado_pelo_diretor) {
       notificarErro('Erro', 'Evento não encontrado');
@@ -90,6 +116,9 @@ export default function PaginaEditarEvento() {
     setCidade(cidadeInicial);
     setEstado(estadoInicial);
     setStatus(data.status || 'rascunho');
+    setLatitude(data.latitude ?? null);
+    setLongitude(data.longitude ?? null);
+    setLocalDefinido(data.local_definido ?? true);
     setCarregando(false);
   }
 
@@ -174,6 +203,11 @@ export default function PaginaEditarEvento() {
       return;
     }
 
+    if (localDefinido && (latitude === null || longitude === null)) {
+      notificarErro('Localização no mapa obrigatória', 'Por favor, selecione a localização no mapa ou marque "Local não definido".');
+      return;
+    }
+
     setSalvando(true);
 
     try {
@@ -189,6 +223,9 @@ export default function PaginaEditarEvento() {
         data_evento: dataObj.toISOString(),
         local: local.trim(),
         cidade: cidadeFormatada,
+        latitude: localDefinido ? latitude : null,
+        longitude: localDefinido ? longitude : null,
+        local_definido: localDefinido,
         status,
         atualizado_em: new Date().toISOString(),
       };
@@ -349,6 +386,22 @@ export default function PaginaEditarEvento() {
               </div>
             </div>
             <CampoTexto rotulo="Local" placeholder="Nome do espaço / endereço" value={local} onChange={(e) => setLocal((e.target as HTMLInputElement).value)} icone={<MapPin size={18} />} required />
+            <MapPicker
+              lat={latitude}
+              lng={longitude}
+              localDefinido={localDefinido}
+              onChange={(lat, lng) => {
+                setLatitude(lat);
+                setLongitude(lng);
+              }}
+              onLocalDefinidoChange={(def) => {
+                setLocalDefinido(def);
+                if (!def) {
+                  setLatitude(null);
+                  setLongitude(null);
+                }
+              }}
+            />
             
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-texto-secundario">Status do Evento</label>

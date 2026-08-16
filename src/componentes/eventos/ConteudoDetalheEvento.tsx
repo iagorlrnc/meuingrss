@@ -28,7 +28,10 @@ import {
   XCircle,
   Share2,
   Check,
+  ExternalLink,
+  MapPinOff,
 } from 'lucide-react';
+import MapView from '@/componentes/mapa/MapView';
 
 interface ConteudoDetalheEventoProps {
   eventoInicial?: EventoCompleto | null;
@@ -508,31 +511,48 @@ function ComponenteDetalheEvento({ eventoInicial }: ConteudoDetalheEventoProps) 
 
             {abaAtiva === 'mapa' && (
               <div className="bg-[#0f172a] border border-white/10 rounded-md p-6">
-                <h3 className="text-base font-black uppercase tracking-wider text-white mb-4 pb-3 border-b border-white/10 flex items-center gap-2">
-                  <Map size={18} className="text-[#ff007a]" />
-                  Mapa de Setores do Evento
-                </h3>
-                <div className="relative h-72 sm:h-88 bg-[#162036] rounded-md border border-white/10 flex flex-col items-center justify-center p-6 text-center">
-                  <div className="w-full max-w-md h-28 bg-gradient-to-r from-[#ff007a] via-[#8b5cf6] to-[#026cdf] rounded-md flex items-center justify-center mb-6 shadow-xl">
-                    <span className="text-base font-black text-[#ffffff] uppercase tracking-widest flex items-center gap-2">
-                      PALCO PRINCIPAL
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-3 gap-3 w-full max-w-md">
-                    <div className="p-3 bg-[#ff007a]/20 border border-[#ff007a] rounded-md text-xs font-black text-[#ff007a] uppercase">
-                      PISTA PREMIUM
-                    </div>
-                    <div className="p-3 bg-[#00e5ff]/20 border border-[#00e5ff] rounded-md text-xs font-black text-[#00e5ff] uppercase">
-                      PISTA GERAL
-                    </div>
-                    <div className="p-3 bg-[#ffbe00]/20 border border-[#ffbe00] rounded-md text-xs font-black text-[#ffbe00] uppercase">
-                      ÁREA VIP
-                    </div>
-                  </div>
-                  <p className="text-xs text-slate-400 mt-6">
-                    Localização: <strong className="text-white">{evento.local}</strong> ({evento.cidade || 'Brasil'})
-                  </p>
+                <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/10 flex-wrap gap-2">
+                  <h3 className="text-base font-black uppercase tracking-wider text-white flex items-center gap-2">
+                    <Map size={18} className="text-[#ff007a]" />
+                    Mapa de Setores e Eventos
+                  </h3>
+                  {evento.local_definido !== false && evento.latitude != null && evento.longitude != null && (
+                    <a
+                      href={`https://www.google.com/maps?q=${evento.latitude},${evento.longitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#162036] hover:bg-white/10 text-xs font-bold text-[#00e5ff] border border-white/10 transition-colors"
+                    >
+                      <ExternalLink size={14} />
+                      <span>Abrir no Maps</span>
+                    </a>
+                  )}
                 </div>
+
+                {evento.local_definido !== false && evento.latitude != null && evento.longitude != null ? (
+                  <div className="space-y-3">
+                    <MapView
+                      lat={evento.latitude}
+                      lng={evento.longitude}
+                      tituloEvento={evento.titulo}
+                      localEvento={evento.local}
+                      className="h-88 sm:h-96"
+                    />
+                    <p className="text-xs text-slate-400">
+                      Localização: <strong className="text-white">{evento.local}</strong>{evento.cidade ? ` (${evento.cidade})` : ''}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="py-12 px-6 bg-[#162036] rounded-md border border-white/10 text-center space-y-3">
+                    <MapPinOff size={40} className="text-slate-500 mx-auto" />
+                    <p className="text-sm font-bold text-slate-200">
+                      O local deste evento ainda não foi definido.
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      {evento.local ? `Endereço informado: ${evento.local}` : 'Acompanhe as atualizações da organização.'}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
