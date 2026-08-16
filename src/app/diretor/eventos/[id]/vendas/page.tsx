@@ -78,7 +78,12 @@ export default function PaginaVendas() {
 
   // Modal de Detalhes do Comprador
   const [ingressoSelecionado, setIngressoSelecionado] = useState<IngressoComDetalhes | null>(null);
-  const [codigoCopiado, setCodigoCopiado] = useState(false);
+
+  useEffect(() => {
+    if (params.id) {
+      buscar();
+    }
+  }, [params.id]);
 
   async function buscar() {
     setCarregando(true);
@@ -198,13 +203,6 @@ export default function PaginaVendas() {
     } finally {
       setCarregando(false);
     }
-  }
-
-  function copiarCodigoHash(codigo: string) {
-    navigator.clipboard.writeText(codigo);
-    setCodigoCopiado(true);
-    sucesso('Código copiado!', 'O código do ingresso foi copiado para a área de transferência.');
-    setTimeout(() => setCodigoCopiado(false), 2000);
   }
 
   // Filtragem dos ingressos
@@ -646,27 +644,6 @@ export default function PaginaVendas() {
                   </div>
                 )}
               </div>
-
-              {/* Hash / Código do QR Code */}
-              {ingressoSelecionado.qr_code_hash && (
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-texto-terciario uppercase tracking-wider">
-                    Código do QR Code / Autenticação
-                  </label>
-                  <div className="flex items-center gap-2 p-3 rounded-xl bg-fundo-principal border border-borda-sutil font-mono text-xs text-texto-principal">
-                    <QrCode size={18} className="text-primaria-400 shrink-0" />
-                    <span className="truncate flex-1 select-all">{ingressoSelecionado.qr_code_hash}</span>
-                    <button
-                      type="button"
-                      onClick={() => copiarCodigoHash(ingressoSelecionado.qr_code_hash)}
-                      className="p-1.5 rounded-lg bg-fundo-card hover:bg-fundo-hover text-texto-secundario hover:text-texto-principal transition-colors"
-                      title="Copiar código"
-                    >
-                      {codigoCopiado ? <Check size={16} className="text-emerald-400" /> : <Copy size={16} />}
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
 
             <div className="pt-4 border-t border-borda-sutil flex justify-end">
