@@ -126,7 +126,10 @@ function ConteudoCheckout() {
     );
   }
 
-  const total = lote.preco * qtd;
+  const TAXA_PERCENTUAL = 0.12;
+  const subtotal = lote.preco * qtd;
+  const taxaServico = lote.preco === 0 ? 0 : Math.round((subtotal * TAXA_PERCENTUAL) * 100) / 100;
+  const totalFinal = subtotal + taxaServico;
 
   return (
     <div className="min-h-screen pt-16 sm:pt-20 md:pt-24 pb-12 px-4">
@@ -144,7 +147,7 @@ function ConteudoCheckout() {
         </h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          {}
+          {/* Resumo do Evento e Ingressos */}
           <div className="lg:col-span-3">
             <Cartao variante="vidro" className="overflow-hidden !p-0">
               {/* Banner do Evento acima do título */}
@@ -213,7 +216,7 @@ function ConteudoCheckout() {
                   </div>
                 </div>
 
-                <div className="border-t border-borda-sutil pt-4 space-y-3">
+                <div className="border-t border-borda-sutil pt-4 space-y-2.5">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-texto-secundario">Lote</span>
                     <span className="text-texto-principal font-medium">{lote.nome_lote}</span>
@@ -226,16 +229,37 @@ function ConteudoCheckout() {
                     <span className="text-texto-secundario">Quantidade</span>
                     <span className="text-texto-principal font-medium">{qtd}x</span>
                   </div>
+
+                  {subtotal > 0 && (
+                    <>
+                      <div className="flex items-center justify-between text-sm pt-1 border-t border-borda-sutil/50">
+                        <span className="text-texto-secundario">Subtotal</span>
+                        <span className="text-texto-principal font-medium">{formatarMoeda(subtotal)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-texto-secundario flex items-center gap-1">
+                          Taxa da plataforma e banco (12%)
+                        </span>
+                        <span className="text-primaria-400 font-semibold">+{formatarMoeda(taxaServico)}</span>
+                      </div>
+                    </>
+                  )}
+
                   <div className="border-t border-borda-sutil pt-3 flex items-center justify-between">
-                    <span className="text-base sm:text-lg font-bold text-texto-principal">Total do Pedido</span>
-                    <span className="text-2xl sm:text-3xl font-black gradiente-texto">{formatarMoeda(total)}</span>
+                    <div>
+                      <span className="text-base sm:text-lg font-bold text-texto-principal block">Valor Final a Pagar</span>
+                      {taxaServico > 0 && (
+                        <span className="text-[11px] text-texto-terciario">Inclui ingressos e taxas da plataforma</span>
+                      )}
+                    </div>
+                    <span className="text-2xl sm:text-3xl font-black gradiente-texto">{formatarMoeda(totalFinal)}</span>
                   </div>
                 </div>
               </div>
             </Cartao>
           </div>
 
-          {}
+          {/* Formas de Pagamento e Botão */}
           <div className="lg:col-span-2">
             <Cartao variante="elevado">
               <h3 className="text-lg font-bold font-titulo mb-4 flex items-center gap-2">
@@ -245,7 +269,7 @@ function ConteudoCheckout() {
 
               <div className="space-y-3 mb-6">
                 <div className="flex items-center gap-2 text-xs text-texto-terciario">
-                  <Shield size={14} className="text-sucesso" />
+                  <Shield size={14} className="text-sucesso shrink-0" />
                   Pagamento seguro via Mercado Pago (PIX, Cartão ou Boleto)
                 </div>
                 <div className="flex items-center gap-2 text-xs text-texto-terciario">
@@ -271,7 +295,7 @@ function ConteudoCheckout() {
                 onClick={processarPagamento}
                 icone={<CreditCard size={20} />}
               >
-                Pagar {formatarMoeda(total)}
+                Pagar {formatarMoeda(totalFinal)}
               </Botao>
 
               <p className="text-[10px] text-texto-terciario text-center mt-4">

@@ -281,7 +281,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ erro: 'Lote não encontrado' }, { status: 404 });
     }
 
-    const valorEsperadoTotal = Number(lote.preco) * quantidade;
+    const TAXA_PERCENTUAL = 0.12;
+    const subtotal = Number(lote.preco) * quantidade;
+    const taxaEsperada = Number(lote.preco) === 0 ? 0 : Math.round((subtotal * TAXA_PERCENTUAL) * 100) / 100;
+    const valorEsperadoTotal = subtotal + taxaEsperada;
     const valorPagoReal = Number(payment.transaction_amount || payment.transaction_details?.total_paid_amount || 0);
 
     // Permite tolerância de centavos para arredondamento (R$ 0,05)

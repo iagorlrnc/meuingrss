@@ -158,12 +158,21 @@ export async function POST(request: NextRequest) {
     const failureUrl = `${baseUrl}/eventos/${evento_id}?pagamento_cancelado=true`;
     const pendingUrl = `${baseUrl}/meus-ingressos?status_pedido=aguardando&${statusParams}`;
 
+    const TAXA_PERCENTUAL = 0.12;
+    const subtotal = Number(lote.preco) * qtd;
+    const taxaServicoUnitaria = Number(lote.preco) === 0 ? 0 : Math.round((Number(lote.preco) * TAXA_PERCENTUAL) * 100) / 100;
+    const taxaServicoTotal = taxaServicoUnitaria * qtd;
+    const totalFinal = subtotal + taxaServicoTotal;
+
     const metadata = {
       evento_id,
       lote_id,
       comprador_id,
       quantidade: String(qtd),
       preco_unitario: String(lote.preco),
+      subtotal: String(subtotal),
+      taxa: String(taxaServicoTotal),
+      total_final: String(totalFinal),
     };
 
     const dataFormatada = evento.data_evento
@@ -194,26 +203,40 @@ export async function POST(request: NextRequest) {
       picture_url?: string;
     }
 
-    const itemPreference: ItemPreferencePayload = {
-      id: lote_id,
-      title: `${evento.titulo} — ${lote.nome_lote}`,
-      description: descricaoEvento || `Ingresso para ${evento.titulo}`,
-      category_id: 'tickets',
-      quantity: qtd,
-      unit_price: Number(lote.preco),
-      currency_id: 'BRL',
-    };
+    const itemsPayload: ItemPreferencePayload[] = [
+      {
+        id: lote_id,
+        title: `${evento.titulo} — ${lote.nome_lote}`,
+        description: descricaoEvento || `Ingresso para ${evento.titulo}`,
+        category_id: 'tickets',
+        quantity: qtd,
+        unit_price: Number(lote.preco),
+        currency_id: 'BRL',
+      },
+    ];
+
+    if (taxaServicoUnitaria > 0) {
+      itemsPayload.push({
+        id: `TAXA-${lote_id}`,
+        title: 'Taxa de Serviço e Plataforma (12%)',
+        description: 'Taxa da plataforma e custos de processamento bancário',
+        category_id: 'services',
+        quantity: qtd,
+        unit_price: taxaServicoUnitaria,
+        currency_id: 'BRL',
+      });
+    }
 
     if (evento.imagem_url) {
       const imgUrl = evento.imagem_url.startsWith('http')
         ? evento.imagem_url
         : `${baseUrl}${evento.imagem_url.startsWith('/') ? '' : '/'}${evento.imagem_url}`;
-      itemPreference.picture_url = imgUrl;
+      itemsPayload[0].picture_url = imgUrl;
     }
 
-    // Define a validade da preferência e do PIX em exatamente 10 minutos
+    // Define a validade da preferência e do QR Code PIX em exatamente 5 minutos
     const dataInicio = new Date();
-    const dataExpiracao = new Date(dataInicio.getTime() + 10 * 60 * 1000); // 10 minutos
+    const dataExpiracao = new Date(dataInicio.getTime() + 5 * 60 * 1000); // 5 minutos
 
     interface PayerDataPayload {
       email: string;
@@ -253,7 +276,7 @@ export async function POST(request: NextRequest) {
     const ehUrlPublica = !baseUrl.includes('localhost') && !baseUrl.includes('127.0.0.1') && !baseUrl.includes('.local');
 
     const preferencePayload = {
-      items: [itemPreference],
+      items: itemsPayload,
       back_urls: {
         success: successUrl,
         failure: failureUrl,
