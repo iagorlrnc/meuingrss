@@ -33,6 +33,7 @@ import {
   CreditCard,
 } from 'lucide-react';
 
+import CaptchaCloudflare from '@/componentes/ui/CaptchaCloudflare';
 import { useRateLimitAuth } from '@/hooks/useRateLimitAuth';
 
 export default function PaginaCadastroDiretor() {
@@ -60,6 +61,7 @@ export default function PaginaCadastroDiretor() {
   const [confirmarSenha, setConfirmarSenha] = useState('');
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [mostrarConfirmarSenha, setMostrarConfirmarSenha] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState('');
 
   // Estados de controle da página
   const [erro, setErro] = useState('');
@@ -106,8 +108,8 @@ export default function PaginaCadastroDiretor() {
       return;
     }
 
-    if (senha.length < 6) {
-      setErro('A senha deve ter pelo menos 6 caracteres');
+    if (senha.length < 8) {
+      setErro('A senha deve ter pelo menos 8 caracteres');
       return;
     }
 
@@ -118,15 +120,22 @@ export default function PaginaCadastroDiretor() {
 
     setCarregando(true);
 
-    const resultado = await cadastrar(email, senha, nome, 'diretor', {
-      telefone,
-      cpf,
-      cargo,
-      atleticaNome,
-      atleticaSigla,
-      atleticaCidade,
-      atleticaEstado,
-    });
+    const resultado = await cadastrar(
+      email,
+      senha,
+      nome,
+      'diretor',
+      {
+        telefone,
+        cpf,
+        cargo,
+        atleticaNome,
+        atleticaSigla,
+        atleticaCidade,
+        atleticaEstado,
+      },
+      turnstileToken
+    );
 
     if (resultado.erro) {
       if (resultado.rateLimitData) {
@@ -141,7 +150,7 @@ export default function PaginaCadastroDiretor() {
   }
 
   // Calculador simples de força da senha
-  const forcaSenha = senha.length === 0 ? 0 : senha.length < 6 ? 1 : senha.length < 10 ? 2 : 3;
+  const forcaSenha = senha.length === 0 ? 0 : senha.length < 8 ? 1 : senha.length < 12 ? 2 : 3;
 
   return (
     <div className="min-h-screen grid grid-cols-1 lg:grid-cols-12 bg-[#080c14] relative overflow-hidden">
@@ -642,6 +651,11 @@ export default function PaginaCadastroDiretor() {
                     {erro}
                   </div>
                 )}
+
+                <CaptchaCloudflare
+                  onVerify={(token) => setTurnstileToken(token)}
+                  onExpire={() => setTurnstileToken('')}
+                />
 
                 <div className="flex items-center gap-3 pt-2">
                   <Botao

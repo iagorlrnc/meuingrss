@@ -26,13 +26,14 @@ interface ContextoAuthType {
   usuario: User | null;
   perfil: Perfil | null;
   carregando: boolean;
-  entrar: (email: string, senha: string, tipoContexto?: 'admin' | 'geral') => Promise<ResultadoAuth>;
+  entrar: (email: string, senha: string, tipoContexto?: 'admin' | 'geral', turnstileToken?: string) => Promise<ResultadoAuth>;
   cadastrar: (
     email: string,
     senha: string,
     nome: string,
     role?: 'cliente' | 'diretor',
-    metadadosAdicionais?: MetadadosCadastro
+    metadadosAdicionais?: MetadadosCadastro,
+    turnstileToken?: string
   ) => Promise<ResultadoAuth>;
   sair: () => Promise<void>;
   entrarComGoogle: () => Promise<void>;
@@ -42,13 +43,14 @@ const ContextoAuth = createContext<ContextoAuthType | null>(null);
 
 async function checarRateLimitOuRegistrar(
   acao: 'verificar' | 'registrar_erro' | 'registrar_sucesso',
-  tipoContexto: 'admin' | 'geral' = 'geral'
+  tipoContexto: 'admin' | 'geral' = 'geral',
+  turnstileToken?: string
 ) {
   try {
     const res = await fetch('/api/auth/rate-limit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ acao, tipo: tipoContexto }),
+      body: JSON.stringify({ acao, tipo: tipoContexto, turnstileToken }),
       cache: 'no-store',
     });
     return await res.json();
@@ -118,10 +120,11 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
   const entrar = async (
     email: string,
     senha: string,
-    tipoContexto: 'admin' | 'geral' = 'geral'
+    tipoContexto: 'admin' | 'geral' = 'geral',
+    turnstileToken?: string
   ): Promise<ResultadoAuth> => {
-    // 1. Verificar se o IP já está bloqueado por rate limit
-    const checkStatus = await checarRateLimitOuRegistrar('verificar', tipoContexto);
+    // 1. Verificar se o IP já está bloqueado por rate limit ou se captcha falhou
+    const checkStatus = await checarRateLimitOuRegistrar('verificar', tipoContexto, turnstileToken);
     if (checkStatus.bloqueado) {
       return {
         erro: checkStatus.mensagem || `Muitas tentativas erradas. IP bloqueado. Aguarde ${checkStatus.segundosRestantes}s.`,
@@ -167,10 +170,11 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
     senha: string,
     nome: string,
     role: 'cliente' | 'diretor' = 'cliente',
-    metadadosAdicionais: MetadadosCadastro = {}
+    metadadosAdicionais: MetadadosCadastro = {},
+    turnstileToken?: string
   ): Promise<ResultadoAuth> => {
-    // 1. Verificar se o IP já está bloqueado por rate limit
-    const checkStatus = await checarRateLimitOuRegistrar('verificar');
+    // 1. Verificar se o IP já está bloqueado por rate limit ou se captcha falhou
+    const checkStatus = await checarRateLimitOuRegistrar('verificar', 'geral', turnstileToken);
     if (checkStatus.bloqueado) {
       return {
         erro: checkStatus.mensagem || `Muitas tentativas erradas. IP bloqueado. Aguarde ${checkStatus.segundosRestantes}s.`,

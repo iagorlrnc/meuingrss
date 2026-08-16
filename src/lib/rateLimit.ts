@@ -48,17 +48,21 @@ if (!g._rateLimitCleanupInterval) {
 
 export function obterIPCliente(req: Request | NextRequest): string {
   const headers = req.headers;
+
+  // Prioridade 1: Headers confiáveis da plataforma (não falsificáveis pelo cliente)
+  const cfConnectingIp = headers.get('cf-connecting-ip');
+  if (cfConnectingIp) return cfConnectingIp.trim();
+
+  // Prioridade 2: Header de IP real (Vercel, Nginx)
+  const xRealIp = headers.get('x-real-ip');
+  if (xRealIp && xRealIp !== '::1' && xRealIp !== '127.0.0.1') return xRealIp.trim();
+
+  // Prioridade 3: X-Forwarded-For (pode ser spoofado, mas é útil como fallback)
   const xForwardedFor = headers.get('x-forwarded-for');
   if (xForwardedFor) {
     const ip = xForwardedFor.split(',')[0].trim();
     if (ip && ip !== '::1' && ip !== '127.0.0.1') return ip;
   }
-
-  const xRealIp = headers.get('x-real-ip');
-  if (xRealIp && xRealIp !== '::1' && xRealIp !== '127.0.0.1') return xRealIp.trim();
-
-  const cfConnectingIp = headers.get('cf-connecting-ip');
-  if (cfConnectingIp) return cfConnectingIp.trim();
 
   return '127.0.0.1';
 }

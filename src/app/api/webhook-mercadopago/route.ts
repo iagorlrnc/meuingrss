@@ -359,8 +359,5 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
-  return NextResponse.json(
-    { status: 'ok', servico: 'Webhook Oficial Mercado Pago meuingrss com Resiliência Total' },
-    { status: 200 }
-  );
+  return NextResponse.json({ status: 'ok' }, { status: 200 });
 }

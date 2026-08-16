@@ -7,6 +7,7 @@ import Botao from '@/componentes/ui/Botao';
 import CampoTexto from '@/componentes/ui/CampoTexto';
 import { formatarTelefone, formatarCPF, validarCPF } from '@/lib/utilitarios';
 import { criarClienteNavegador } from '@/lib/supabase/cliente';
+import CaptchaCloudflare from '@/componentes/ui/CaptchaCloudflare';
 import { useRateLimitAuth } from '@/hooks/useRateLimitAuth';
 import {
   Ticket,
@@ -34,6 +35,7 @@ export default function PaginaCadastro() {
   const [cpf, setCpf] = useState('');
   const [senha, setSenha] = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
+  const [turnstileToken, setTurnstileToken] = useState('');
 
   // Validação de E-mail via Código (OTP)
   const [codigoEnviado, setCodigoEnviado] = useState(false);
@@ -152,8 +154,8 @@ export default function PaginaCadastro() {
       return;
     }
 
-    if (senha.length < 6) {
-      setErro('A senha deve ter pelo menos 6 caracteres.');
+    if (senha.length < 8) {
+      setErro('A senha deve ter pelo menos 8 caracteres.');
       return;
     }
 
@@ -164,10 +166,17 @@ export default function PaginaCadastro() {
 
     setCarregando(true);
 
-    const resultado = await cadastrar(email, senha, nome, 'cliente', {
-      telefone,
-      cpf,
-    });
+    const resultado = await cadastrar(
+      email,
+      senha,
+      nome,
+      'cliente',
+      {
+        telefone,
+        cpf,
+      },
+      turnstileToken
+    );
 
     if (resultado.erro) {
       if (resultado.rateLimitData) {
@@ -262,7 +271,7 @@ export default function PaginaCadastro() {
               required
             />
 
-            {/* Campo E-mail + Botão de Envio de Código */}
+            {/* Verificação de E-mail com Validação Instantânea */}
             <div className="space-y-2">
               <div className="flex items-end gap-2">
                 <div className="flex-1">
@@ -273,11 +282,10 @@ export default function PaginaCadastro() {
                     value={email}
                     onChange={(e) => {
                       setEmail((e.target as HTMLInputElement).value);
-                      if (emailVerificado) setEmailVerificado(false);
-                      if (codigoEnviado) setCodigoEnviado(false);
+                      setEmailVerificado(false);
+                      setCodigoEnviado(false);
                     }}
                     icone={<Mail size={18} />}
-                    disabled={emailVerificado}
                     required
                   />
                 </div>
@@ -287,12 +295,12 @@ export default function PaginaCadastro() {
                     type="button"
                     variante="contorno"
                     tamanho="md"
-                    disabled={enviandoCodigo || tempoReenvio > 0 || !email || !email.includes('@')}
                     carregando={enviandoCodigo}
+                    disabled={!email || !email.includes('@') || enviandoCodigo}
                     onClick={enviarCodigoValidacao}
-                    className="shrink-0 h-[46px] text-xs font-bold whitespace-nowrap px-3 mt-6 border-white/20 hover:border-[#00e5ff]"
+                    className="shrink-0 h-[46px] text-xs px-3.5 border-white/20 hover:border-[#00e5ff] text-slate-300 hover:text-white"
                   >
-                    {tempoReenvio > 0 ? `${tempoReenvio}s` : codigoEnviado ? 'Reenviar' : 'Enviar Código'}
+                    {codigoEnviado ? 'Reenviar' : 'Verificar'}
                   </Botao>
                 )}
               </div>
@@ -352,7 +360,7 @@ export default function PaginaCadastro() {
             <CampoTexto
               rotulo="Senha"
               type="password"
-              placeholder="Mínimo 6 caracteres"
+              placeholder="Mínimo 8 caracteres"
               value={senha}
               onChange={(e) => setSenha((e.target as HTMLInputElement).value)}
               icone={<Lock size={18} />}
@@ -392,6 +400,11 @@ export default function PaginaCadastro() {
                 {erro}
               </div>
             )}
+
+            <CaptchaCloudflare
+              onVerify={(token) => setTurnstileToken(token)}
+              onExpire={() => setTurnstileToken('')}
+            />
 
             <Botao type="submit" variante="festiva" larguraTotal tamanho="lg" carregando={carregando} disabled={bloqueado || carregando}>
               {bloqueado ? `Aguarde ${segundosRestantes}s` : 'Criar conta'}

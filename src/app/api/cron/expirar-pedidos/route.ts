@@ -25,22 +25,19 @@ export async function POST(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
 
-  // Em desenvolvimento, permite sem secret
-  if (process.env.NODE_ENV === 'production') {
-    if (!cronSecret) {
-      logger.error('CRON_SECRET não configurado no ambiente de produção', null);
-      return NextResponse.json(
-        { erro: 'Configuração de cron incompleta no servidor' },
-        { status: 500 }
-      );
-    }
+  if (!cronSecret) {
+    logger.error('CRON_SECRET não configurado no ambiente', null);
+    return NextResponse.json(
+      { erro: 'Configuração de cron incompleta no servidor' },
+      { status: 500 }
+    );
+  }
 
-    if (!authHeader || authHeader !== `Bearer ${cronSecret}`) {
-      logger.security('Tentativa de acesso não autorizado ao endpoint de expiração de pedidos', {
-        ip: request.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1',
-      });
-      return NextResponse.json({ erro: 'Não autorizado' }, { status: 401 });
-    }
+  if (!authHeader || authHeader !== `Bearer ${cronSecret}`) {
+    logger.security('Tentativa de acesso não autorizado ao endpoint de expiração de pedidos', {
+      ip: request.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1',
+    });
+    return NextResponse.json({ erro: 'Não autorizado' }, { status: 401 });
   }
 
   try {

@@ -18,10 +18,15 @@ import { validarAssinaturaWebhook } from '@/lib/mercadopago';
  * Disponível apenas em ambiente de desenvolvimento/testes.
  */
 export async function GET(request: NextRequest) {
+  // Endpoint de testes: acessível APENAS em ambiente de desenvolvimento
+  if (process.env.NODE_ENV !== 'development') {
+    return NextResponse.json({ erro: 'Endpoint restrito ao ambiente de desenvolvimento' }, { status: 403 });
+  }
+
   const authHeader = request.headers.get('authorization');
   const testSecret = process.env.TEST_SUITE_SECRET;
 
-  if (process.env.NODE_ENV === 'production' || (testSecret && authHeader !== `Bearer ${testSecret}`)) {
+  if (testSecret && authHeader !== `Bearer ${testSecret}`) {
     return NextResponse.json({ erro: 'Endpoint restrito e não autorizado' }, { status: 403 });
   }
 

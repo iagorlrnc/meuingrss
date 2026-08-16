@@ -6,7 +6,7 @@ import { logger } from './logger';
 const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN || '';
 
 export const mercadopagoClient = new MercadoPagoConfig({
-  accessToken: accessToken || 'TEST-0000000000000000-000000-00000000000000000000000000000000-00000000',
+  accessToken: accessToken || 'UNCONFIGURED',
   options: {
     timeout: 10000,
   },

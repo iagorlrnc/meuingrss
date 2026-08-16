@@ -2,12 +2,14 @@ import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 
 function obterChaveSecreta(): string {
-  return (
-    process.env.QR_CODE_SECRET ||
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    'meuingrss-secret-qr-key-2026'
-  );
+  const secret = process.env.QR_CODE_SECRET;
+  if (!secret || secret.length < 16) {
+    throw new Error(
+      'FATAL: QR_CODE_SECRET não está configurado ou é muito curto (mín. 16 caracteres). ' +
+      'Configure uma chave aleatória segura no .env.local antes de usar o sistema.'
+    );
+  }
+  return secret;
 }
 
 export function gerarHashIngresso(ingressoId: string, eventoId: string): string {

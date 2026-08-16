@@ -53,7 +53,7 @@ export const logger = {
       nivel: 'error',
       mensagem,
       detalhes_erro: erro instanceof Error ? erro.message : String(erro || ''),
-      stack: erro instanceof Error ? erro.stack : undefined,
+      stack: process.env.NODE_ENV !== 'production' && erro instanceof Error ? erro.stack : undefined,
       ...sanitizarContexto(contexto),
     };
     console.error(JSON.stringify(payload));
