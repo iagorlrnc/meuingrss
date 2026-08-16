@@ -197,6 +197,10 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
           telefone: metadadosAdicionais.telefone || null,
           cpf: metadadosAdicionais.cpf || null,
           cargo: metadadosAdicionais.cargo || null,
+          atleticaNome: metadadosAdicionais.atleticaNome || null,
+          atleticaSigla: metadadosAdicionais.atleticaSigla || null,
+          atleticaCidade: metadadosAdicionais.atleticaCidade || null,
+          atleticaEstado: metadadosAdicionais.atleticaEstado || 'TO',
           atletica_nome: metadadosAdicionais.atleticaNome || null,
           atletica_sigla: metadadosAdicionais.atleticaSigla || null,
           atletica_cidade: metadadosAdicionais.atleticaCidade || null,
@@ -221,6 +225,10 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
               telefone: metadadosAdicionais.telefone || null,
               cpf: metadadosAdicionais.cpf || null,
               cargo: metadadosAdicionais.cargo || null,
+              atleticaNome: metadadosAdicionais.atleticaNome || null,
+              atleticaSigla: metadadosAdicionais.atleticaSigla || null,
+              atleticaCidade: metadadosAdicionais.atleticaCidade || null,
+              atleticaEstado: metadadosAdicionais.atleticaEstado || 'TO',
               atletica_nome: metadadosAdicionais.atleticaNome || null,
               atletica_sigla: metadadosAdicionais.atleticaSigla || null,
               atletica_cidade: metadadosAdicionais.atleticaCidade || null,
@@ -250,8 +258,17 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
       try {
         const userStatus = roleValido === 'diretor' ? 'pendente' : 'ativo';
 
+        // Tenta obter atletica_id já criada/vinculada via trigger
         let atleticaId: string | null = null;
-        if (roleValido === 'diretor' && metadadosAdicionais.atleticaNome) {
+        const { data: perfExistente } = await supabase
+          .from('profiles')
+          .select('atletica_id')
+          .eq('id', userObj.id)
+          .maybeSingle();
+
+        if (perfExistente?.atletica_id) {
+          atleticaId = perfExistente.atletica_id;
+        } else if (roleValido === 'diretor' && metadadosAdicionais.atleticaNome) {
           const { data: atleticaCriada, error: errAtl } = await supabase
             .from('atleticas')
             .insert({
@@ -269,7 +286,7 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
           if (atleticaCriada) {
             atleticaId = atleticaCriada.id;
           } else if (errAtl) {
-            console.error('Erro ao criar atlética:', errAtl);
+            console.error('Erro ao criar atlética via JS:', errAtl);
           }
         }
 

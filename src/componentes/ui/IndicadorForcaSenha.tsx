@@ -43,9 +43,9 @@ export default function IndicadorForcaSenha({ senha }: IndicadorForcaSenhaProps)
                 <Info size={14} />
               </button>
 
-              {/* Tooltip Card Flutuante (Visível apenas ao passar o mouse) */}
+              {/* Tooltip Card Flutuante (Visível ao passar o mouse ou clicar) */}
               {mostrarInfo && (
-                <div className="absolute left-0 bottom-full mb-2.5 w-64 p-3.5 rounded-2xl bg-[#0f172a]/95 border border-slate-700/80 shadow-[0_10px_30px_rgba(0,0,0,0.8)] backdrop-blur-xl z-50 animar-entrar-baixo text-xs pointer-events-none">
+                <div className="absolute left-0 sm:-left-2 bottom-full mb-2.5 w-64 max-w-[calc(100vw-3rem)] p-3.5 rounded-2xl bg-[#0f172a]/95 border border-slate-700/80 shadow-[0_10px_30px_rgba(0,0,0,0.8)] backdrop-blur-xl z-50 animar-entrar-baixo text-xs">
                   {/* Setinha apontando para baixo */}
                   <div className="absolute -bottom-1.5 left-2.5 w-3 h-3 bg-[#0f172a] border-r border-b border-slate-700/80 rotate-45" />
 

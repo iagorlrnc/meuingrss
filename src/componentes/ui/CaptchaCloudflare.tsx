@@ -25,22 +25,24 @@ export default function CaptchaCloudflare({
     '1x00000000000000000000AA';
 
   return (
-    <div className={`flex flex-col items-center justify-center my-3 min-h-[65px] w-full ${className}`}>
-      <Turnstile
-        siteKey={keyToUse}
-        options={{
-          theme,
-        }}
-        onSuccess={(token) => {
-          if (onVerify) onVerify(token);
-        }}
-        onError={() => {
-          if (onError) onError();
-        }}
-        onExpire={() => {
-          if (onExpire) onExpire();
-        }}
-      />
+    <div className={`flex flex-col items-center justify-center my-3 min-h-[65px] w-full max-w-full overflow-hidden ${className}`}>
+      <div className="max-w-full overflow-x-auto flex justify-center py-1">
+        <Turnstile
+          siteKey={keyToUse}
+          options={{
+            theme,
+          }}
+          onSuccess={(token) => {
+            if (onVerify) onVerify(token);
+          }}
+          onError={() => {
+            if (onError) onError();
+          }}
+          onExpire={() => {
+            if (onExpire) onExpire();
+          }}
+        />
+      </div>
     </div>
   );
 }

@@ -171,26 +171,26 @@ function FormularioEntrarDiretor() {
       </div>
 
       {/* LADO DIREITO: Form de Autenticação */}
-      <div className="lg:col-span-6 xl:col-span-5 flex flex-col justify-center items-center p-6 sm:p-10 lg:p-12 relative z-10">
+      <div className="lg:col-span-6 xl:col-span-5 flex flex-col justify-center items-center p-3 sm:p-8 lg:p-12 relative z-10 w-full">
         {/* Botão de voltar visível apenas no mobile */}
-        <div className="w-full max-w-md lg:hidden mb-6">
+        <div className="w-full max-w-md lg:hidden mb-4 sm:mb-6">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-white transition-all uppercase tracking-wider bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full border border-white/10"
+            className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-white transition-all uppercase tracking-wider bg-white/5 hover:bg-white/10 px-3.5 py-2 rounded-full border border-white/10"
           >
             <ArrowLeft size={14} />
             Voltar ao site principal
           </Link>
         </div>
 
-        <div className="w-full max-w-md vidro-forte rounded-3xl p-8 sm:p-10 shadow-2xl animar-entrar-baixo border border-white/15 backdrop-blur-2xl bg-[#0d1322]/90">
+        <div className="w-full max-w-md vidro-forte rounded-3xl p-5 sm:p-8 md:p-10 shadow-2xl animar-entrar-baixo border border-white/15 backdrop-blur-2xl bg-[#0d1322]/90">
           {/* Cabeçalho do Card */}
-          <div className="flex items-center gap-4 mb-8 pb-6 border-b border-white/10">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#ff007a] via-[#8b5cf6] to-[#026cdf] flex items-center justify-center shadow-lg shadow-purple-500/20 shrink-0">
-              <Ticket className="w-7 h-7 text-white transform -rotate-12" />
+          <div className="flex items-center gap-3.5 sm:gap-4 mb-6 sm:mb-8 pb-5 sm:pb-6 border-b border-white/10">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-[#ff007a] via-[#8b5cf6] to-[#026cdf] flex items-center justify-center shadow-lg shadow-purple-500/20 shrink-0">
+              <Ticket className="w-6 h-6 sm:w-7 sm:h-7 text-white transform -rotate-12" />
             </div>
             <div>
-              <h1 className="text-2xl font-black font-titulo text-white tracking-tight">
+              <h1 className="text-xl sm:text-2xl font-black font-titulo text-white tracking-tight">
                 Painel da Diretoria
               </h1>
               <p className="text-xs text-slate-400 mt-0.5">
@@ -199,7 +199,7 @@ function FormularioEntrarDiretor() {
             </div>
           </div>
 
-          <form onSubmit={aoSubmeter} className="space-y-5">
+          <form onSubmit={aoSubmeter} className="space-y-4 sm:space-y-5">
             <CampoTexto
               rotulo="Email corporativo ou da atlética"
               type="email"
@@ -221,16 +221,16 @@ function FormularioEntrarDiretor() {
             />
 
             {bloqueado && (
-              <div className="p-4 rounded-2xl bg-red-500/15 border border-red-500/30 text-xs font-semibold text-red-400 flex items-start gap-3 animar-entrar-baixo">
-                <div className="w-8 h-8 rounded-xl bg-red-500/20 flex items-center justify-center shrink-0 text-red-400 font-bold mt-0.5">
-                  <Clock size={18} className="animate-spin" />
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-red-500/15 border border-red-500/30 text-xs font-semibold text-red-400 flex items-start gap-3 animar-entrar-baixo">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-red-500/20 flex items-center justify-center shrink-0 text-red-400 font-bold mt-0.5">
+                  <Clock size={16} className="animate-spin" />
                 </div>
-                <div className="flex-1">
-                  <p className="font-bold text-sm text-red-300">IP Bloqueado Temporariamente</p>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-xs sm:text-sm text-red-300">IP Bloqueado Temporariamente</p>
                   <p className="mt-1 leading-relaxed text-slate-300">
                     {mensagemRateLimit || 'Muitas tentativas erradas em sequência.'}
                   </p>
-                  <div className="mt-2 text-xs font-mono font-bold text-red-400 flex items-center gap-1.5">
+                  <div className="mt-2 text-xs font-mono font-bold text-red-400 flex items-center gap-1.5 flex-wrap">
                     Tente novamente em: <span className="bg-red-950/80 px-2 py-0.5 rounded border border-red-500/30 text-red-300 text-sm font-bold">{segundosRestantes}s</span>
                   </div>
                 </div>
@@ -238,7 +238,7 @@ function FormularioEntrarDiretor() {
             )}
 
             {erro && !bloqueado && (
-              <div className="p-4 rounded-xl bg-red-500/15 border border-red-500/30 text-xs font-semibold text-red-400 leading-relaxed flex items-center gap-2.5">
+              <div className="p-3.5 sm:p-4 rounded-xl bg-red-500/15 border border-red-500/30 text-xs font-semibold text-red-400 leading-relaxed flex items-center gap-2.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-red-400 animate-ping shrink-0" />
                 <span>{erro}</span>
               </div>
@@ -264,12 +264,12 @@ function FormularioEntrarDiretor() {
           </form>
 
           {/* Chamada para Cadastro */}
-          <div className="mt-8 pt-6 border-t border-white/10 text-center">
+          <div className="mt-6 sm:mt-8 pt-5 sm:pt-6 border-t border-white/10 text-center">
             <p className="text-xs text-slate-400">
               Sua atlética ainda não tem cadastro?{' '}
               <Link
                 href="/autenticacao/cadastro"
-                className="text-[#00e5ff] hover:text-[#00e5ff]/80 underline font-bold transition-colors ml-1"
+                className="text-[#00e5ff] hover:text-[#00e5ff]/80 underline font-bold transition-colors ml-1 inline-block"
               >
                 Cadastrar Atlética
               </Link>

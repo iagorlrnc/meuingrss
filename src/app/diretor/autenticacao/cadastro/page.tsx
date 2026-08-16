@@ -331,26 +331,26 @@ export default function PaginaCadastroDiretor() {
       </div>
 
       {/* LADO DIREITO: Formulario Step Wizard */}
-      <div className="lg:col-span-7 xl:col-span-7 flex flex-col justify-center items-center p-6 sm:p-10 lg:p-12 relative z-10">
+      <div className="lg:col-span-7 xl:col-span-7 flex flex-col justify-center items-center p-3 sm:p-8 lg:p-12 relative z-10 w-full">
         {/* Botão de voltar visível apenas no mobile */}
-        <div className="w-full max-w-xl lg:hidden mb-6">
+        <div className="w-full max-w-xl lg:hidden mb-4 sm:mb-6">
           <Link
             href="/autenticacao/entrar"
-            className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-white transition-all uppercase tracking-wider bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full border border-white/10"
+            className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-white transition-all uppercase tracking-wider bg-white/5 hover:bg-white/10 px-3.5 py-2 rounded-full border border-white/10"
           >
             <ArrowLeft size={14} />
             Voltar ao login do diretor
           </Link>
         </div>
 
-        <div className="w-full max-w-xl vidro-forte rounded-3xl p-6 sm:p-10 shadow-2xl animar-entrar-baixo border border-white/15 backdrop-blur-2xl bg-[#0d1322]/90">
+        <div className="w-full max-w-xl vidro-forte rounded-3xl p-4 sm:p-8 md:p-10 shadow-2xl animar-entrar-baixo border border-white/15 backdrop-blur-2xl bg-[#0d1322]/90">
           {/* Cabeçalho */}
-          <div className="flex items-center gap-4 mb-8 pb-6 border-b border-white/10">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#ff007a] via-[#8b5cf6] to-[#026cdf] flex items-center justify-center shadow-lg shadow-purple-500/20 shrink-0">
-              <Ticket className="w-7 h-7 text-white transform -rotate-12" />
+          <div className="flex items-center gap-3.5 sm:gap-4 mb-6 sm:mb-8 pb-5 sm:pb-6 border-b border-white/10">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-[#ff007a] via-[#8b5cf6] to-[#026cdf] flex items-center justify-center shadow-lg shadow-purple-500/20 shrink-0">
+              <Ticket className="w-6 h-6 sm:w-7 sm:h-7 text-white transform -rotate-12" />
             </div>
             <div>
-              <h1 className="text-2xl font-black font-titulo text-white tracking-tight">
+              <h1 className="text-xl sm:text-2xl font-black font-titulo text-white tracking-tight">
                 Cadastro de Atlética
               </h1>
               <p className="text-xs text-slate-400">
@@ -360,80 +360,82 @@ export default function PaginaCadastroDiretor() {
           </div>
 
           {/* Indicador de Etapas (Step Wizard) */}
-          <div className="mb-8 bg-[#080c14]/70 p-4 rounded-2xl border border-white/10">
+          <div className="mb-6 sm:mb-8 bg-[#080c14]/70 p-3 sm:p-4 rounded-2xl border border-white/10">
             <div className="relative flex justify-between items-start">
               {/* Linha de fundo delimitada exatamente entre os ícones das extremidades */}
-              <div className="absolute top-5 left-[16.666%] right-[16.666%] h-1 bg-white/10 z-0 rounded-full" />
+              <div className="absolute top-4 sm:top-5 left-[16.666%] right-[16.666%] h-1 bg-white/10 z-0 rounded-full" />
               {/* Linha de progresso ativa */}
               <div
-                className="absolute top-5 left-[16.666%] h-1 bg-gradient-to-r from-[#ff007a] via-[#8b5cf6] to-[#00e5ff] transition-all duration-500 z-0 rounded-full shadow-[0_0_12px_rgba(255,0,122,0.8)]"
+                className="absolute top-4 sm:top-5 left-[16.666%] h-1 bg-gradient-to-r from-[#ff007a] via-[#8b5cf6] to-[#00e5ff] transition-all duration-500 z-0 rounded-full shadow-[0_0_12px_rgba(255,0,122,0.8)]"
                 style={{
                   width: etapa === 1 ? '0%' : etapa === 2 ? '33.333%' : '66.666%',
                 }}
               />
 
               {/* Etapa 1 Node */}
-              <div className="relative z-10 flex flex-col items-center text-center gap-2 flex-1">
+              <div className="relative z-10 flex flex-col items-center text-center gap-1.5 sm:gap-2 flex-1">
                 <button
                   type="button"
                   onClick={() => {
                     if (etapa > 1) { setErro(''); setEtapa(1); }
                   }}
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold transition-all duration-300 ${
+                  className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-xs font-bold transition-all duration-300 ${
                     etapa === 1
-                      ? 'bg-gradient-to-br from-[#ff007a] to-[#8b5cf6] text-white ring-4 ring-[#ff007a]/30 shadow-lg shadow-[#ff007a]/40 scale-110'
+                      ? 'bg-gradient-to-br from-[#ff007a] to-[#8b5cf6] text-white ring-4 ring-[#ff007a]/30 shadow-lg shadow-[#ff007a]/40 scale-105 sm:scale-110'
                       : etapa > 1
                       ? 'bg-emerald-500 text-white cursor-pointer shadow-md'
                       : 'bg-[#162036] text-slate-400 border border-white/10'
                   }`}
                 >
-                  {etapa > 1 ? <Check size={18} className="stroke-[3]" /> : <User size={18} />}
+                  {etapa > 1 ? <Check size={16} className="stroke-[3]" /> : <User size={16} />}
                 </button>
-                <span className={`text-[11px] font-black uppercase tracking-wider leading-tight ${etapa >= 1 ? 'text-[#ff007a]' : 'text-slate-500'}`}>
-                  1. Dados Pessoais
+                <span className={`text-[10px] sm:text-[11px] font-black uppercase tracking-wider leading-tight ${etapa >= 1 ? 'text-[#ff007a]' : 'text-slate-500'}`}>
+                  <span className="hidden sm:inline">1. Dados Pessoais</span>
+                  <span className="sm:hidden">1. Pessoal</span>
                 </span>
               </div>
 
               {/* Etapa 2 Node */}
-              <div className="relative z-10 flex flex-col items-center text-center gap-2 flex-1">
+              <div className="relative z-10 flex flex-col items-center text-center gap-1.5 sm:gap-2 flex-1">
                 <button
                   type="button"
                   onClick={() => {
                     if (etapa > 2) { setErro(''); setEtapa(2); }
                     else if (etapa === 1) { avancarEtapa1(); }
                   }}
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold transition-all duration-300 ${
+                  className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-xs font-bold transition-all duration-300 ${
                     etapa === 2
-                      ? 'bg-gradient-to-br from-[#ff007a] to-[#8b5cf6] text-white ring-4 ring-[#ff007a]/30 shadow-lg shadow-[#ff007a]/40 scale-110'
+                      ? 'bg-gradient-to-br from-[#ff007a] to-[#8b5cf6] text-white ring-4 ring-[#ff007a]/30 shadow-lg shadow-[#ff007a]/40 scale-105 sm:scale-110'
                       : etapa > 2
                       ? 'bg-emerald-500 text-white cursor-pointer shadow-md'
                       : 'bg-[#162036] text-slate-400 border border-white/10'
                   }`}
                 >
-                  {etapa > 2 ? <Check size={18} className="stroke-[3]" /> : <Trophy size={18} />}
+                  {etapa > 2 ? <Check size={16} className="stroke-[3]" /> : <Trophy size={16} />}
                 </button>
-                <span className={`text-[11px] font-black uppercase tracking-wider leading-tight ${etapa >= 2 ? 'text-[#8b5cf6]' : 'text-slate-500'}`}>
+                <span className={`text-[10px] sm:text-[11px] font-black uppercase tracking-wider leading-tight ${etapa >= 2 ? 'text-[#8b5cf6]' : 'text-slate-500'}`}>
                   2. Atlética
                 </span>
               </div>
 
               {/* Etapa 3 Node */}
-              <div className="relative z-10 flex flex-col items-center text-center gap-2 flex-1">
+              <div className="relative z-10 flex flex-col items-center text-center gap-1.5 sm:gap-2 flex-1">
                 <button
                   type="button"
                   onClick={() => {
                     if (etapa === 2) { avancarEtapa2(); }
                   }}
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold transition-all duration-300 ${
+                  className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-xs font-bold transition-all duration-300 ${
                     etapa === 3
-                      ? 'bg-gradient-to-br from-[#ff007a] to-[#8b5cf6] text-white ring-4 ring-[#ff007a]/30 shadow-lg shadow-[#ff007a]/40 scale-110'
+                      ? 'bg-gradient-to-br from-[#ff007a] to-[#8b5cf6] text-white ring-4 ring-[#ff007a]/30 shadow-lg shadow-[#ff007a]/40 scale-105 sm:scale-110'
                       : 'bg-[#162036] text-slate-400 border border-white/10'
                   }`}
                 >
-                  <Lock size={18} />
+                  <Lock size={16} />
                 </button>
-                <span className={`text-[11px] font-black uppercase tracking-wider leading-tight ${etapa >= 3 ? 'text-[#00e5ff]' : 'text-slate-500'}`}>
-                  3. Autenticação
+                <span className={`text-[10px] sm:text-[11px] font-black uppercase tracking-wider leading-tight ${etapa >= 3 ? 'text-[#00e5ff]' : 'text-slate-500'}`}>
+                  <span className="hidden sm:inline">3. Autenticação</span>
+                  <span className="sm:hidden">3. Acesso</span>
                 </span>
               </div>
             </div>
@@ -679,8 +681,8 @@ export default function PaginaCadastroDiretor() {
 
                 {/* Verificação de E-mail com Validação Instantânea */}
                 <div className="space-y-2">
-                  <div className="flex items-end gap-2">
-                    <div className="flex-1">
+                  <div className="flex flex-col sm:flex-row sm:items-end gap-2">
+                    <div className="flex-1 min-w-0">
                       <CampoTexto
                         rotulo="Email corporativo ou da atlética"
                         type="email"
@@ -708,7 +710,7 @@ export default function PaginaCadastroDiretor() {
                         carregando={enviandoCodigo}
                         disabled={!email || !email.includes('@') || enviandoCodigo || (email === emailEnviado && tempoReenvio > 0)}
                         onClick={enviarCodigoValidacao}
-                        className="shrink-0 h-[46px] text-xs px-3.5 border-white/20 hover:border-[#00e5ff] text-slate-300 hover:text-white"
+                        className="shrink-0 h-[46px] text-xs px-3.5 border-white/20 hover:border-[#00e5ff] text-slate-300 hover:text-white whitespace-nowrap w-full sm:w-auto"
                       >
                         {email === emailEnviado && tempoReenvio > 0 ? `Aguarde ${tempoReenvio}s` : codigoEnviado ? 'Reenviar' : 'Verificar'}
                       </Botao>
@@ -724,7 +726,7 @@ export default function PaginaCadastroDiretor() {
                   {/* Status de E-mail Verificado */}
                   {emailVerificado && (
                     <div className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs font-bold text-emerald-400 animar-entrar-escala">
-                      <ShieldCheck size={16} />
+                      <ShieldCheck size={16} className="shrink-0" />
                       <span>E-mail verificado com sucesso!</span>
                     </div>
                   )}
@@ -733,8 +735,8 @@ export default function PaginaCadastroDiretor() {
                   {codigoEnviado && !emailVerificado && (
                     <div className="p-3.5 rounded-2xl bg-[#162036] border border-[#00e5ff]/30 space-y-3 animar-entrar-baixo">
                       <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-                        <KeyRound size={14} className="text-[#00e5ff]" />
-                        Digite o código de 6 dígitos enviado para seu e-mail:
+                        <KeyRound size={14} className="text-[#00e5ff] shrink-0" />
+                        <span>Digite o código de 6 dígitos enviado para seu e-mail:</span>
                       </label>
 
                       <div className="flex items-center gap-2">
@@ -744,7 +746,7 @@ export default function PaginaCadastroDiretor() {
                           placeholder="000000"
                           value={codigo}
                           onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ''))}
-                          className="w-full bg-[#080c14] border border-white/15 rounded-xl px-4 py-2.5 text-center text-lg font-black font-mono tracking-widest text-white focus:outline-none focus:border-[#00e5ff]"
+                          className="flex-1 min-w-0 bg-[#080c14] border border-white/15 rounded-xl px-3 sm:px-4 py-2.5 text-center text-base sm:text-lg font-black font-mono tracking-widest text-white focus:outline-none focus:border-[#00e5ff]"
                         />
 
                         <Botao
@@ -754,7 +756,7 @@ export default function PaginaCadastroDiretor() {
                           carregando={validandoCodigo}
                           disabled={codigo.length < 6 || validandoCodigo}
                           onClick={validarCodigoOtp}
-                          className="shrink-0 h-[44px] text-xs px-4"
+                          className="shrink-0 h-[44px] text-xs px-3 sm:px-4 whitespace-nowrap"
                         >
                           Validar
                         </Botao>

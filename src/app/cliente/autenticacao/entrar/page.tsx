@@ -99,40 +99,36 @@ function FormularioEntrar() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
-      {}
-      <div className="orbe-roxa -top-20 -left-20 opacity-40" />
-      <div className="orbe-rosa bottom-20 right-0 opacity-30" />
+    <div className="min-h-screen flex items-center justify-center p-3 sm:p-6 relative overflow-hidden bg-[#080c14]">
+      {/* Background glowing Orbs */}
+      <div className="orbe-roxa -top-20 -left-20 opacity-40 pointer-events-none" />
+      <div className="orbe-rosa bottom-20 right-0 opacity-30 pointer-events-none" />
 
       <div className="w-full max-w-md relative z-10">
-        {}
         <Link
           href="/"
-          className="inline-flex items-center gap-2 text-sm text-texto-secundario hover:text-texto-principal transition-colors mb-8"
+          className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-white transition-all uppercase tracking-wider mb-4 sm:mb-6 bg-white/5 hover:bg-white/10 px-3.5 py-2 rounded-full border border-white/10"
         >
-          <ArrowLeft size={16} />
+          <ArrowLeft size={14} />
           Voltar ao início
         </Link>
 
-        {}
-        <div className="vidro-forte rounded-3xl p-8 shadow-glass animar-entrar-baixo">
-          {}
-          <div className="flex items-center gap-3 mb-8">
+        <div className="vidro-forte rounded-3xl p-5 sm:p-8 shadow-glass animar-entrar-baixo border border-white/15 backdrop-blur-2xl bg-[#0d1322]/85">
+          <div className="flex items-center gap-3.5 mb-6 sm:mb-8 pb-5 border-b border-white/10">
             <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#ff007a] via-[#8b5cf6] to-[#026cdf] flex items-center justify-center shadow-lg shrink-0">
               <Ticket className="w-6 h-6 text-white transform -rotate-12" />
             </div>
             <div>
-              <h1 className="text-xl font-bold font-titulo text-texto-principal">
+              <h1 className="text-xl font-bold font-titulo text-white">
                 Entrar
               </h1>
-              <p className="text-xs text-texto-terciario">
+              <p className="text-xs text-slate-400 mt-0.5">
                 Acesse sua conta meuingrss
               </p>
             </div>
           </div>
 
-          {}
-          <form onSubmit={aoSubmeter} className="space-y-5">
+          <form onSubmit={aoSubmeter} className="space-y-4 sm:space-y-5">
             <CampoTexto
               rotulo="Email"
               type="email"
@@ -154,16 +150,16 @@ function FormularioEntrar() {
             />
 
             {bloqueado && (
-              <div className="p-4 rounded-2xl bg-red-500/15 border border-red-500/30 text-xs font-semibold text-red-400 flex items-start gap-3 animar-entrar-baixo">
-                <div className="w-8 h-8 rounded-xl bg-red-500/20 flex items-center justify-center shrink-0 text-red-400 font-bold mt-0.5">
-                  <Clock size={18} className="animate-spin" />
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-red-500/15 border border-red-500/30 text-xs font-semibold text-red-400 flex items-start gap-3 animar-entrar-baixo">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-red-500/20 flex items-center justify-center shrink-0 text-red-400 font-bold mt-0.5">
+                  <Clock size={16} className="animate-spin" />
                 </div>
-                <div className="flex-1">
-                  <p className="font-bold text-sm text-red-300">IP Bloqueado Temporariamente</p>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-xs sm:text-sm text-red-300">IP Bloqueado Temporariamente</p>
                   <p className="mt-1 leading-relaxed text-slate-300">
                     {mensagemRateLimit || 'Muitas tentativas erradas em sequência.'}
                   </p>
-                  <div className="mt-2 text-xs font-mono font-bold text-red-400 flex items-center gap-1.5">
+                  <div className="mt-2 text-xs font-mono font-bold text-red-400 flex items-center gap-1.5 flex-wrap">
                     Tente novamente em: <span className="bg-red-950/80 px-2 py-0.5 rounded border border-red-500/30 text-red-300 text-sm font-bold">{segundosRestantes}s</span>
                   </div>
                 </div>
@@ -171,13 +167,15 @@ function FormularioEntrar() {
             )}
 
             {erro && !bloqueado && (
-              <div className="p-3 rounded-xl bg-erro/10 border border-erro/20 text-sm text-erro">
-                {erro}
+              <div className="p-3 sm:p-3.5 rounded-xl bg-red-500/15 border border-red-500/30 text-xs font-semibold text-red-400 leading-relaxed flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-red-400 animate-ping shrink-0" />
+                <span>{erro}</span>
               </div>
             )}
 
             <Botao
               type="submit"
+              variante="festiva"
               larguraTotal
               tamanho="lg"
               carregando={carregando}
@@ -193,14 +191,12 @@ function FormularioEntrar() {
             />
           </form>
 
-          {}
-          <div className="flex items-center gap-4 my-6">
-            <div className="flex-1 h-px bg-borda-sutil" />
-            <span className="text-xs text-texto-terciario">ou continue com</span>
-            <div className="flex-1 h-px bg-borda-sutil" />
+          <div className="flex items-center gap-3 my-5 sm:my-6">
+            <div className="flex-1 h-px bg-white/10" />
+            <span className="text-xs text-slate-400">ou continue com</span>
+            <div className="flex-1 h-px bg-white/10" />
           </div>
 
-          {}
           <Botao
             variante="contorno"
             larguraTotal
@@ -232,12 +228,11 @@ function FormularioEntrar() {
             Google
           </Botao>
 
-          {}
-          <p className="text-center text-sm text-texto-secundario mt-6">
+          <p className="text-center text-xs sm:text-sm text-slate-400 mt-6">
             Não tem conta?{' '}
             <Link
               href="/autenticacao/cadastro"
-              className="text-primaria-400 hover:text-primaria-300 font-medium transition-colors"
+              className="text-[#00e5ff] hover:underline font-bold transition-colors ml-1 inline-block"
             >
               Cadastre-se gratuitamente
             </Link>

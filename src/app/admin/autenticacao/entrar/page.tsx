@@ -4,12 +4,13 @@ import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { usarAutenticacao } from '@/contextos/ContextoAutenticacao';
+import Botao from '@/componentes/ui/Botao';
 import CampoTexto from '@/componentes/ui/CampoTexto';
 import Carregando from '@/componentes/ui/Carregando';
 import CaptchaCloudflare from '@/componentes/ui/CaptchaCloudflare';
 import { criarClienteNavegador } from '@/lib/supabase/cliente';
 import { useRateLimitAuth } from '@/hooks/useRateLimitAuth';
-import { Shield, Mail, Lock, ArrowLeft, Settings, Ticket, Clock } from 'lucide-react';
+import { Shield, Mail, Lock, ArrowLeft, Ticket, Clock } from 'lucide-react';
 
 function FormularioEntrarAdmin() {
   const { entrar } = usarAutenticacao();
@@ -63,25 +64,22 @@ function FormularioEntrarAdmin() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-fundo-principal">
-      {}
+    <div className="min-h-screen flex items-center justify-center p-3 sm:p-6 relative overflow-hidden bg-[#080c14]">
+      {/* Background glowing Orbs */}
       <div className="w-96 h-96 rounded-full bg-amber-500/10 blur-3xl absolute -top-20 -left-20 pointer-events-none" />
       <div className="w-96 h-96 rounded-full bg-red-500/10 blur-3xl absolute bottom-10 right-0 pointer-events-none" />
 
       <div className="w-full max-w-md relative z-10">
-        {}
         <Link
           href="/"
-          className="inline-flex items-center gap-2 text-sm text-texto-secundario hover:text-texto-principal transition-colors mb-8"
+          className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-white transition-all uppercase tracking-wider mb-4 sm:mb-6 bg-white/5 hover:bg-white/10 px-3.5 py-2 rounded-full border border-white/10"
         >
-          <ArrowLeft size={16} />
+          <ArrowLeft size={14} />
           Voltar ao site principal
         </Link>
 
-        {}
-        <div className="vidro-forte rounded-3xl p-8 shadow-glass animar-entrar-baixo border border-amber-500/30">
-          {}
-          <div className="flex items-center gap-3 mb-8">
+        <div className="vidro-forte rounded-3xl p-5 sm:p-8 shadow-glass animar-entrar-baixo border border-amber-500/30 backdrop-blur-2xl bg-[#0d1322]/90">
+          <div className="flex items-center gap-3.5 mb-6 sm:mb-8 pb-5 border-b border-white/10">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#ff007a] via-[#8b5cf6] to-[#026cdf] flex items-center justify-center shadow-lg shadow-purple-500/20 shrink-0">
               <Ticket className="w-6 h-6 text-white transform -rotate-12" />
             </div>
@@ -89,14 +87,13 @@ function FormularioEntrarAdmin() {
               <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 text-[10px] font-bold tracking-wider uppercase mb-1 border border-amber-500/20">
                 <Shield size={12} /> Acesso Restrito
               </div>
-              <h1 className="text-xl font-bold font-titulo text-texto-principal">
+              <h1 className="text-xl font-bold font-titulo text-white">
                 Portal do Administrador
               </h1>
             </div>
           </div>
 
-          {}
-          <form onSubmit={aoSubmeter} className="space-y-5">
+          <form onSubmit={aoSubmeter} className="space-y-4 sm:space-y-5">
             <CampoTexto
               rotulo="Email administrativo"
               type="email"
@@ -118,16 +115,16 @@ function FormularioEntrarAdmin() {
             />
 
             {bloqueado && (
-              <div className="p-4 rounded-2xl bg-red-500/15 border border-red-500/30 text-xs font-semibold text-red-400 flex items-start gap-3 animar-entrar-baixo">
-                <div className="w-8 h-8 rounded-xl bg-red-500/20 flex items-center justify-center shrink-0 text-red-400 font-bold mt-0.5">
-                  <Clock size={18} className="animate-spin" />
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-red-500/15 border border-red-500/30 text-xs font-semibold text-red-400 flex items-start gap-3 animar-entrar-baixo">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-red-500/20 flex items-center justify-center shrink-0 text-red-400 font-bold mt-0.5">
+                  <Clock size={16} className="animate-spin" />
                 </div>
-                <div className="flex-1">
-                  <p className="font-bold text-sm text-red-300">IP Bloqueado Temporariamente</p>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-xs sm:text-sm text-red-300">IP Bloqueado Temporariamente</p>
                   <p className="mt-1 leading-relaxed text-slate-300">
                     {mensagemRateLimit || 'Muitas tentativas erradas em sequência.'}
                   </p>
-                  <div className="mt-2 text-xs font-mono font-bold text-red-400 flex items-center gap-1.5">
+                  <div className="mt-2 text-xs font-mono font-bold text-red-400 flex items-center gap-1.5 flex-wrap">
                     Tente novamente em: <span className="bg-red-950/80 px-2 py-0.5 rounded border border-red-500/30 text-red-300 text-sm font-bold">{segundosRestantes}s</span>
                   </div>
                 </div>
@@ -135,24 +132,22 @@ function FormularioEntrarAdmin() {
             )}
 
             {erro && !bloqueado && (
-              <div className="p-4 rounded-xl bg-erro/10 border border-erro/20 text-xs font-medium text-erro leading-relaxed">
-                {erro}
+              <div className="p-3.5 sm:p-4 rounded-xl bg-red-500/15 border border-red-500/30 text-xs font-semibold text-red-400 leading-relaxed flex items-center gap-2.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-400 animate-ping shrink-0" />
+                <span>{erro}</span>
               </div>
             )}
 
-            <button
+            <Botao
               type="submit"
-              disabled={carregando || bloqueado || !turnstileToken}
-              className="w-full py-3.5 px-6 rounded-xl font-bold text-sm text-black bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 disabled:opacity-50"
+              variante="secundario"
+              larguraTotal
+              tamanho="lg"
+              carregando={carregando}
+              disabled={bloqueado || carregando || !turnstileToken}
             >
-              {carregando ? (
-                <Carregando tamanho="sm" texto="Autenticando..." />
-              ) : bloqueado ? (
-                `Aguarde ${segundosRestantes}s`
-              ) : (
-                'Acessar Painel Global'
-              )}
-            </button>
+              {bloqueado ? `Aguarde ${segundosRestantes}s` : 'Acessar Painel Global'}
+            </Botao>
 
             <CaptchaCloudflare
               onVerify={(token) => setTurnstileToken(token)}
@@ -161,11 +156,10 @@ function FormularioEntrarAdmin() {
             />
           </form>
 
-          {}
-          <div className="mt-8 pt-6 border-t border-borda-sutil text-center">
-            <p className="text-[11px] text-texto-terciario flex items-center justify-center gap-1.5">
-              <Shield size={12} className="text-amber-400" />
-              Sessão protegida por log de auditoria global.
+          <div className="mt-6 sm:mt-8 pt-5 sm:pt-6 border-t border-white/10 text-center">
+            <p className="text-[11px] text-slate-400 flex items-center justify-center gap-1.5">
+              <Shield size={12} className="text-amber-400 shrink-0" />
+              <span>Sessão protegida por log de auditoria global.</span>
             </p>
           </div>
         </div>

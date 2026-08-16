@@ -76,60 +76,104 @@ export default function PaginaSolicitacoesAdmin() {
   async function aprovarSolicitacao(perfilId: string, atleticaId: string | null) {
     setProcessandoId(perfilId);
 
-    // 1. Ativar Atlética vinculada se existir
-    if (atleticaId) {
-      const { error: errAtl } = await supabase
-        .from('atleticas')
-        .update({ status: 'ativa' })
-        .eq('id', atleticaId);
+    try {
+      let idAtleticaEfetiva = atleticaId;
 
-      if (errAtl) {
-        console.error('Erro ao ativar atlética:', errAtl);
+      // Se o diretor não possuir uma atlética vinculada, cria uma atlética ativa automaticamente
+      if (!idAtleticaEfetiva) {
+        const { data: perfData } = await supabase
+          .from('profiles')
+          .select('nome')
+          .eq('id', perfilId)
+          .single();
+
+        const nomeAtl = perfData?.nome ? `Atlética de ${perfData.nome}` : 'Nova Atlética';
+
+        const { data: novAtl, error: errCriar } = await supabase
+          .from('atleticas')
+          .insert({
+            nome: nomeAtl,
+            faculdade: nomeAtl,
+            cidade: 'Palmas',
+            estado: 'TO',
+            status: 'ativa',
+          })
+          .select('id')
+          .single();
+
+        if (novAtl) {
+          idAtleticaEfetiva = novAtl.id;
+        } else if (errCriar) {
+          console.error('Erro ao criar atlética na aprovação:', errCriar);
+        }
+      } else {
+        // Ativar a atlética já vinculada
+        const { error: errAtl } = await supabase
+          .from('atleticas')
+          .update({ status: 'ativa' })
+          .eq('id', idAtleticaEfetiva);
+
+        if (errAtl) {
+          console.error('Erro ao ativar atlética:', errAtl);
+        }
       }
+
+      // Ativar perfil do Diretor vinculando a atlética
+      const { error: errPerfil } = await supabase
+        .from('profiles')
+        .update({
+          status: 'ativo',
+          role: 'diretor',
+          ...(idAtleticaEfetiva ? { atletica_id: idAtleticaEfetiva } : {}),
+        })
+        .eq('id', perfilId);
+
+      if (errPerfil) {
+        console.error('Erro ao aprovar perfil:', errPerfil);
+        erro('Erro ao Aprovar', `Não foi possível aprovar a solicitação: ${errPerfil.message}`);
+      } else {
+        sucesso(
+          'Solicitação Aprovada!',
+          'A Atlética e o Diretor foram ativados com sucesso e vinculados ao sistema.'
+        );
+        buscarSolicitacoes();
+      }
+    } catch (errCatch) {
+      console.error('Exceção ao aprovar solicitação:', errCatch);
+      erro('Erro ao Aprovar', 'Ocorreu uma exceção ao processar a aprovação.');
+    } finally {
+      setProcessandoId(null);
     }
-
-    // 2. Ativar perfil do Diretor
-    const { error: errPerfil } = await supabase
-      .from('profiles')
-      .update({ status: 'ativo', role: 'diretor' })
-      .eq('id', perfilId);
-
-    if (errPerfil) {
-      erro('Erro ao Aprovar', 'Não foi possível aprovar a solicitação.');
-    } else {
-      sucesso(
-        'Solicitação Aprovada!',
-        'A Atlética e o Diretor foram ativados com sucesso e vinculados ao sistema.'
-      );
-      buscarSolicitacoes();
-    }
-
-    setProcessandoId(null);
   }
 
   async function rejeitarSolicitacao(perfilId: string, atleticaId: string | null) {
     setProcessandoId(perfilId);
 
-    if (atleticaId) {
-      await supabase
-        .from('atleticas')
-        .update({ status: 'inativa' })
-        .eq('id', atleticaId);
+    try {
+      if (atleticaId) {
+        await supabase
+          .from('atleticas')
+          .update({ status: 'inativa' })
+          .eq('id', atleticaId);
+      }
+
+      const { error: errPerfil } = await supabase
+        .from('profiles')
+        .update({ status: 'bloqueado' })
+        .eq('id', perfilId);
+
+      if (errPerfil) {
+        erro('Erro ao Rejeitar', `Não foi possível rejeitar a solicitação: ${errPerfil.message}`);
+      } else {
+        sucesso('Solicitação Recusada', 'A solicitação de cadastro foi recusada.');
+        buscarSolicitacoes();
+      }
+    } catch (errCatch) {
+      console.error('Exceção ao recusar solicitação:', errCatch);
+      erro('Erro ao Rejeitar', 'Ocorreu uma exceção ao processar a rejeição.');
+    } finally {
+      setProcessandoId(null);
     }
-
-    const { error: errPerfil } = await supabase
-      .from('profiles')
-      .update({ status: 'bloqueado' })
-      .eq('id', perfilId);
-
-    if (errPerfil) {
-      erro('Erro ao Rejeitar', 'Não foi possível rejeitar a solicitação.');
-    } else {
-      sucesso('Solicitação Recusada', 'A solicitação de cadastro foi recusada.');
-      buscarSolicitacoes();
-    }
-
-    setProcessandoId(null);
   }
 
   const filtrados = solicitacoes.filter((s) => {

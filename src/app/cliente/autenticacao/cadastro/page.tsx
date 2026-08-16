@@ -239,7 +239,7 @@ export default function PaginaCadastro() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden py-12 bg-[#080c14]">
+    <div className="min-h-screen flex items-center justify-center p-3 sm:p-6 py-6 sm:py-12 bg-[#080c14] relative overflow-hidden">
       {/* Elementos visuais de fundo (Orbes Neon) */}
       <div className="absolute -top-32 -right-32 w-96 h-96 bg-[#ff007a]/25 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-[#8b5cf6]/25 rounded-full blur-3xl pointer-events-none" />
@@ -248,23 +248,23 @@ export default function PaginaCadastro() {
       <div className="w-full max-w-md relative z-10">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-white transition-all uppercase tracking-wider mb-6 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full border border-white/10"
+          className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-white transition-all uppercase tracking-wider mb-4 sm:mb-6 bg-white/5 hover:bg-white/10 px-3.5 py-2 rounded-full border border-white/10"
         >
           <ArrowLeft size={14} />
           Voltar ao início
         </Link>
 
-        <div className="vidro-forte rounded-3xl p-6 sm:p-8 shadow-2xl shadow-purple-500/10 animar-entrar-baixo border border-white/15 backdrop-blur-2xl bg-[#0d1322]/85">
+        <div className="vidro-forte rounded-3xl p-4 sm:p-8 shadow-2xl shadow-purple-500/10 animar-entrar-baixo border border-white/15 backdrop-blur-2xl bg-[#0d1322]/85">
           {/* Cabeçalho */}
-          <div className="flex items-center gap-4 mb-6 pb-6 border-b border-white/10">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#ff007a] via-[#8b5cf6] to-[#026cdf] flex items-center justify-center shadow-lg shadow-purple-500/20 shrink-0">
+          <div className="flex items-center gap-3.5 sm:gap-4 mb-6 pb-5 sm:pb-6 border-b border-white/10">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-[#ff007a] via-[#8b5cf6] to-[#026cdf] flex items-center justify-center shadow-lg shadow-purple-500/20 shrink-0">
               <Ticket className="w-6 h-6 text-white transform -rotate-12" />
             </div>
             <div>
-              <h1 className="text-2xl font-black font-titulo text-white tracking-tight">
+              <h1 className="text-xl sm:text-2xl font-black font-titulo text-white tracking-tight">
                 Criar Conta
               </h1>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-400 mt-0.5">
                 Cadastre-se na meuingrss para garantir seus ingressos
               </p>
             </div>
@@ -294,8 +294,8 @@ export default function PaginaCadastro() {
 
             {/* Verificação de E-mail com Validação Instantânea */}
             <div className="space-y-2">
-              <div className="flex items-end gap-2">
-                <div className="flex-1">
+              <div className="flex flex-col sm:flex-row sm:items-end gap-2">
+                <div className="flex-1 min-w-0">
                   <CampoTexto
                     rotulo="Email"
                     type="email"
@@ -323,7 +323,7 @@ export default function PaginaCadastro() {
                     carregando={enviandoCodigo}
                     disabled={!email || !email.includes('@') || enviandoCodigo || (email === emailEnviado && tempoReenvio > 0)}
                     onClick={enviarCodigoValidacao}
-                    className="shrink-0 h-[46px] text-xs px-3.5 border-white/20 hover:border-[#00e5ff] text-slate-300 hover:text-white"
+                    className="shrink-0 h-[46px] text-xs px-3.5 border-white/20 hover:border-[#00e5ff] text-slate-300 hover:text-white whitespace-nowrap w-full sm:w-auto"
                   >
                     {email === emailEnviado && tempoReenvio > 0 ? `Aguarde ${tempoReenvio}s` : codigoEnviado ? 'Reenviar' : 'Verificar'}
                   </Botao>
@@ -339,7 +339,7 @@ export default function PaginaCadastro() {
               {/* Status de E-mail Verificado */}
               {emailVerificado && (
                 <div className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs font-bold text-emerald-400 animar-entrar-escala">
-                  <ShieldCheck size={16} />
+                  <ShieldCheck size={16} className="shrink-0" />
                   <span>E-mail verificado com sucesso!</span>
                 </div>
               )}
@@ -348,8 +348,8 @@ export default function PaginaCadastro() {
               {codigoEnviado && !emailVerificado && (
                 <div className="p-3.5 rounded-2xl bg-[#162036] border border-[#00e5ff]/30 space-y-3 animar-entrar-baixo">
                   <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-                    <KeyRound size={14} className="text-[#00e5ff]" />
-                    Digite o código de 6 dígitos enviado para seu e-mail:
+                    <KeyRound size={14} className="text-[#00e5ff] shrink-0" />
+                    <span>Digite o código de 6 dígitos enviado para seu e-mail:</span>
                   </label>
 
                   <div className="flex items-center gap-2">
@@ -359,7 +359,7 @@ export default function PaginaCadastro() {
                       placeholder="000000"
                       value={codigo}
                       onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ''))}
-                      className="w-full bg-[#080c14] border border-white/15 rounded-xl px-4 py-2.5 text-center text-lg font-black font-mono tracking-widest text-white focus:outline-none focus:border-[#00e5ff]"
+                      className="flex-1 min-w-0 bg-[#080c14] border border-white/15 rounded-xl px-3 sm:px-4 py-2.5 text-center text-base sm:text-lg font-black font-mono tracking-widest text-white focus:outline-none focus:border-[#00e5ff]"
                     />
 
                     <Botao
@@ -369,7 +369,7 @@ export default function PaginaCadastro() {
                       carregando={validandoCodigo}
                       disabled={codigo.length < 6 || validandoCodigo}
                       onClick={validarCodigoOtp}
-                      className="shrink-0 h-[44px] text-xs px-4"
+                      className="shrink-0 h-[44px] text-xs px-3 sm:px-4 whitespace-nowrap"
                     >
                       Validar
                     </Botao>
@@ -411,16 +411,16 @@ export default function PaginaCadastro() {
             <IndicadorForcaSenha senha={senha} />
 
             {bloqueado && (
-              <div className="p-4 rounded-2xl bg-red-500/15 border border-red-500/30 text-xs font-semibold text-red-400 flex items-start gap-3 animar-entrar-baixo">
-                <div className="w-8 h-8 rounded-xl bg-red-500/20 flex items-center justify-center shrink-0 text-red-400 font-bold mt-0.5">
-                  <Clock size={18} className="animate-spin" />
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-red-500/15 border border-red-500/30 text-xs font-semibold text-red-400 flex items-start gap-3 animar-entrar-baixo">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-red-500/20 flex items-center justify-center shrink-0 text-red-400 font-bold mt-0.5">
+                  <Clock size={16} className="animate-spin" />
                 </div>
-                <div className="flex-1">
-                  <p className="font-bold text-sm text-red-300">IP Bloqueado Temporariamente</p>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-xs sm:text-sm text-red-300">IP Bloqueado Temporariamente</p>
                   <p className="mt-1 leading-relaxed text-slate-300">
                     {mensagemRateLimit || 'Muitas tentativas erradas em sequência.'}
                   </p>
-                  <div className="mt-2 text-xs font-mono font-bold text-red-400 flex items-center gap-1.5">
+                  <div className="mt-2 text-xs font-mono font-bold text-red-400 flex items-center gap-1.5 flex-wrap">
                     Tente novamente em: <span className="bg-red-950/80 px-2 py-0.5 rounded border border-red-500/30 text-red-300 text-sm font-bold">{segundosRestantes}s</span>
                   </div>
                 </div>
@@ -428,9 +428,9 @@ export default function PaginaCadastro() {
             )}
 
             {erro && !bloqueado && (
-              <div className="p-3.5 rounded-xl bg-red-500/15 border border-red-500/30 text-xs font-semibold text-red-400 flex items-center gap-2">
+              <div className="p-3 sm:p-3.5 rounded-xl bg-red-500/15 border border-red-500/30 text-xs font-semibold text-red-400 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-red-400 animate-ping shrink-0" />
-                {erro}
+                <span>{erro}</span>
               </div>
             )}
 
@@ -446,10 +446,10 @@ export default function PaginaCadastro() {
           </form>
 
           {/* Divisor Social */}
-          <div className="flex items-center gap-4 my-6">
-            <div className="flex-1 h-px bg-borda-sutil" />
-            <span className="text-xs text-texto-terciario">ou cadastre-se com</span>
-            <div className="flex-1 h-px bg-borda-sutil" />
+          <div className="flex items-center gap-3 my-5 sm:my-6">
+            <div className="flex-1 h-px bg-white/10" />
+            <span className="text-xs text-slate-400">ou cadastre-se com</span>
+            <div className="flex-1 h-px bg-white/10" />
           </div>
 
           {/* Login / Cadastro Social - Google */}
@@ -484,15 +484,13 @@ export default function PaginaCadastro() {
             Google
           </Botao>
 
-
-
           {/* Rodapé */}
-          <div className="mt-8 pt-6 border-t border-white/10 text-center">
+          <div className="mt-6 sm:mt-8 pt-5 sm:pt-6 border-t border-white/10 text-center">
             <p className="text-xs text-slate-400">
               Já tem uma conta?{' '}
               <Link
                 href="/autenticacao/entrar"
-                className="text-[#00e5ff] hover:underline font-bold transition-colors ml-1"
+                className="text-[#00e5ff] hover:underline font-bold transition-colors ml-1 inline-block"
               >
                 Entrar
               </Link>
