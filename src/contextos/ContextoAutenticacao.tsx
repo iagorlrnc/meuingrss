@@ -15,23 +15,47 @@ export interface MetadadosCadastro {
   atleticaEstado?: string | null;
 }
 
+export interface ResultadoAuth {
+  erro?: string;
+  bloqueado?: boolean;
+  segundosRestantes?: number;
+  rateLimitData?: any;
+}
+
 interface ContextoAuthType {
   usuario: User | null;
   perfil: Perfil | null;
   carregando: boolean;
-  entrar: (email: string, senha: string) => Promise<{ erro?: string }>;
+  entrar: (email: string, senha: string, tipoContexto?: 'admin' | 'geral') => Promise<ResultadoAuth>;
   cadastrar: (
     email: string,
     senha: string,
     nome: string,
     role?: 'cliente' | 'diretor',
     metadadosAdicionais?: MetadadosCadastro
-  ) => Promise<{ erro?: string }>;
+  ) => Promise<ResultadoAuth>;
   sair: () => Promise<void>;
   entrarComGoogle: () => Promise<void>;
 }
 
 const ContextoAuth = createContext<ContextoAuthType | null>(null);
+
+async function checarRateLimitOuRegistrar(
+  acao: 'verificar' | 'registrar_erro' | 'registrar_sucesso',
+  tipoContexto: 'admin' | 'geral' = 'geral'
+) {
+  try {
+    const res = await fetch('/api/auth/rate-limit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ acao, tipo: tipoContexto }),
+      cache: 'no-store',
+    });
+    return await res.json();
+  } catch {
+    return { bloqueado: false, segundosRestantes: 0, tentativasConsecutivas: 0 };
+  }
+}
 
 export function usarAutenticacao() {
   const ctx = useContext(ContextoAuth);
@@ -91,16 +115,50 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
     };
   }, [supabase, buscarPerfil]);
 
-  const entrar = async (email: string, senha: string) => {
+  const entrar = async (
+    email: string,
+    senha: string,
+    tipoContexto: 'admin' | 'geral' = 'geral'
+  ): Promise<ResultadoAuth> => {
+    // 1. Verificar se o IP já está bloqueado por rate limit
+    const checkStatus = await checarRateLimitOuRegistrar('verificar', tipoContexto);
+    if (checkStatus.bloqueado) {
+      return {
+        erro: checkStatus.mensagem || `Muitas tentativas erradas. IP bloqueado. Aguarde ${checkStatus.segundosRestantes}s.`,
+        bloqueado: true,
+        segundosRestantes: checkStatus.segundosRestantes,
+        rateLimitData: checkStatus,
+      };
+    }
+
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password: senha,
     });
 
     if (error) {
-      return { erro: error.message };
+      // 2. Registrar erro e atualizar contador do IP
+      const errStatus = await checarRateLimitOuRegistrar('registrar_erro', tipoContexto);
+      let msgFinal = error.message.includes('Invalid login')
+        ? tipoContexto === 'admin'
+          ? 'Credenciais administrativas incorretas'
+          : 'Email ou senha incorretos'
+        : error.message;
+
+      if (errStatus.mensagem) {
+        msgFinal = `${msgFinal}. ${errStatus.mensagem}`;
+      }
+
+      return {
+        erro: msgFinal,
+        bloqueado: errStatus.bloqueado,
+        segundosRestantes: errStatus.segundosRestantes,
+        rateLimitData: errStatus,
+      };
     }
 
+    // 3. Sucesso -> Reseta contagem do IP
+    await checarRateLimitOuRegistrar('registrar_sucesso', tipoContexto);
     return {};
   };
 
@@ -110,7 +168,18 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
     nome: string,
     role: 'cliente' | 'diretor' = 'cliente',
     metadadosAdicionais: MetadadosCadastro = {}
-  ) => {
+  ): Promise<ResultadoAuth> => {
+    // 1. Verificar se o IP já está bloqueado por rate limit
+    const checkStatus = await checarRateLimitOuRegistrar('verificar');
+    if (checkStatus.bloqueado) {
+      return {
+        erro: checkStatus.mensagem || `Muitas tentativas erradas. IP bloqueado. Aguarde ${checkStatus.segundosRestantes}s.`,
+        bloqueado: true,
+        segundosRestantes: checkStatus.segundosRestantes,
+        rateLimitData: checkStatus,
+      };
+    }
+
     // Validação estrita: Bloquear atribuição pública do papel de 'admin'
     const roleValido: 'cliente' | 'diretor' = role === 'diretor' ? 'diretor' : 'cliente';
 
@@ -133,7 +202,19 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
     });
 
     if (error) {
-      return { erro: error.message };
+      // 2. Registrar erro e atualizar contador do IP
+      const errStatus = await checarRateLimitOuRegistrar('registrar_erro');
+      let msgFinal = error.message;
+      if (errStatus.mensagem) {
+        msgFinal = `${msgFinal}. ${errStatus.mensagem}`;
+      }
+
+      return {
+        erro: msgFinal,
+        bloqueado: errStatus.bloqueado,
+        segundosRestantes: errStatus.segundosRestantes,
+        rateLimitData: errStatus,
+      };
     }
 
     if (authData?.user) {
@@ -190,6 +271,9 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
         setPerfil(null);
       }
     }
+
+    // 3. Sucesso -> Reseta contagem do IP
+    await checarRateLimitOuRegistrar('registrar_sucesso');
 
     return {};
   };

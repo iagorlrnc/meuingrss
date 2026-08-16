@@ -5,8 +5,9 @@ import Link from 'next/link';
 import { usarAutenticacao } from '@/contextos/ContextoAutenticacao';
 import Botao from '@/componentes/ui/Botao';
 import CampoTexto from '@/componentes/ui/CampoTexto';
-import { formatarTelefone, formatarCPF } from '@/lib/utilitarios';
+import { formatarTelefone, formatarCPF, validarCPF } from '@/lib/utilitarios';
 import { criarClienteNavegador } from '@/lib/supabase/cliente';
+import { useRateLimitAuth } from '@/hooks/useRateLimitAuth';
 import {
   Ticket,
   Mail,
@@ -19,10 +20,12 @@ import {
   CreditCard,
   KeyRound,
   ShieldCheck,
+  Clock,
 } from 'lucide-react';
 
 export default function PaginaCadastro() {
   const { cadastrar, entrarComGoogle } = usarAutenticacao();
+  const { bloqueado, segundosRestantes, mensagemRateLimit, aplicarStatus } = useRateLimitAuth();
   const supabase = criarClienteNavegador();
 
   const [nome, setNome] = useState('');
@@ -60,6 +63,8 @@ export default function PaginaCadastro() {
       return;
     }
 
+    if (enviandoCodigo || tempoReenvio > 0) return;
+
     setEnviandoCodigo(true);
     try {
       // Tenta enviar o OTP via Supabase Auth
@@ -74,11 +79,11 @@ export default function PaginaCadastro() {
         const msg = error.message || '';
         if (msg.includes('rate limit') || msg.includes('over_email_send_rate_limit') || error.status === 429) {
           setErro(
-            'Limite de envio de e-mails atingido (SMTP). Aguarde alguns minutos ou certifique-se de que o Custom SMTP está ativado.'
+            'Limite de envio de e-mails atingido (Supabase/SMTP). Aguarde alguns minutos ou certifique-se de que o Custom SMTP (Brevo) está ativado no Supabase.'
           );
         } else if (msg.includes('Error sending confirmation email') || msg.includes('confirmation email') || msg.includes('smtp') || msg.includes('SMTP')) {
           setErro(
-            'Configuração de e-mail necessária: No painel do Supabase (Authentication -> Email Settings), altere o campo "Sender Email" (Remetente) para o mesmo e-mail/domínio validado no seu provedor (Resend / Brevo).'
+            'Configuração de e-mail necessária: No painel do Supabase (Authentication -> Email Settings), altere o campo "Sender Email" (Remetente) para o mesmo e-mail validado na sua conta da Brevo.'
           );
         } else {
           setErro(msg);
@@ -123,6 +128,8 @@ export default function PaginaCadastro() {
 
   async function aoSubmeter(e: React.FormEvent) {
     e.preventDefault();
+    if (bloqueado) return;
+
     setErro('');
 
     if (!nome.trim()) {
@@ -132,6 +139,11 @@ export default function PaginaCadastro() {
 
     if (!cpf.trim()) {
       setErro('Por favor, informe seu CPF.');
+      return;
+    }
+
+    if (!validarCPF(cpf)) {
+      setErro('Por favor, informe um CPF válido.');
       return;
     }
 
@@ -158,6 +170,9 @@ export default function PaginaCadastro() {
     });
 
     if (resultado.erro) {
+      if (resultado.rateLimitData) {
+        aplicarStatus(resultado.rateLimitData);
+      }
       setErro(resultado.erro);
       setCarregando(false);
     } else {
@@ -354,15 +369,32 @@ export default function PaginaCadastro() {
               required
             />
 
-            {erro && (
+            {bloqueado && (
+              <div className="p-4 rounded-2xl bg-red-500/15 border border-red-500/30 text-xs font-semibold text-red-400 flex items-start gap-3 animar-entrar-baixo">
+                <div className="w-8 h-8 rounded-xl bg-red-500/20 flex items-center justify-center shrink-0 text-red-400 font-bold mt-0.5">
+                  <Clock size={18} className="animate-spin" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-bold text-sm text-red-300">IP Bloqueado Temporariamente</p>
+                  <p className="mt-1 leading-relaxed text-slate-300">
+                    {mensagemRateLimit || 'Muitas tentativas erradas em sequência.'}
+                  </p>
+                  <div className="mt-2 text-xs font-mono font-bold text-red-400 flex items-center gap-1.5">
+                    Tente novamente em: <span className="bg-red-950/80 px-2 py-0.5 rounded border border-red-500/30 text-red-300 text-sm font-bold">{segundosRestantes}s</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {erro && !bloqueado && (
               <div className="p-3.5 rounded-xl bg-red-500/15 border border-red-500/30 text-xs font-semibold text-red-400 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-red-400 animate-ping shrink-0" />
                 {erro}
               </div>
             )}
 
-            <Botao type="submit" variante="festiva" larguraTotal tamanho="lg" carregando={carregando}>
-              Criar conta
+            <Botao type="submit" variante="festiva" larguraTotal tamanho="lg" carregando={carregando} disabled={bloqueado || carregando}>
+              {bloqueado ? `Aguarde ${segundosRestantes}s` : 'Criar conta'}
             </Botao>
           </form>
 

@@ -113,6 +113,36 @@ export function formatarCPF(valor: string): string {
   return `${apenasNumeros.slice(0, 3)}.${apenasNumeros.slice(3, 6)}.${apenasNumeros.slice(6, 9)}-${apenasNumeros.slice(9)}`;
 }
 
+export function validarCPF(cpf: string): boolean {
+  if (!cpf) return false;
+  const apenasNumeros = cpf.replace(/\D/g, '');
+
+  if (apenasNumeros.length !== 11) return false;
+
+  // Rejeita CPFs com todos os dígitos iguais (ex: 000.000.000-00, 111.111.111-11, etc.)
+  if (/^(\d)\1{10}$/.test(apenasNumeros)) return false;
+
+  // Validação do 1º dígito verificador
+  let soma = 0;
+  for (let i = 0; i < 9; i++) {
+    soma += parseInt(apenasNumeros.charAt(i), 10) * (10 - i);
+  }
+  let resto = (soma * 10) % 11;
+  if (resto === 10 || resto === 11) resto = 0;
+  if (resto !== parseInt(apenasNumeros.charAt(9), 10)) return false;
+
+  // Validação do 2º dígito verificador
+  soma = 0;
+  for (let i = 0; i < 10; i++) {
+    soma += parseInt(apenasNumeros.charAt(i), 10) * (11 - i);
+  }
+  resto = (soma * 10) % 11;
+  if (resto === 10 || resto === 11) resto = 0;
+  if (resto !== parseInt(apenasNumeros.charAt(10), 10)) return false;
+
+  return true;
+}
+
 export function obterInfoStatus(status: string): { cor: string; label: string } {
   const mapa: Record<string, { cor: string; label: string }> = {
     valido: { cor: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20', label: 'Válido' },

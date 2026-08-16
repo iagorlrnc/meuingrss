@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Cartao from '@/componentes/ui/Cartao';
 import Distintivo from '@/componentes/ui/Distintivo';
 import Carregando from '@/componentes/ui/Carregando';
+import CaptchaCloudflare from '@/componentes/ui/CaptchaCloudflare';
 import Botao from '@/componentes/ui/Botao';
 import CampoTexto from '@/componentes/ui/CampoTexto';
 import { criarClienteNavegador } from '@/lib/supabase/cliente';
@@ -91,7 +92,7 @@ export default function DashboardAdmin() {
     setErroLogin('');
     setProcessandoLogin(true);
 
-    const res = await entrar(email, senha);
+    const res = await entrar(email, senha, 'admin');
 
     if (res.erro) {
       setErroLogin(res.erro.includes('Invalid login') ? 'Credenciais administrativas incorretas' : res.erro);
@@ -198,6 +199,8 @@ export default function DashboardAdmin() {
                   'Acessar Painel Global'
                 )}
               </button>
+
+              <CaptchaCloudflare />
             </form>
 
             <div className="mt-8 pt-6 border-t border-borda-sutil text-center">

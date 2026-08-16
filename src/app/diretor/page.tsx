@@ -7,6 +7,7 @@ import Botao from '@/componentes/ui/Botao';
 import Distintivo from '@/componentes/ui/Distintivo';
 import CampoTexto from '@/componentes/ui/CampoTexto';
 import Carregando from '@/componentes/ui/Carregando';
+import CaptchaCloudflare from '@/componentes/ui/CaptchaCloudflare';
 import { criarClienteNavegador } from '@/lib/supabase/cliente';
 import { usarAutenticacao } from '@/contextos/ContextoAutenticacao';
 import { formatarMoeda, formatarDataCurta } from '@/lib/utilitarios';
@@ -189,6 +190,8 @@ export default function DashboardDiretor() {
               >
                 Entrar no Painel do Diretor
               </Botao>
+
+              <CaptchaCloudflare />
             </form>
 
             <div className="mt-8 pt-6 border-t border-borda-sutil text-center space-y-2">

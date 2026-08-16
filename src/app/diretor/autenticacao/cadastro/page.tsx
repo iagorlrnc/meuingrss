@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usarAutenticacao } from '@/contextos/ContextoAutenticacao';
 import Botao from '@/componentes/ui/Botao';
 import CampoTexto from '@/componentes/ui/CampoTexto';
-import { formatarTelefone } from '@/lib/utilitarios';
+import { formatarTelefone, formatarCPF, validarCPF } from '@/lib/utilitarios';
 import {
   Ticket,
   Mail,
@@ -30,16 +30,21 @@ import {
   CheckCircle2,
   ChevronDown,
   Trophy,
+  CreditCard,
 } from 'lucide-react';
+
+import { useRateLimitAuth } from '@/hooks/useRateLimitAuth';
 
 export default function PaginaCadastroDiretor() {
   const { cadastrar } = usarAutenticacao();
+  const { bloqueado, segundosRestantes, mensagemRateLimit, aplicarStatus } = useRateLimitAuth();
 
   // Controle de etapas (1, 2 ou 3)
   const [etapa, setEtapa] = useState<1 | 2 | 3>(1);
 
   // Etapa 1: Dados Pessoais e de Contato
   const [nome, setNome] = useState('');
+  const [cpf, setCpf] = useState('');
   const [telefone, setTelefone] = useState('');
   const [cargo, setCargo] = useState('');
 
@@ -66,6 +71,14 @@ export default function PaginaCadastroDiretor() {
       setErro('Por favor, informe seu nome completo.');
       return;
     }
+    if (!cpf.trim()) {
+      setErro('Por favor, informe seu CPF.');
+      return;
+    }
+    if (!validarCPF(cpf)) {
+      setErro('Por favor, informe um CPF válido.');
+      return;
+    }
     if (!telefone.trim()) {
       setErro('Por favor, informe um telefone de contato / WhatsApp.');
       return;
@@ -84,6 +97,8 @@ export default function PaginaCadastroDiretor() {
 
   async function aoSubmeter(e: React.FormEvent) {
     e.preventDefault();
+    if (bloqueado) return;
+
     setErro('');
 
     if (!email.trim()) {
@@ -105,6 +120,7 @@ export default function PaginaCadastroDiretor() {
 
     const resultado = await cadastrar(email, senha, nome, 'diretor', {
       telefone,
+      cpf,
       cargo,
       atleticaNome,
       atleticaSigla,
@@ -113,6 +129,9 @@ export default function PaginaCadastroDiretor() {
     });
 
     if (resultado.erro) {
+      if (resultado.rateLimitData) {
+        aplicarStatus(resultado.rateLimitData);
+      }
       setErro(resultado.erro);
       setCarregando(false);
     } else {
@@ -345,6 +364,16 @@ export default function PaginaCadastroDiretor() {
                   value={nome}
                   onChange={(e) => setNome((e.target as HTMLInputElement).value)}
                   icone={<User size={18} />}
+                  required
+                />
+
+                <CampoTexto
+                  rotulo="CPF"
+                  type="text"
+                  placeholder="000.000.000-00"
+                  value={cpf}
+                  onChange={(e) => setCpf(formatarCPF((e.target as HTMLInputElement).value))}
+                  icone={<CreditCard size={18} />}
                   required
                 />
 
@@ -590,7 +619,24 @@ export default function PaginaCadastroDiretor() {
                   required
                 />
 
-                {erro && (
+                {bloqueado && (
+                  <div className="p-4 rounded-2xl bg-red-500/15 border border-red-500/30 text-xs font-semibold text-red-400 flex items-start gap-3 animar-entrar-baixo">
+                    <div className="w-8 h-8 rounded-xl bg-red-500/20 flex items-center justify-center shrink-0 text-red-400 font-bold mt-0.5">
+                      <Clock size={18} className="animate-spin" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-bold text-sm text-red-300">IP Bloqueado Temporariamente</p>
+                      <p className="mt-1 leading-relaxed text-slate-300">
+                        {mensagemRateLimit || 'Muitas tentativas erradas em sequência.'}
+                      </p>
+                      <div className="mt-2 text-xs font-mono font-bold text-red-400 flex items-center gap-1.5">
+                        Tente novamente em: <span className="bg-red-950/80 px-2 py-0.5 rounded border border-red-500/30 text-red-300 text-sm font-bold">{segundosRestantes}s</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {erro && !bloqueado && (
                   <div className="p-3.5 rounded-xl bg-red-500/15 border border-red-500/30 text-xs font-semibold text-red-400 flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-red-400 animate-ping shrink-0" />
                     {erro}
@@ -614,8 +660,9 @@ export default function PaginaCadastroDiretor() {
                       larguraTotal
                       tamanho="lg"
                       carregando={carregando}
+                      disabled={bloqueado || carregando}
                     >
-                      Cadastrar e Solicitar Acesso
+                      {bloqueado ? `Aguarde ${segundosRestantes}s` : 'Cadastrar e Solicitar Acesso'}
                     </Botao>
                   </div>
                 </div>

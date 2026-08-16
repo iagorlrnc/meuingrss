@@ -6,11 +6,14 @@ import { useSearchParams } from 'next/navigation';
 import { usarAutenticacao } from '@/contextos/ContextoAutenticacao';
 import CampoTexto from '@/componentes/ui/CampoTexto';
 import Carregando from '@/componentes/ui/Carregando';
+import CaptchaCloudflare from '@/componentes/ui/CaptchaCloudflare';
 import { criarClienteNavegador } from '@/lib/supabase/cliente';
-import { Shield, Mail, Lock, ArrowLeft, Settings, Ticket } from 'lucide-react';
+import { useRateLimitAuth } from '@/hooks/useRateLimitAuth';
+import { Shield, Mail, Lock, ArrowLeft, Settings, Ticket, Clock } from 'lucide-react';
 
 function FormularioEntrarAdmin() {
   const { entrar } = usarAutenticacao();
+  const { bloqueado, segundosRestantes, mensagemRateLimit, aplicarStatus } = useRateLimitAuth();
   const searchParams = useSearchParams();
   const redirecionar = searchParams.get('redirecionar') || '/';
 
@@ -22,23 +25,22 @@ function FormularioEntrarAdmin() {
 
   async function aoSubmeter(e: React.FormEvent) {
     e.preventDefault();
+    if (bloqueado) return;
+
     setErro('');
     setCarregando(true);
 
-    
-    const resultado = await entrar(email, senha);
+    const resultado = await entrar(email, senha, 'admin');
 
     if (resultado.erro) {
-      setErro(
-        resultado.erro.includes('Invalid login')
-          ? 'Credenciais administrativas incorretas'
-          : resultado.erro
-      );
+      if (resultado.rateLimitData) {
+        aplicarStatus(resultado.rateLimitData);
+      }
+      setErro(resultado.erro);
       setCarregando(false);
       return;
     }
 
-    
     const { data: { user } } = await supabase.auth.getUser();
 
     if (user) {
@@ -56,7 +58,6 @@ function FormularioEntrarAdmin() {
       }
     }
 
-    
     window.location.href = redirecionar;
   }
 
@@ -115,7 +116,24 @@ function FormularioEntrarAdmin() {
               required
             />
 
-            {erro && (
+            {bloqueado && (
+              <div className="p-4 rounded-2xl bg-red-500/15 border border-red-500/30 text-xs font-semibold text-red-400 flex items-start gap-3 animar-entrar-baixo">
+                <div className="w-8 h-8 rounded-xl bg-red-500/20 flex items-center justify-center shrink-0 text-red-400 font-bold mt-0.5">
+                  <Clock size={18} className="animate-spin" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-bold text-sm text-red-300">IP Bloqueado Temporariamente</p>
+                  <p className="mt-1 leading-relaxed text-slate-300">
+                    {mensagemRateLimit || 'Muitas tentativas erradas em sequência.'}
+                  </p>
+                  <div className="mt-2 text-xs font-mono font-bold text-red-400 flex items-center gap-1.5">
+                    Tente novamente em: <span className="bg-red-950/80 px-2 py-0.5 rounded border border-red-500/30 text-red-300 text-sm font-bold">{segundosRestantes}s</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {erro && !bloqueado && (
               <div className="p-4 rounded-xl bg-erro/10 border border-erro/20 text-xs font-medium text-erro leading-relaxed">
                 {erro}
               </div>
@@ -123,15 +141,19 @@ function FormularioEntrarAdmin() {
 
             <button
               type="submit"
-              disabled={carregando}
+              disabled={carregando || bloqueado}
               className="w-full py-3.5 px-6 rounded-xl font-bold text-sm text-black bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {carregando ? (
                 <Carregando tamanho="sm" texto="Autenticando..." />
+              ) : bloqueado ? (
+                `Aguarde ${segundosRestantes}s`
               ) : (
                 'Acessar Painel Global'
               )}
             </button>
+
+            <CaptchaCloudflare />
           </form>
 
           {}

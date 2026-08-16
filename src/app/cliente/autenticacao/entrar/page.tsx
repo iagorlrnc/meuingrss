@@ -9,10 +9,13 @@ import Botao from '@/componentes/ui/Botao';
 import CampoTexto from '@/componentes/ui/CampoTexto';
 import Modal from '@/componentes/ui/Modal';
 import Carregando from '@/componentes/ui/Carregando';
-import { Ticket, Mail, Lock, ArrowLeft, Clock } from 'lucide-react';
+import CaptchaCloudflare from '@/componentes/ui/CaptchaCloudflare';
+import { useRateLimitAuth } from '@/hooks/useRateLimitAuth';
+import { Ticket, Mail, Lock, ArrowLeft, Clock, ShieldAlert } from 'lucide-react';
 
 function FormularioEntrar() {
   const { entrar, entrarComGoogle } = usarAutenticacao();
+  const { bloqueado, segundosRestantes, mensagemRateLimit, aplicarStatus } = useRateLimitAuth();
   const parametrosBusca = useSearchParams();
   const redirecionar = parametrosBusca.get('redirecionar') || '/';
 
@@ -24,17 +27,18 @@ function FormularioEntrar() {
 
   async function aoSubmeter(e: React.FormEvent) {
     e.preventDefault();
+    if (bloqueado) return;
+
     setErro('');
     setCarregando(true);
 
     const resultado = await entrar(email, senha);
 
     if (resultado.erro) {
-      setErro(
-        resultado.erro.includes('Invalid login')
-          ? 'Email ou senha incorretos'
-          : resultado.erro
-      );
+      if (resultado.rateLimitData) {
+        aplicarStatus(resultado.rateLimitData);
+      }
+      setErro(resultado.erro);
       setCarregando(false);
     } else {
       const { criarClienteNavegador } = await import('@/lib/supabase/cliente');
@@ -124,7 +128,24 @@ function FormularioEntrar() {
               required
             />
 
-            {erro && (
+            {bloqueado && (
+              <div className="p-4 rounded-2xl bg-red-500/15 border border-red-500/30 text-xs font-semibold text-red-400 flex items-start gap-3 animar-entrar-baixo">
+                <div className="w-8 h-8 rounded-xl bg-red-500/20 flex items-center justify-center shrink-0 text-red-400 font-bold mt-0.5">
+                  <Clock size={18} className="animate-spin" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-bold text-sm text-red-300">IP Bloqueado Temporariamente</p>
+                  <p className="mt-1 leading-relaxed text-slate-300">
+                    {mensagemRateLimit || 'Muitas tentativas erradas em sequência.'}
+                  </p>
+                  <div className="mt-2 text-xs font-mono font-bold text-red-400 flex items-center gap-1.5">
+                    Tente novamente em: <span className="bg-red-950/80 px-2 py-0.5 rounded border border-red-500/30 text-red-300 text-sm font-bold">{segundosRestantes}s</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {erro && !bloqueado && (
               <div className="p-3 rounded-xl bg-erro/10 border border-erro/20 text-sm text-erro">
                 {erro}
               </div>
@@ -135,9 +156,12 @@ function FormularioEntrar() {
               larguraTotal
               tamanho="lg"
               carregando={carregando}
+              disabled={bloqueado || carregando}
             >
-              Entrar
+              {bloqueado ? `Aguarde ${segundosRestantes}s` : 'Entrar'}
             </Botao>
+
+            <CaptchaCloudflare />
           </form>
 
           {}

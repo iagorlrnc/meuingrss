@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Botao from '@/componentes/ui/Botao';
 import Cartao from '@/componentes/ui/Cartao';
 import Carregando from '@/componentes/ui/Carregando';
+import CaptchaCloudflare from '@/componentes/ui/CaptchaCloudflare';
 import { criarClienteNavegador } from '@/lib/supabase/cliente';
 import { formatarMoeda, formatarDataHora } from '@/lib/utilitarios';
 import { usarAutenticacao } from '@/contextos/ContextoAutenticacao';
@@ -297,6 +298,8 @@ function ConteudoCheckout() {
               >
                 Pagar {formatarMoeda(totalFinal)}
               </Botao>
+
+              <CaptchaCloudflare />
 
               <p className="text-[10px] text-texto-terciario text-center mt-4">
                 Ao clicar em "Pagar", você será redirecionado para o ambiente seguro do Mercado Pago.

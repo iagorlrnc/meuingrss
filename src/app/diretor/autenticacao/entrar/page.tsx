@@ -27,8 +27,12 @@ import {
   ArrowRight
 } from 'lucide-react';
 
+import { useRateLimitAuth } from '@/hooks/useRateLimitAuth';
+import CaptchaCloudflare from '@/componentes/ui/CaptchaCloudflare';
+
 function FormularioEntrarDiretor() {
   const { entrar } = usarAutenticacao();
+  const { bloqueado, segundosRestantes, mensagemRateLimit, aplicarStatus } = useRateLimitAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
   const redirecionar = searchParams.get('redirecionar') || '/';
@@ -49,17 +53,18 @@ function FormularioEntrarDiretor() {
 
   async function aoSubmeter(e: React.FormEvent) {
     e.preventDefault();
+    if (bloqueado) return;
+
     setErro('');
     setCarregando(true);
 
     const resultado = await entrar(email, senha);
 
     if (resultado.erro) {
-      setErro(
-        resultado.erro.includes('Invalid login')
-          ? 'Email ou senha incorretos'
-          : resultado.erro
-      );
+      if (resultado.rateLimitData) {
+        aplicarStatus(resultado.rateLimitData);
+      }
+      setErro(resultado.erro);
       setCarregando(false);
       return;
     }
@@ -216,7 +221,24 @@ function FormularioEntrarDiretor() {
               required
             />
 
-            {erro && (
+            {bloqueado && (
+              <div className="p-4 rounded-2xl bg-red-500/15 border border-red-500/30 text-xs font-semibold text-red-400 flex items-start gap-3 animar-entrar-baixo">
+                <div className="w-8 h-8 rounded-xl bg-red-500/20 flex items-center justify-center shrink-0 text-red-400 font-bold mt-0.5">
+                  <Clock size={18} className="animate-spin" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-bold text-sm text-red-300">IP Bloqueado Temporariamente</p>
+                  <p className="mt-1 leading-relaxed text-slate-300">
+                    {mensagemRateLimit || 'Muitas tentativas erradas em sequência.'}
+                  </p>
+                  <div className="mt-2 text-xs font-mono font-bold text-red-400 flex items-center gap-1.5">
+                    Tente novamente em: <span className="bg-red-950/80 px-2 py-0.5 rounded border border-red-500/30 text-red-300 text-sm font-bold">{segundosRestantes}s</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {erro && !bloqueado && (
               <div className="p-4 rounded-xl bg-red-500/15 border border-red-500/30 text-xs font-semibold text-red-400 leading-relaxed flex items-center gap-2.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-red-400 animate-ping shrink-0" />
                 <span>{erro}</span>
@@ -229,10 +251,13 @@ function FormularioEntrarDiretor() {
               larguraTotal
               tamanho="lg"
               carregando={carregando}
+              disabled={bloqueado || carregando}
               icone={<ArrowRight size={18} />}
             >
-              Acessar Painel do Diretor
+              {bloqueado ? `Aguarde ${segundosRestantes}s` : 'Acessar Painel do Diretor'}
             </Botao>
+
+            <CaptchaCloudflare />
           </form>
 
           {/* Chamada para Cadastro */}
