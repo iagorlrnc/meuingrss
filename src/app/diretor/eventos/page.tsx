@@ -32,21 +32,39 @@ export default function PaginaEventosDiretor() {
         return;
       }
 
+      let idAtletica = perfil.atletica_id;
+
+      if (!idAtletica && perfil.id) {
+        const { data: userPerfil } = await supabase
+          .from('profiles')
+          .select('atletica_id')
+          .eq('id', perfil.id)
+          .maybeSingle();
+
+        if (userPerfil?.atletica_id) {
+          idAtletica = userPerfil.atletica_id;
+        }
+      }
+
       let query = supabase
         .from('eventos')
         .select('*, lotes_ingresso(*)');
 
-      if (perfil.role !== 'admin') {
-        query = query.eq('organizador_id', perfil.id);
+      if (perfil.role !== 'admin' && idAtletica) {
+        query = query.eq('atletica_id', idAtletica);
       }
 
-      const { data } = await query.order('criado_em', { ascending: false });
+      const { data, error } = await query.order('criado_em', { ascending: false });
+
+      if (error) {
+        console.error('Erro ao buscar eventos da atlética:', error.message);
+      }
 
       if (data) {
         setEventos((data as (Evento & { lotes_ingresso?: LoteIngresso[] })[]).filter((e) => !e.apagado_pelo_diretor));
       }
-    } catch {
-      // Ignorar erros no client
+    } catch (err) {
+      console.error('Erro de conexão ao buscar eventos do diretor:', err);
     } finally {
       setCarregando(false);
     }

@@ -49,7 +49,7 @@ interface IngressoCompleto extends Ingresso {
   comprador?: Perfil;
 }
 
-type StatusPedido = 'aguardando' | 'aprovado' | 'cancelado' | 'erro' | null;
+type StatusPedido = 'aguardando' | 'aprovado' | 'cancelado' | 'estoque_esgotado' | 'erro' | null;
 
 const INGRESSOS_POR_PAGINA = 20;
 
@@ -110,6 +110,9 @@ function ConteudoMeusIngressos() {
         setPollingAtivo(false);
         // Recarregar ingressos para mostrar o novo
         buscarIngressos(true);
+      } else if (dados.status_pedido === 'estoque_esgotado') {
+        setStatusPedido('estoque_esgotado');
+        setPollingAtivo(false);
       } else if (dados.status_pedido === 'cancelado') {
         setStatusPedido('cancelado');
         setPollingAtivo(false);
@@ -133,6 +136,8 @@ function ConteudoMeusIngressos() {
     if (statusPedidoParam === 'aprovado') {
       // Ingresso gratuito ou pagamento já confirmado pelo redirect
       setStatusPedido('aprovado');
+    } else if (statusPedidoParam === 'estoque_esgotado') {
+      setStatusPedido('estoque_esgotado');
     } else if (statusPedidoParam === 'aguardando' && compradorIdParam && eventoIdParam && loteIdParam) {
       // Retorno do gateway — iniciar polling para confirmar
       setStatusPedido('aguardando');
@@ -400,6 +405,52 @@ function ConteudoMeusIngressos() {
                 title="Dispensar"
               >
                 <XCircle size={18} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {statusPedido === 'estoque_esgotado' && (
+          <div className="mb-6 p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-red-500/15 border border-amber-500/40 shadow-xl backdrop-blur-md">
+            <div className="flex items-start gap-3.5">
+              <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-400 shrink-0 border border-amber-500/30">
+                <ShieldCheck className="w-6 h-6 text-amber-400" />
+              </div>
+              <div className="flex-1 space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                    Proteção Anti-Sobrevenda
+                  </span>
+                  <h3 className="text-sm sm:text-base font-extrabold text-amber-200">
+                    Estoque Esgotado Durante o Processamento
+                  </h3>
+                </div>
+                <p className="text-xs sm:text-sm text-amber-100/90 leading-relaxed">
+                  Devido ao alto volume de compras simultâneas no mesmo instante, a quantidade total de ingressos deste lote foi atingida antes da conclusão da sua transação.
+                </p>
+                <div className="p-3 rounded-xl bg-black/40 border border-amber-500/20 text-xs text-amber-200/90 space-y-1">
+                  <p className="font-semibold text-amber-300">O que acontece agora?</p>
+                  <p>• A emissão do ingresso foi bloqueada para evitar vendas além do limite do lote.</p>
+                  <p>• O valor total pago será <strong>estornado automaticamente</strong> na sua conta pelo gateway de pagamento.</p>
+                </div>
+                {eventoIdParam && (
+                  <div className="pt-1 flex flex-wrap items-center gap-2">
+                    <Link
+                      href={`/eventos/${eventoIdParam}`}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-bold transition-all border border-amber-500/40"
+                    >
+                      <RefreshCw size={13} />
+                      Verificar novos lotes no evento
+                    </Link>
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={dispensarStatusPedido}
+                className="text-amber-400/60 hover:text-amber-300 transition-colors p-1 shrink-0"
+                title="Dispensar"
+              >
+                <XCircle size={20} />
               </button>
             </div>
           </div>

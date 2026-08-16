@@ -76,7 +76,10 @@ export async function POST(request: NextRequest) {
 
     const restantes = lote.quantidade_total - lote.quantidade_vendida;
     if (restantes < qtd) {
-      return NextResponse.json({ erro: 'Ingressos insuficientes disponíveis neste lote.' }, { status: 400 });
+      return NextResponse.json(
+        { erro: 'Ingressos esgotados ou insuficientes. Devido à alta demanda de acessos simultâneos, este lote acaba de atingir o limite de vendas.' },
+        { status: 400 }
+      );
     }
 
     // 3. Busca informações do evento e do comprador
