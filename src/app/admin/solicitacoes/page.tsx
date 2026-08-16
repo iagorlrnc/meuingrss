@@ -40,32 +40,47 @@ export default function PaginaSolicitacoesAdmin() {
 
   async function buscarSolicitacoes() {
     setCarregando(true);
-    const { data: perfis, error: errPerfis } = await supabase
-      .from('profiles')
-      .select('*, atletica:atleticas(*)')
-      .eq('role', 'diretor')
-      .eq('status', 'pendente')
-      .order('criado_em', { ascending: false });
 
-    if (errPerfis) {
-      console.error('Erro ao buscar solicitações:', errPerfis);
-    }
+    try {
+      // 1. Busca perfis com role 'diretor' ou status 'pendente'
+      const { data: perfis, error: errPerfis } = await supabase
+        .from('profiles')
+        .select('*, atletica:atleticas(*)')
+        .or('role.eq.diretor,status.eq.pendente')
+        .order('criado_em', { ascending: false });
 
-    if (perfis) {
-      interface PerfilComAtleticaRaw extends Perfil {
-        atletica: Atletica | null;
+      if (errPerfis) {
+        console.error('Erro ao buscar solicitações de perfis:', errPerfis);
       }
 
-      const itens: SolicitacaoItem[] = (perfis as unknown as PerfilComAtleticaRaw[]).map((p) => ({
-        perfil: p,
-        atletica: p.atletica,
-      }));
-      setSolicitacoes(itens);
-    } else {
-      setSolicitacoes([]);
-    }
+      // 2. Busca perfis cujas atléticas vinculadas estejam pendentes
+      const { data: perfisAtlPendente } = await supabase
+        .from('profiles')
+        .select('*, atletica:atleticas!inner(*)')
+        .eq('atletica.status', 'pendente')
+        .order('criado_em', { ascending: false });
 
-    setCarregando(false);
+      const mapaItens = new Map<string, SolicitacaoItem>();
+
+      (perfis || []).forEach((p: any) => {
+        if (p.status === 'pendente' || p.role === 'diretor' || p.atletica?.status === 'pendente') {
+          mapaItens.set(p.id, { perfil: p, atletica: p.atletica || null });
+        }
+      });
+
+      (perfisAtlPendente || []).forEach((p: any) => {
+        if (!mapaItens.has(p.id)) {
+          mapaItens.set(p.id, { perfil: p, atletica: p.atletica || null });
+        }
+      });
+
+      setSolicitacoes(Array.from(mapaItens.values()));
+    } catch (err) {
+      console.error('Exceção ao buscar solicitações:', err);
+      setSolicitacoes([]);
+    } finally {
+      setCarregando(false);
+    }
   }
 
   useEffect(() => {

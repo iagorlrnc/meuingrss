@@ -102,6 +102,21 @@ export default function PaginaCadastroDiretor() {
         email,
         options: {
           shouldCreateUser: true,
+          data: {
+            nome,
+            role: 'diretor',
+            telefone,
+            cpf,
+            cargo,
+            atleticaNome,
+            atleticaSigla,
+            atleticaCidade,
+            atleticaEstado,
+            atletica_nome: atleticaNome,
+            atletica_sigla: atleticaSigla,
+            atletica_cidade: atleticaCidade,
+            atletica_estado: atleticaEstado,
+          },
         },
       });
 
@@ -199,7 +214,7 @@ export default function PaginaCadastroDiretor() {
     }
 
     if (!emailVerificado) {
-      setErro('⚠️ Por favor, verifique seu e-mail enviando o código de 6 dígitos antes de concluir o cadastro.');
+      setErro('Verifique seu e-mail antes de concluir o cadastro.');
       return;
     }
 
@@ -456,9 +471,6 @@ export default function PaginaCadastroDiretor() {
                       Identificação do diretor responsável.
                     </p>
                   </div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded bg-[#ff007a]/15 text-[#ff007a] border border-[#ff007a]/30">
-                    Passo 1 de 3
-                  </span>
                 </div>
 
                 <CampoTexto
@@ -569,9 +581,6 @@ export default function PaginaCadastroDiretor() {
                       Informações da atlética.
                     </p>
                   </div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded bg-[#8b5cf6]/15 text-[#8b5cf6] border border-[#8b5cf6]/30">
-                    Passo 2 de 3
-                  </span>
                 </div>
 
                 <CampoTexto
@@ -674,9 +683,6 @@ export default function PaginaCadastroDiretor() {
                       Credenciais para acesso ao painel do diretor.
                     </p>
                   </div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded bg-[#00e5ff]/15 text-[#00e5ff] border border-[#00e5ff]/30">
-                    Passo 3 de 3
-                  </span>
                 </div>
 
                 {/* Verificação de E-mail com Validação Instantânea */}
