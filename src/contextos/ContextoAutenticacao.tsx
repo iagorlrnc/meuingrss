@@ -269,24 +269,15 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
         if (perfExistente?.atletica_id) {
           atleticaId = perfExistente.atletica_id;
         } else if (roleValido === 'diretor' && metadadosAdicionais.atleticaNome) {
-          const { data: atleticaCriada, error: errAtl } = await supabase
+          const { data: atlExistente } = await supabase
             .from('atleticas')
-            .insert({
-              nome: metadadosAdicionais.atleticaNome,
-              faculdade: metadadosAdicionais.atleticaSigla
-                ? `${metadadosAdicionais.atleticaNome} (${metadadosAdicionais.atleticaSigla})`
-                : metadadosAdicionais.atleticaNome,
-              cidade: metadadosAdicionais.atleticaCidade || 'Não informada',
-              estado: metadadosAdicionais.atleticaEstado || 'TO',
-              status: 'pendente',
-            })
-            .select()
+            .select('id')
+            .ilike('nome', metadadosAdicionais.atleticaNome)
+            .order('criado_em', { ascending: false })
             .maybeSingle();
 
-          if (atleticaCriada) {
-            atleticaId = atleticaCriada.id;
-          } else if (errAtl) {
-            console.error('Erro ao criar atlética via JS:', errAtl);
+          if (atlExistente) {
+            atleticaId = atlExistente.id;
           }
         }
 

@@ -118,7 +118,7 @@ function FormularioEntrarDiretor() {
     if (user) {
       const { data: perfil } = await supabase
         .from('profiles')
-        .select('role, status')
+        .select('role, status, atletica_id')
         .eq('id', user.id)
         .single();
 
@@ -137,7 +137,16 @@ function FormularioEntrarDiretor() {
         return;
       }
 
-      if (!perfil || (perfil.role !== 'diretor' && perfil.role !== 'admin')) {
+      // Se a conta está ativa e possui atlética associada, garante que a role seja 'diretor'
+      if (perfil?.status === 'ativo' && perfil.atletica_id && perfil.role === 'cliente') {
+        await supabase
+          .from('profiles')
+          .update({ role: 'diretor' })
+          .eq('id', user.id);
+        perfil.role = 'diretor';
+      }
+
+      if (!perfil || (perfil.role !== 'diretor' && perfil.role !== 'admin' && !perfil.atletica_id)) {
         setErro('Sua conta é de cliente. O portal do diretor é restrito a diretores de atlética.');
         await supabase.auth.signOut();
         setCarregando(false);
