@@ -72,9 +72,9 @@ const CampoTexto = forwardRef<HTMLInputElement | HTMLTextAreaElement, CampoTexto
           ) : (
             <input
               ref={ref as React.Ref<HTMLInputElement>}
-              type={tipoEfetivo}
               className={estiloInputBase}
               {...(outrasProps as InputHTMLAttributes<HTMLInputElement>)}
+              type={tipoEfetivo}
             />
           )}
 

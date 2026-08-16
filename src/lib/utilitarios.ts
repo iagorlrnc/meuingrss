@@ -265,3 +265,112 @@ export function matchFiltroCidade(cidadeObjeto?: string | null, cidadeFiltro?: s
   const obj = cidadeObjeto.trim().toLowerCase();
   return obj === f || obj.startsWith(`${f} -`) || obj.startsWith(`${f},`) || obj.startsWith(`${f}/`);
 }
+
+export interface StatusValidacaoSenha {
+  temMinimo8: boolean;
+  temMaiuscula: boolean;
+  temNumero: boolean;
+  temEspecial: boolean;
+  valida: boolean;
+  forca: number; // 0 (vazio), 1 (fraca), 2 (média), 3 (forte)
+  rotuloForca: string;
+}
+
+export function avaliarSenha(senha: string): StatusValidacaoSenha {
+  const temMinimo8 = senha.length >= 8;
+  const temMaiuscula = /[A-Z]/.test(senha);
+  const temNumero = /[0-9]/.test(senha);
+  const temEspecial = /[^A-Za-z0-9]/.test(senha);
+
+  const requisitosAtendidos = [temMinimo8, temMaiuscula, temNumero, temEspecial].filter(Boolean).length;
+  const valida = temMinimo8 && temMaiuscula && temNumero && temEspecial;
+
+  if (!senha || senha.length === 0) {
+    return {
+      temMinimo8: false,
+      temMaiuscula: false,
+      temNumero: false,
+      temEspecial: false,
+      valida: false,
+      forca: 0,
+      rotuloForca: '',
+    };
+  }
+
+  if (requisitosAtendidos <= 2) {
+    return {
+      temMinimo8,
+      temMaiuscula,
+      temNumero,
+      temEspecial,
+      valida: false,
+      forca: 1,
+      rotuloForca: 'Fraca',
+    };
+  } else if (requisitosAtendidos === 3) {
+    return {
+      temMinimo8,
+      temMaiuscula,
+      temNumero,
+      temEspecial,
+      valida: false,
+      forca: 2,
+      rotuloForca: 'Média',
+    };
+  } else {
+    return {
+      temMinimo8,
+      temMaiuscula,
+      temNumero,
+      temEspecial,
+      valida: true,
+      forca: 3,
+      rotuloForca: 'Forte',
+    };
+  }
+}
+
+export function tratarMudancaDataEvento(valor: string): string {
+  if (!valor) return valor;
+
+  const [dataPart, horaPart] = valor.split('T');
+  if (!dataPart) return valor;
+
+  const dataPartes = dataPart.split('-');
+  if (dataPartes.length !== 3) return valor;
+
+  let [anoStr, mesStr, diaStr] = dataPartes;
+
+  // 1. Limitar o ano a no máximo 4 dígitos
+  if (anoStr.length > 4) {
+    anoStr = anoStr.slice(0, 4);
+  }
+
+  // 2. Garantir ano mínimo de 2026 se tiver 4 dígitos
+  if (anoStr.length === 4) {
+    const anoNum = parseInt(anoStr, 10);
+    if (!isNaN(anoNum) && anoNum < 2026) {
+      anoStr = '2026';
+    }
+  }
+
+  // 3. Limitar o mês ao máximo de 12
+  if (mesStr) {
+    const mesNum = parseInt(mesStr, 10);
+    if (!isNaN(mesNum) && mesNum > 12) {
+      mesStr = '12';
+    }
+  }
+
+  // 4. Limitar o dia ao máximo de 31
+  if (diaStr) {
+    const diaNum = parseInt(diaStr, 10);
+    if (!isNaN(diaNum) && diaNum > 31) {
+      diaStr = '31';
+    }
+  }
+
+  const dataFormatada = `${anoStr}-${mesStr}-${diaStr}`;
+  return horaPart !== undefined ? `${dataFormatada}T${horaPart}` : dataFormatada;
+}
+

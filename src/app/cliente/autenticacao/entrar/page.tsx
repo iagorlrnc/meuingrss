@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { usarAutenticacao } from '@/contextos/ContextoAutenticacao';
@@ -23,8 +23,32 @@ function FormularioEntrar() {
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(false);
+  const [carregandoGoogle, setCarregandoGoogle] = useState(false);
   const [modalPendenteAberto, setModalPendenteAberto] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState('');
+
+  // Capturar mensagens de erro passadas no redirecionamento (ex: callback do Google)
+  useEffect(() => {
+    const codErro = parametrosBusca.get('erro');
+    if (codErro === 'callback') {
+      setErro('Não foi possível concluir o login com o Google. Tente novamente.');
+    } else if (codErro === 'conta_bloqueada') {
+      setErro('Sua conta está bloqueada. Entre em contato com a equipe de suporte.');
+    } else if (codErro === 'permissao_negada') {
+      setErro('Acesso negado: Você não possui permissão para acessar esta área.');
+    }
+  }, [parametrosBusca]);
+
+  async function aoEntrarComGoogle() {
+    try {
+      setErro('');
+      setCarregandoGoogle(true);
+      await entrarComGoogle(redirecionar);
+    } catch {
+      setCarregandoGoogle(false);
+      setErro('Erro ao conectar ao Google. Verifique sua conexão e tente novamente.');
+    }
+  }
 
   async function aoSubmeter(e: React.FormEvent) {
     e.preventDefault();
@@ -181,7 +205,9 @@ function FormularioEntrar() {
             variante="contorno"
             larguraTotal
             tamanho="lg"
-            onClick={entrarComGoogle}
+            onClick={aoEntrarComGoogle}
+            carregando={carregandoGoogle}
+            disabled={bloqueado || carregando || carregandoGoogle}
             icone={
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path

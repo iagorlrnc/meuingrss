@@ -20,7 +20,6 @@ import {
   EyeOff,
   TrendingUp,
   QrCode,
-  Zap,
   CheckCircle2,
   Sparkles,
   Shield,
@@ -39,7 +38,6 @@ function FormularioEntrarDiretor() {
 
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
-  const [mostrarSenha, setMostrarSenha] = useState(false);
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(false);
   const [modalPendenteAberto, setModalPendenteAberto] = useState(false);
@@ -161,7 +159,7 @@ function FormularioEntrarDiretor() {
 
             <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-md hover:border-[#00e5ff]/40 transition-all">
               <div className="w-10 h-10 rounded-xl bg-[#00e5ff]/15 text-[#00e5ff] flex items-center justify-center mb-3">
-                <Zap size={20} />
+                <Ticket size={20} />
               </div>
               <h3 className="text-sm font-bold text-white mb-1">Virada de Lotes</h3>
               <p className="text-xs text-slate-400 leading-normal">

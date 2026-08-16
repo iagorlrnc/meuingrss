@@ -9,7 +9,7 @@ import Carregando from '@/componentes/ui/Carregando';
 import { criarClienteNavegador } from '@/lib/supabase/cliente';
 import { usarAutenticacao } from '@/contextos/ContextoAutenticacao';
 import { useNotificacao } from '@/componentes/ui/Notificacao';
-import { gerarSlugUnico, formatarCidadeEstado } from '@/lib/utilitarios';
+import { gerarSlugUnico, formatarCidadeEstado, tratarMudancaDataEvento } from '@/lib/utilitarios';
 import {
   ArrowLeft,
   CalendarPlus,
@@ -19,6 +19,7 @@ import {
   Upload,
   Trash2,
   ChevronDown,
+  AlertCircle,
 } from 'lucide-react';
 import Link from 'next/link';
 import MapPicker from '@/componentes/mapa/MapPicker';
@@ -42,11 +43,12 @@ export default function PaginaEditarEvento() {
   const [longitude, setLongitude] = useState<number | null>(null);
   const [localDefinido, setLocalDefinido] = useState<boolean>(true);
 
-  // Data e horário mínimo (momento atual em fuso local)
+  // Data e horário mínimo (momento atual em fuso local, mínimo ano 2026)
   const dataMinima = (() => {
     const d = new Date();
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-    return d.toISOString().slice(0, 16);
+    const iso = d.toISOString().slice(0, 16);
+    return iso < '2026-01-01T00:00' ? '2026-01-01T00:00' : iso;
   })();
   const [status, setStatus] = useState<'rascunho' | 'publicado' | 'encerrado' | 'cancelado'>('rascunho');
   const [carregando, setCarregando] = useState(true);
@@ -198,8 +200,8 @@ export default function PaginaEditarEvento() {
       return;
     }
 
-    if (!local.trim()) {
-      notificarErro('Local obrigatório', 'Por favor, informe o local do evento.');
+    if (localDefinido && !local.trim()) {
+      notificarErro('Local obrigatório', 'Por favor, informe o local do evento ou marque "Local não definido".');
       return;
     }
 
@@ -221,7 +223,7 @@ export default function PaginaEditarEvento() {
         descricao: descricao.trim(),
         imagem_url: imagemUrl.trim() || null,
         data_evento: dataObj.toISOString(),
-        local: local.trim(),
+        local: localDefinido ? local.trim() : (local.trim() || 'Local a definir'),
         cidade: cidadeFormatada,
         latitude: localDefinido ? latitude : null,
         longitude: localDefinido ? longitude : null,
@@ -340,15 +342,16 @@ export default function PaginaEditarEvento() {
             Informações do Evento
           </h3>
           <div className="space-y-4">
-            <CampoTexto rotulo="Título do evento" placeholder="Ex: Calourada de Verão 2026" value={titulo} onChange={(e) => setTitulo((e.target as HTMLInputElement).value)} required />
+            <CampoTexto rotulo="Título do evento" placeholder="Ex: Calourada" value={titulo} onChange={(e) => setTitulo((e.target as HTMLInputElement).value)} required />
             <CampoTexto rotulo="Descrição" placeholder="Descreva o evento..." value={descricao} onChange={(e) => setDescricao((e.target as HTMLTextAreaElement).value)} multilinha />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <CampoTexto
                 rotulo="Data e horário"
                 type="datetime-local"
                 min={dataMinima}
+                max="2099-12-31T23:59"
                 value={dataEvento}
-                onChange={(e) => setDataEvento((e.target as HTMLInputElement).value)}
+                onChange={(e) => setDataEvento(tratarMudancaDataEvento((e.target as HTMLInputElement).value))}
                 icone={<Clock size={18} />}
                 required
               />
@@ -385,11 +388,45 @@ export default function PaginaEditarEvento() {
                 </div>
               </div>
             </div>
-            <CampoTexto rotulo="Local" placeholder="Nome do espaço / endereço" value={local} onChange={(e) => setLocal((e.target as HTMLInputElement).value)} icone={<MapPin size={18} />} required />
+            <CampoTexto
+              rotulo="Local"
+              placeholder="Nome do espaço"
+              value={local}
+              onChange={(e) => setLocal((e.target as HTMLInputElement).value)}
+              icone={<MapPin size={18} />}
+              disabled={!localDefinido}
+              required={localDefinido}
+            />
+
+            {/* Checkbox Local não definido (Posicionado diretamente abaixo do campo de Local) */}
+            <div className="flex items-center gap-2.5 pt-0.5 pb-1">
+              <input
+                type="checkbox"
+                id="checkbox-local-nao-definido"
+                checked={!localDefinido}
+                onChange={(e) => {
+                  const naoDefinido = e.target.checked;
+                  setLocalDefinido(!naoDefinido);
+                  if (naoDefinido) {
+                    setLatitude(null);
+                    setLongitude(null);
+                  }
+                }}
+                className="w-4 h-4 rounded bg-[#111a2e] border-white/20 text-[#ff007a] focus:ring-[#ff007a] cursor-pointer"
+              />
+              <label
+                htmlFor="checkbox-local-nao-definido"
+                className="text-xs font-medium text-slate-300 cursor-pointer select-none flex items-center gap-1.5"
+              >
+                Local não definido
+              </label>
+            </div>
+
             <MapPicker
               lat={latitude}
               lng={longitude}
               localDefinido={localDefinido}
+              ocultarCheckbox={true}
               onChange={(lat, lng) => {
                 setLatitude(lat);
                 setLongitude(lng);
