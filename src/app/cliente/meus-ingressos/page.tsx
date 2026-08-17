@@ -262,6 +262,19 @@ function ConteudoMeusIngressos() {
 
         // Verifica se tem mais páginas
         setTemMais(ingressosProcessados.length === INGRESSOS_POR_PAGINA);
+
+        // Auto-reconciliação silenciosa sob demanda: verifica se há pagamento recente pendente de emissão
+        if (resetar && usuario?.id && ingressosProcessados.length === 0) {
+          fetch('/api/consultar-status-pedido')
+            .then((r) => r.json())
+            .then((res) => {
+              if (res?.status_pedido === 'aprovado') {
+                setStatusPedido('aprovado');
+                buscarIngressos(true);
+              }
+            })
+            .catch(() => {});
+        }
       }
     } catch (err) {
       console.error('Erro ao buscar ingressos do cliente:', err);

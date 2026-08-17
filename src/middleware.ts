@@ -173,7 +173,7 @@ export async function middleware(request: NextRequest) {
   if (precisaAuthCliente && !user) {
     const urlLogin = request.nextUrl.clone();
     urlLogin.pathname = '/autenticacao/entrar';
-    urlLogin.searchParams.set('redirecionar', pathname);
+    urlLogin.searchParams.set('redirecionar', `${pathname}${request.nextUrl.search}`);
     return redirecionarComCookies(urlLogin);
   }
 

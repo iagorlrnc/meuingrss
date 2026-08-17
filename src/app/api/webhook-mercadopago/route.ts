@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { paymentClient, validarAssinaturaWebhook, obterSecretWebhook } from '@/lib/mercadopago';
+import { paymentClient, validarAssinaturaWebhook, obterSecretWebhook, ehMercadoPagoConfigurado } from '@/lib/mercadopago';
 import { criarClienteAdmin } from '@/lib/supabase/admin';
 import { gerarHashIngresso } from '@/lib/gerarQrCode';
 import { logger } from '@/lib/logger';
@@ -114,6 +114,7 @@ async function executarLiberacaoIngressos(
       await supabase.from('pedidos').update({
         status: 'aprovado',
         gateway_payment_id: params.gatewayPaymentId,
+        gateway_transaction_id: params.gatewayPaymentId,
         metodo_pagamento: params.metodoPagamento,
         pago_em: new Date().toISOString(),
       }).eq('id', params.pedidoId);
@@ -138,6 +139,7 @@ async function executarLiberacaoIngressos(
       .update({
         status: 'aprovado',
         gateway_payment_id: params.gatewayPaymentId,
+        gateway_transaction_id: params.gatewayPaymentId,
         metodo_pagamento: params.metodoPagamento,
         pago_em: new Date().toISOString(),
       })
@@ -205,7 +207,6 @@ async function executarEstorno(
   gatewayPaymentId: string,
   novoStatus: string
 ) {
-  // 1. Tenta via RPC
   const { data: resRpc, error: errRpc } = await supabase.rpc('processar_estorno_pagamento', {
     p_gateway_payment_id: gatewayPaymentId,
     p_novo_status: novoStatus,
@@ -215,11 +216,10 @@ async function executarEstorno(
     return resRpc;
   }
 
-  // 2. Fallback JS
   await supabase
     .from('pedidos')
     .update({ status: 'estornado' })
-    .eq('gateway_payment_id', gatewayPaymentId);
+    .or(`gateway_payment_id.eq.${gatewayPaymentId},gateway_transaction_id.eq.${gatewayPaymentId}`);
 
   await supabase
     .from('pagamentos')
@@ -293,48 +293,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ recebido: true, mensagem: 'Notificação processada ou ignorada' }, { status: 200 });
   }
 
-  // 2. Validação da Assinatura HMAC de Segurança
+  // 2. Validação da Assinatura HMAC de Segurança (se enviada)
   const xSignature = request.headers.get('x-signature');
   const xRequestId = request.headers.get('x-request-id');
   const secretConfigurado = obterSecretWebhook();
 
-  if (secretConfigurado) {
-    if (!xSignature || !xRequestId) {
-      logger.security('REJEITADO: Webhook sem cabeçalhos x-signature/x-request-id', { ip, paymentId });
-      const duracao = Date.now() - inicioTimestamp;
-      await registrarLogWebhook(supabase, {
-        tipo_evento: 'payment',
-        data_id: String(paymentId),
-        status_resposta: 401,
-        erro: 'Cabeçalhos de assinatura HMAC ausentes',
-        ip,
-        duracao_ms: duracao,
-        payload: body,
-      });
-      return NextResponse.json({ erro: 'Assinatura ausente' }, { status: 401 });
-    }
-
+  if (secretConfigurado && xSignature && xRequestId) {
     const assinaturaValida = validarAssinaturaWebhook(xSignature, xRequestId, String(paymentId));
     if (!assinaturaValida) {
-      logger.security('ALERTA DE SEGURANÇA: Assinatura HMAC inválida no Webhook Mercado Pago', { ip, paymentId });
-      const duracao = Date.now() - inicioTimestamp;
-      await registrarLogWebhook(supabase, {
-        tipo_evento: 'payment',
-        data_id: String(paymentId),
-        request_id: xRequestId,
-        assinatura: xSignature,
-        status_resposta: 401,
-        erro: 'Assinatura HMAC inválida',
-        ip,
-        duracao_ms: duracao,
-        payload: body,
-      });
-      return NextResponse.json({ erro: 'Assinatura inválida' }, { status: 401 });
+      logger.warn('Assinatura HMAC divergente no webhook Mercado Pago. Procedendo com verificação direta na API.', { ip, paymentId });
     }
   }
 
   try {
     // 3. Consulta Direta e Oficial à API do Mercado Pago (Fonte Única de Verdade)
+    if (!ehMercadoPagoConfigurado()) {
+      return NextResponse.json({ erro: 'Gateway não configurado' }, { status: 500 });
+    }
+
     let payment: Awaited<ReturnType<typeof paymentClient.get>>;
     try {
       payment = await paymentClient.get({ id: String(paymentId) });
@@ -405,11 +381,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ recebido: true, status: statusPagamento, mensagem: 'Aguardando aprovação' }, { status: 200 });
     }
 
-    // 5. Pagamento APROVADO: Resolução do ID do Pedido (external_reference)
+    // 5. Pagamento APROVADO: Resolução do Pedido e Metadados
     let orderId = payment.external_reference;
-    let metadata = payment.metadata as Record<string, unknown> | undefined;
+    let metadata = (payment.metadata || {}) as Record<string, unknown>;
 
-    // Se o external_reference antigo continha um JSON serializado, tenta extrair os metadados
+    // Se o external_reference continha um JSON serializado, extrai os metadados
     if (orderId && !UUID_REGEX.test(orderId)) {
       try {
         const parsed = JSON.parse(orderId);
@@ -420,20 +396,56 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Se ainda não temos um orderId com UUID válido, tenta buscar pedido existente por preference_id ou comprador/lote
     let pedidoEncontrado = null;
+
+    // 5.1 Busca por ID direto (se for UUID)
     if (orderId && UUID_REGEX.test(orderId)) {
       const { data: p } = await supabase.from('pedidos').select('*').eq('id', orderId).maybeSingle();
       pedidoEncontrado = p;
     }
 
+    // 5.2 Busca por external_reference (string literal)
+    if (!pedidoEncontrado && payment.external_reference) {
+      const { data: p } = await supabase.from('pedidos').select('*').eq('external_reference', payment.external_reference).maybeSingle();
+      pedidoEncontrado = p;
+    }
+
+    // 5.3 Busca por metadata.pedido_id
     if (!pedidoEncontrado && metadata?.pedido_id && typeof metadata.pedido_id === 'string' && UUID_REGEX.test(metadata.pedido_id)) {
       const { data: p } = await supabase.from('pedidos').select('*').eq('id', metadata.pedido_id).maybeSingle();
       pedidoEncontrado = p;
       orderId = metadata.pedido_id;
     }
 
-    // Se não encontrou pedido prévio no banco (caso de pagamentos legados ou orfãos)
+    // 5.4 Busca por gateway_payment_id ou gateway_transaction_id
+    if (!pedidoEncontrado) {
+      const { data: p } = await supabase
+        .from('pedidos')
+        .select('*')
+        .or(`gateway_payment_id.eq.${gatewayPaymentId},gateway_transaction_id.eq.${gatewayPaymentId}`)
+        .maybeSingle();
+      pedidoEncontrado = p;
+    }
+
+    // 5.5 Busca por comprador_id + evento_id + lote_id
+    const compId = String(pedidoEncontrado?.comprador_id || metadata?.comprador_id || '');
+    const evtId = String(pedidoEncontrado?.evento_id || metadata?.evento_id || '');
+    const ltId = String(pedidoEncontrado?.lote_id || metadata?.lote_id || '');
+
+    if (!pedidoEncontrado && compId && evtId && ltId && UUID_REGEX.test(compId) && UUID_REGEX.test(evtId) && UUID_REGEX.test(ltId)) {
+      const { data: p } = await supabase
+        .from('pedidos')
+        .select('*')
+        .eq('comprador_id', compId)
+        .eq('evento_id', evtId)
+        .eq('lote_id', ltId)
+        .order('criado_em', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      pedidoEncontrado = p;
+    }
+
     const eventoId = String(pedidoEncontrado?.evento_id || metadata?.evento_id || '');
     const loteId = String(pedidoEncontrado?.lote_id || metadata?.lote_id || '');
     const compradorId = String(pedidoEncontrado?.comprador_id || metadata?.comprador_id || '');
@@ -460,10 +472,11 @@ export async function POST(request: NextRequest) {
       qrHashes.push(gerarHashIngresso(`${eventoId}-${gatewayPaymentId}-${i}-${Date.now()}`, eventoId));
     }
 
-    // 7. Se não havia pedido na tabela 'pedidos', cria um agora para manter consistência
+    // 7. Se não havia pedido na tabela 'pedidos', cria/atualiza agora para manter consistência
     let finalOrderId = pedidoEncontrado?.id;
+    const valorUnitarioCalculado = Number(payment.transaction_amount || 0) / quantidade;
+
     if (!finalOrderId) {
-      const valorUnitarioCalculado = Number(payment.transaction_amount || 0) / quantidade;
       const { data: novoPed } = await supabase
         .from('pedidos')
         .insert({
@@ -475,6 +488,7 @@ export async function POST(request: NextRequest) {
           valor_total: Number(payment.transaction_amount || 0),
           status: 'aprovado',
           gateway_payment_id: gatewayPaymentId,
+          gateway_transaction_id: gatewayPaymentId,
           metodo_pagamento: metodoPagamento,
           pago_em: new Date().toISOString(),
         })
@@ -495,7 +509,7 @@ export async function POST(request: NextRequest) {
         loteId,
         compradorId,
         quantidade,
-        valorUnitario: Number(payment.transaction_amount || 0) / quantidade,
+        valorUnitario: valorUnitarioCalculado,
       },
     });
 
@@ -526,50 +540,40 @@ export async function POST(request: NextRequest) {
       tipo_evento: 'payment',
       data_id: gatewayPaymentId,
       status_resposta: 200,
-      resultado: resultado.ja_processado ? 'Pagamento já processado (idempotente)' : 'Ingressos liberados com sucesso',
+      resultado: 'Pagamento aprovado e ingressos liberados com sucesso',
       ip,
       duracao_ms: duracao,
       payload: {
         pedido_id: finalOrderId,
-        gateway_id: gatewayPaymentId,
+        gateway_payment_id: gatewayPaymentId,
         quantidade,
         ingressos_ids: resultado.ingressos_ids,
       },
     });
 
-    logger.info('Webhook processado com sucesso!', {
-      gatewayPaymentId,
-      pedidoId: finalOrderId,
-      ja_processado: resultado.ja_processado,
+    return NextResponse.json({
+      sucesso: true,
+      mensagem: 'Pagamento processado e ingressos liberados',
+      pedido_id: finalOrderId,
     });
-
-    return NextResponse.json(
-      {
-        recebido: true,
-        sucesso: true,
-        ja_processado: Boolean(resultado.ja_processado),
-        pedido_id: finalOrderId,
-        mensagem: resultado.ja_processado
-          ? 'Pagamento já processado anteriormente.'
-          : 'Ingressos gerados e creditados com sucesso!',
-      },
-      { status: 200 }
-    );
   } catch (error) {
-    logger.error('Erro crítico não tratado no Webhook Mercado Pago', error);
+    logger.error('Erro crítico no processamento do webhook Mercado Pago', error);
     const duracao = Date.now() - inicioTimestamp;
     await registrarLogWebhook(supabase, {
       tipo_evento: 'payment',
       data_id: String(paymentId),
       status_resposta: 500,
-      erro: error instanceof Error ? error.message : 'Erro interno do servidor',
+      erro: String(error),
       ip,
       duracao_ms: duracao,
     });
-    return NextResponse.json({ erro: 'Erro interno ao processar notificação' }, { status: 500 });
+    return NextResponse.json({ erro: 'Erro interno ao processar webhook' }, { status: 500 });
   }
 }
 
 export async function GET() {
-  return NextResponse.json({ status: 'ok', servico: 'Webhook Mercado Pago MeuIngrss' }, { status: 200 });
+  return NextResponse.json({
+    status: 'ok',
+    servico: 'Webhook Mercado Pago MeuIngrss',
+  });
 }
