@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { usarAutenticacao } from '@/contextos/ContextoAutenticacao';
 import Botao from '@/componentes/ui/Botao';
-import { cn } from '@/lib/utilitarios';
+import { cn, normalizarListaCidades } from '@/lib/utilitarios';
 import { criarClienteNavegador } from '@/lib/supabase/cliente';
 import Modal from '@/componentes/ui/Modal';
 import Logo from '@/componentes/ui/Logo';
@@ -46,7 +46,7 @@ function ConteudoCabecalhoCliente() {
     setCopiado(true);
     setTimeout(() => setCopiado(false), 2500);
   }
-  const [cidades, setCidades] = useState<string[]>(obterCidadesCache() || []);
+  const [cidades, setCidades] = useState<string[]>(() => normalizarListaCidades(obterCidadesCache() || []));
   const supabase = criarClienteNavegador();
 
   useEffect(() => {
@@ -58,13 +58,13 @@ function ConteudoCabecalhoCliente() {
     async function carregarCidades() {
       const lista = await obterOuBuscarCidades(supabase);
       if (lista && lista.length > 0) {
-        setCidades(lista);
+        setCidades(normalizarListaCidades(lista));
       }
     }
     carregarCidades();
     const interval = setInterval(() => {
       const c = obterCidadesCache();
-      if (c && c.length > 0) setCidades(c);
+      if (c && c.length > 0) setCidades(normalizarListaCidades(c));
     }, 2000);
     return () => clearInterval(interval);
   }, [supabase]);

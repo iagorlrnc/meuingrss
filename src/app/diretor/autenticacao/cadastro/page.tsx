@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usarAutenticacao } from '@/contextos/ContextoAutenticacao';
 import Botao from '@/componentes/ui/Botao';
 import CampoTexto from '@/componentes/ui/CampoTexto';
-import { formatarTelefone, formatarCPF, validarCPF, avaliarSenha } from '@/lib/utilitarios';
+import { formatarTelefone, formatarCPF, validarCPF, avaliarSenha, formatarCidadeEstado } from '@/lib/utilitarios';
 import IndicadorForcaSenha from '@/componentes/ui/IndicadorForcaSenha';
 import { criarClienteNavegador } from '@/lib/supabase/cliente';
 import {
@@ -103,11 +103,11 @@ export default function PaginaCadastroDiretor() {
             cargo,
             atleticaNome,
             atleticaSigla,
-            atleticaCidade,
+            atleticaCidade: formatarCidadeEstado(atleticaCidade, atleticaEstado),
             atleticaEstado,
             atletica_nome: atleticaNome,
             atletica_sigla: atleticaSigla,
-            atletica_cidade: atleticaCidade,
+            atletica_cidade: formatarCidadeEstado(atleticaCidade, atleticaEstado),
             atletica_estado: atleticaEstado,
           },
         },
@@ -235,7 +235,7 @@ export default function PaginaCadastroDiretor() {
         cargo,
         atleticaNome,
         atleticaSigla,
-        atleticaCidade,
+        atleticaCidade: formatarCidadeEstado(atleticaCidade, atleticaEstado),
         atleticaEstado,
       },
       turnstileToken

@@ -9,7 +9,7 @@ import Distintivo from '@/componentes/ui/Distintivo';
 import { criarClienteNavegador } from '@/lib/supabase/cliente';
 import { usarAutenticacao } from '@/contextos/ContextoAutenticacao';
 import { useNotificacao } from '@/componentes/ui/Notificacao';
-import { formatarTelefone } from '@/lib/utilitarios';
+import { formatarTelefone, formatarCidadeEstado } from '@/lib/utilitarios';
 import type { Atletica } from '@/tipos';
 import {
   Trophy,
@@ -73,6 +73,7 @@ export default function PaginaConfiguracaoAtletica() {
     nome: string;
     faculdade: string;
     cidade: string;
+    estado: string;
     descricao: string;
     logoUrl: string;
     capaUrl: string;
@@ -125,7 +126,17 @@ export default function PaginaConfiguracaoAtletica() {
         setAtleticaId(a.id);
         setNome(a.nome || '');
         setFaculdade(a.faculdade || '');
-        setCidade(a.cidade || '');
+
+        let cidadeCarregada = a.cidade || '';
+        let estadoCarregado = (a as unknown as Record<string, string>).estado || 'TO';
+        if (cidadeCarregada.includes(' - ')) {
+          const partes = cidadeCarregada.split(' - ');
+          cidadeCarregada = partes[0].trim();
+          estadoCarregado = partes[1].trim() || estadoCarregado;
+        }
+        setCidade(cidadeCarregada);
+        setEstado(estadoCarregado);
+
         setDescricao(a.descricao || '');
         setLogoUrl(a.logo_url || '');
         setCapaUrl(a.capa_url || '');
@@ -146,6 +157,7 @@ export default function PaginaConfiguracaoAtletica() {
         setNome('Sua Atlética');
         setFaculdade('Sua Faculdade');
         setCidade('Sua Cidade');
+        setEstado('TO');
       }
     } catch (e) {
       console.error('Falha ao carregar atlética:', e);
@@ -165,6 +177,7 @@ export default function PaginaConfiguracaoAtletica() {
       nome,
       faculdade,
       cidade,
+      estado,
       descricao,
       logoUrl,
       capaUrl,
@@ -188,6 +201,7 @@ export default function PaginaConfiguracaoAtletica() {
       setNome(dadosSnapshot.nome);
       setFaculdade(dadosSnapshot.faculdade);
       setCidade(dadosSnapshot.cidade);
+      setEstado(dadosSnapshot.estado || 'TO');
       setDescricao(dadosSnapshot.descricao);
       setLogoUrl(dadosSnapshot.logoUrl);
       setCapaUrl(dadosSnapshot.capaUrl);
@@ -278,10 +292,12 @@ export default function PaginaConfiguracaoAtletica() {
     setSalvando(true);
 
     try {
+      const cidadeFormatada = formatarCidadeEstado(cidade, estado) || 'Não informada';
       const dadosAtletica = {
         nome: nome.trim(),
         faculdade: faculdade.trim() || 'Não informada',
-        cidade: cidade.trim() || 'Não informada',
+        cidade: cidadeFormatada,
+        estado: estado.trim() || 'TO',
         descricao: descricao.trim() || null,
         logo_url: logoUrl.trim() || null,
         capa_url: capaUrl.trim() || null,

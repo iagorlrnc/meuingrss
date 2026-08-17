@@ -243,16 +243,89 @@ export function ordenarEventosPorPrioridade<T extends { status: string; data_eve
   });
 }
 
+export function capitalizarNomeCidade(nome: string): string {
+  if (!nome || !nome.trim()) return '';
+  const minusculas = new Set(['de', 'do', 'da', 'dos', 'das', 'no', 'na', 'nos', 'nas', 'em', 'e']);
+  return nome
+    .trim()
+    .split(/\s+/)
+    .map((palavra, index) => {
+      const lower = palavra.toLowerCase();
+      if (index > 0 && minusculas.has(lower)) {
+        return lower;
+      }
+      return lower.charAt(0).toUpperCase() + lower.slice(1);
+    })
+    .join(' ');
+}
+
+export function extrairNomeCidade(cidadeStr?: string | null): string {
+  if (!cidadeStr || !cidadeStr.trim()) return '';
+  const c = cidadeStr.trim();
+  const match = c.match(/^(.+?)\s*(?:-|,|\/)\s*([A-Za-z]{2})$/);
+  if (match) {
+    return capitalizarNomeCidade(match[1]);
+  }
+  return capitalizarNomeCidade(c);
+}
+
 export function formatarCidadeEstado(cidadeStr?: string | null, estadoStr?: string | null): string {
   if (!cidadeStr || !cidadeStr.trim()) return '';
   const c = cidadeStr.trim();
-  if (!estadoStr || !estadoStr.trim()) return c;
-  const uf = estadoStr.trim().toUpperCase();
-  const cUpper = c.toUpperCase();
-  if (cUpper.endsWith(`- ${uf}`) || cUpper.endsWith(`, ${uf}`) || cUpper.endsWith(`/${uf}`)) {
-    return c;
+  const ufPadrao = estadoStr && estadoStr.trim() ? estadoStr.trim().toUpperCase() : 'TO';
+
+  const match = c.match(/^(.+?)\s*(?:-|,|\/)\s*([A-Za-z]{2})$/);
+  if (match) {
+    const nome = capitalizarNomeCidade(match[1]);
+    const uf = match[2].trim().toUpperCase();
+    return `${nome} - ${uf}`;
   }
-  return `${c} - ${uf}`;
+
+  return `${capitalizarNomeCidade(c)} - ${ufPadrao}`;
+}
+
+export function normalizarListaCidades(
+  lista: (string | { cidade?: string | null; estado?: string | null } | null | undefined)[]
+): string[] {
+  if (!Array.isArray(lista)) return [];
+
+  const mapaCidades = new Map<string, string>();
+
+  for (const item of lista) {
+    if (!item) continue;
+    let formatada = '';
+    if (typeof item === 'string') {
+      formatada = formatarCidadeEstado(item);
+    } else if (typeof item === 'object' && item.cidade) {
+      formatada = formatarCidadeEstado(item.cidade, item.estado);
+    }
+
+    if (!formatada) continue;
+
+    // Chave única para agrupamento: base sem acentos + estado (ex: "palmas_to", "araguaina_to")
+    const match = formatada.match(/^(.+?)\s*-\s*([A-Za-z]{2})$/);
+    const nomeBase = match ? match[1].trim() : formatada;
+    const uf = match ? match[2].trim().toUpperCase() : 'TO';
+    const chave =
+      nomeBase
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') +
+      '_' +
+      uf.toLowerCase();
+
+    if (!mapaCidades.has(chave)) {
+      mapaCidades.set(chave, formatada);
+    } else {
+      const atualTemAcento = /[^\u0000-\u007F]/.test(formatada);
+      const anteriorTemAcento = /[^\u0000-\u007F]/.test(mapaCidades.get(chave) || '');
+      if (atualTemAcento && !anteriorTemAcento) {
+        mapaCidades.set(chave, formatada);
+      }
+    }
+  }
+
+  return Array.from(mapaCidades.values()).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 }
 
 export function matchFiltroCidade(cidadeObjeto?: string | null, cidadeFiltro?: string | null): boolean {
@@ -262,14 +335,59 @@ export function matchFiltroCidade(cidadeObjeto?: string | null, cidadeFiltro?: s
     f === 'todas' ||
     f === 'todas as cidades' ||
     f === 'todas-as-cidades' ||
+    f === 'todas as cidades...' ||
     f === 'qualquer' ||
     f === 'all'
   ) {
     return true;
   }
-  if (!cidadeObjeto) return false;
+  if (!cidadeObjeto || !cidadeObjeto.trim()) return false;
+
   const obj = cidadeObjeto.trim().toLowerCase();
-  return obj === f || obj.startsWith(`${f} -`) || obj.startsWith(`${f},`) || obj.startsWith(`${f}/`);
+  if (obj === f) return true;
+
+  const normalizar = (texto: string) =>
+    texto
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim();
+
+  const extrairPartes = (str: string) => {
+    const limpo = str.trim();
+    const match = limpo.match(/^(.+?)\s*(?:-|,|\/)\s*([A-Za-z]{2})$/);
+    if (match) {
+      return {
+        base: normalizar(match[1]),
+        uf: match[2].toLowerCase(),
+      };
+    }
+    return {
+      base: normalizar(limpo),
+      uf: '',
+    };
+  };
+
+  const partesF = extrairPartes(f);
+  const partesObj = extrairPartes(obj);
+
+  if (partesF.base === partesObj.base) {
+    if (partesF.uf && partesObj.uf) {
+      return partesF.uf === partesObj.uf;
+    }
+    return true;
+  }
+
+  const normF = normalizar(f);
+  const normObj = normalizar(obj);
+  return (
+    normObj.startsWith(`${normF} -`) ||
+    normObj.startsWith(`${normF},`) ||
+    normObj.startsWith(`${normF}/`) ||
+    normF.startsWith(`${normObj} -`) ||
+    normF.startsWith(`${normObj},`) ||
+    normF.startsWith(`${normObj}/`)
+  );
 }
 
 export interface StatusValidacaoSenha {

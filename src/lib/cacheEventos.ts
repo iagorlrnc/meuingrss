@@ -1,5 +1,6 @@
 import type { Evento, LoteIngresso, Atletica } from '@/tipos';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { normalizarListaCidades } from '@/lib/utilitarios';
 
 export interface EventoCompleto extends Evento {
   atletica: Atletica;
@@ -37,13 +38,8 @@ export function salvarVariosEventosCache(eventos: (EventoCompleto | Partial<Even
 
 function adicionarCidadeAoCache(cidade: string) {
   if (!cidade || !cidade.trim()) return;
-  const cFormatada = cidade.trim();
-  const setAtual = new Set(cacheCidades || []);
-  const jaExiste = Array.from(setAtual).some((c) => c.toLowerCase() === cFormatada.toLowerCase());
-  if (!jaExiste) {
-    setAtual.add(cFormatada);
-    cacheCidades = Array.from(setAtual).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  }
+  const lista = normalizarListaCidades([...(cacheCidades || []), cidade]);
+  cacheCidades = lista;
 }
 
 export function obterCidadesCache(): string[] | null {
@@ -51,7 +47,7 @@ export function obterCidadesCache(): string[] | null {
 }
 
 export function salvarCidadesCache(cidades: string[]): void {
-  cacheCidades = cidades;
+  cacheCidades = normalizarListaCidades(cidades);
 }
 
 export async function obterOuBuscarCidades(supabaseClient: SupabaseClient): Promise<string[]> {
@@ -71,26 +67,20 @@ export async function obterOuBuscarCidades(supabaseClient: SupabaseClient): Prom
           .in('status', ['publicado', 'encerrado', 'cancelado']),
         supabaseClient
           .from('atleticas')
-          .select('cidade')
+          .select('cidade, estado')
           .eq('status', 'ativa'),
       ]);
 
       const cidadesEventos = resEventos.data ? resEventos.data.map((e: { cidade?: string }) => e.cidade) : [];
-      const cidadesAtleticas = resAtleticas.data ? resAtleticas.data.map((a: { cidade?: string }) => a.cidade) : [];
+      const atleticasData = resAtleticas.data || [];
 
-      const listaBruta = [...cidadesEventos, ...cidadesAtleticas]
-        .filter((c): c is string => typeof c === 'string' && c.trim().length > 0)
-        .map((c) => c.trim());
-
-      const mapaCidades = new Map<string, string>();
-      for (const item of listaBruta) {
-        const chave = item.toLowerCase();
-        if (!mapaCidades.has(chave)) {
-          mapaCidades.set(chave, item);
-        }
-      }
-
-      const unicas = Array.from(mapaCidades.values()).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+      const unicas = normalizarListaCidades([
+        ...cidadesEventos,
+        ...atleticasData.map((a: { cidade?: string; estado?: string }) => ({
+          cidade: a.cidade,
+          estado: a.estado,
+        })),
+      ]);
 
       if (unicas.length > 0) {
         salvarCidadesCache(unicas);

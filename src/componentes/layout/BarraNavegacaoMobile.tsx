@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 
 import { obterCidadesCache, obterOuBuscarCidades } from '@/lib/cacheEventos';
+import { normalizarListaCidades } from '@/lib/utilitarios';
 
 function ConteudoBarraNavegacaoMobile() {
   const router = useRouter();
@@ -22,7 +23,7 @@ function ConteudoBarraNavegacaoMobile() {
 
   const [termoBusca, setTermoBusca] = useState(searchParams.get('busca') || '');
   const [cidadeSelecionada, setCidadeSelecionada] = useState(searchParams.get('cidade') || '');
-  const [cidades, setCidades] = useState<string[]>(obterCidadesCache() || []);
+  const [cidades, setCidades] = useState<string[]>(() => normalizarListaCidades(obterCidadesCache() || []));
   const supabase = criarClienteNavegador();
 
   useEffect(() => {
@@ -34,13 +35,13 @@ function ConteudoBarraNavegacaoMobile() {
     async function carregarCidades() {
       const lista = await obterOuBuscarCidades(supabase);
       if (lista && lista.length > 0) {
-        setCidades(lista);
+        setCidades(normalizarListaCidades(lista));
       }
     }
     carregarCidades();
     const interval = setInterval(() => {
       const c = obterCidadesCache();
-      if (c && c.length > 0) setCidades(c);
+      if (c && c.length > 0) setCidades(normalizarListaCidades(c));
     }, 2000);
     return () => clearInterval(interval);
   }, [supabase]);

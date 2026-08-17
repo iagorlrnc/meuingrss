@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState, useCallback } from 'rea
 import { criarClienteNavegador } from '@/lib/supabase/cliente';
 import type { User, AuthChangeEvent, Session } from '@supabase/supabase-js';
 import type { Perfil } from '@/tipos';
+import { formatarCidadeEstado } from '@/lib/utilitarios';
 
 export interface MetadadosCadastro {
   telefone?: string | null;
@@ -206,11 +207,15 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
           cargo: metadadosAdicionais.cargo || null,
           atleticaNome: metadadosAdicionais.atleticaNome || null,
           atleticaSigla: metadadosAdicionais.atleticaSigla || null,
-          atleticaCidade: metadadosAdicionais.atleticaCidade || null,
+          atleticaCidade: metadadosAdicionais.atleticaCidade
+            ? formatarCidadeEstado(metadadosAdicionais.atleticaCidade, metadadosAdicionais.atleticaEstado)
+            : null,
           atleticaEstado: metadadosAdicionais.atleticaEstado || 'TO',
           atletica_nome: metadadosAdicionais.atleticaNome || null,
           atletica_sigla: metadadosAdicionais.atleticaSigla || null,
-          atletica_cidade: metadadosAdicionais.atleticaCidade || null,
+          atletica_cidade: metadadosAdicionais.atleticaCidade
+            ? formatarCidadeEstado(metadadosAdicionais.atleticaCidade, metadadosAdicionais.atleticaEstado)
+            : null,
           atletica_estado: metadadosAdicionais.atleticaEstado || 'TO',
         },
       });
@@ -232,11 +237,15 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
             cargo: metadadosAdicionais.cargo || null,
             atleticaNome: metadadosAdicionais.atleticaNome || null,
             atleticaSigla: metadadosAdicionais.atleticaSigla || null,
-            atleticaCidade: metadadosAdicionais.atleticaCidade || null,
+            atleticaCidade: metadadosAdicionais.atleticaCidade
+              ? formatarCidadeEstado(metadadosAdicionais.atleticaCidade, metadadosAdicionais.atleticaEstado)
+              : null,
             atleticaEstado: metadadosAdicionais.atleticaEstado || 'TO',
             atletica_nome: metadadosAdicionais.atleticaNome || null,
             atletica_sigla: metadadosAdicionais.atleticaSigla || null,
-            atletica_cidade: metadadosAdicionais.atleticaCidade || null,
+            atletica_cidade: metadadosAdicionais.atleticaCidade
+              ? formatarCidadeEstado(metadadosAdicionais.atleticaCidade, metadadosAdicionais.atleticaEstado)
+              : null,
             atletica_estado: metadadosAdicionais.atleticaEstado || 'TO',
           },
         },

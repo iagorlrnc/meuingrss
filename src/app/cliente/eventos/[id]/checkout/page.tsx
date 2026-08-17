@@ -134,8 +134,8 @@ function ConteudoCheckout() {
   const totalFinal = subtotal + taxaServico;
 
   return (
-    <div className="min-h-screen pt-16 sm:pt-20 md:pt-24 pb-12 px-4">
-      <div className="max-w-3xl mx-auto">
+    <div className="min-h-screen pt-16 sm:pt-20 md:pt-24 pb-12 px-4 sm:px-6">
+      <div className="max-w-5xl mx-auto">
         <Link
           href={`/eventos/${params.id}`}
           className="inline-flex items-center gap-2 text-sm text-texto-secundario hover:text-texto-principal transition-colors mb-8"
@@ -148,9 +148,9 @@ function ConteudoCheckout() {
           Finalizar <span className="gradiente-texto">Compra</span>
         </h1>
 
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
           {/* Resumo do Evento e Ingressos */}
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-7">
             <Cartao variante="vidro" className="overflow-hidden !p-0">
               {/* Banner do Evento acima do título */}
               {evento.imagem_url ? (
@@ -262,8 +262,8 @@ function ConteudoCheckout() {
           </div>
 
           {/* Formas de Pagamento e Botão */}
-          <div className="lg:col-span-2">
-            <Cartao variante="elevado">
+          <div className="lg:col-span-5 w-full">
+            <Cartao variante="elevado" className="w-full">
               <h3 className="text-lg font-bold font-titulo mb-4 flex items-center gap-2">
                 <CreditCard size={20} className="text-primaria-400" />
                 Pagamento
