@@ -10,13 +10,10 @@ import { enviarNotificacaoIngressoLiberado } from '@/lib/notificacoes';
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * Consulta e Reconciliação em Tempo Real de Status de Pedido / Ingressos
+ * Consulta e Reconciliação com Idempotência Estrita
  *
- * Utilizado pelo frontend para polling após retorno do checkout e auto-reconciliação
- * ao abrir a página 'Meus Ingressos'.
- *
- * Se houver qualquer pedido pendente com pagamento aprovado no gateway, emite os ingressos
- * instantaneamente, garantindo entrega do produto mesmo com falha/atraso no webhook.
+ * Garante que cada pagamento gera EXATAMENTE a quantidade de ingressos comprada,
+ * sem duplicação mesmo com múltiplos polls simultâneos.
  */
 export async function GET(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1';
@@ -37,7 +34,7 @@ export async function GET(request: NextRequest) {
     const eventoIdParam = searchParams.get('evento_id');
     const loteIdParam = searchParams.get('lote_id');
 
-    // 0. Autenticação e Proteção IDOR
+    // 0. Autenticação
     const supabaseServidor = await criarClienteServidor();
     const { data: { user } } = await supabaseServidor.auth.getUser();
 
@@ -59,7 +56,7 @@ export async function GET(request: NextRequest) {
       pedido = p;
     }
 
-    // 1.1 Se não encontrou por ID, busca por external_reference
+    // 1.1 Busca por external_reference
     if (!pedido && pedidoId) {
       const { data: p } = await supabase
         .from('pedidos')
@@ -70,7 +67,7 @@ export async function GET(request: NextRequest) {
       pedido = p;
     }
 
-    // 1.2 Se não encontrou por pedido_id, tenta buscar pelo comprador/evento/lote mais recente
+    // 1.2 Busca por comprador/evento/lote
     if (!pedido && compradorIdParam && eventoIdParam && loteIdParam) {
       const { data: p } = await supabase
         .from('pedidos')
@@ -85,7 +82,7 @@ export async function GET(request: NextRequest) {
       pedido = p;
     }
 
-    // 1.3 Se ainda não encontrou pedido específico, busca o pedido pendente mais recente do usuário autenticado (últimas 24h)
+    // 1.3 Busca pedido pendente recente (últimas 24h)
     if (!pedido) {
       const limite24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data: p } = await supabase
@@ -101,7 +98,7 @@ export async function GET(request: NextRequest) {
       pedido = p;
     }
 
-    // Validação IDOR: O usuário só pode consultar pedidos pertencentes a ele (ou se for admin)
+    // Validação IDOR
     if (pedido && pedido.comprador_id !== user.id) {
       const { data: perfil } = await supabaseServidor.from('profiles').select('role').eq('id', user.id).single();
       if (!perfil || perfil.role !== 'admin') {
@@ -110,7 +107,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 2. Se o pedido já está APROVADO no banco, retorna imediatamente
+    // 2. Se o pedido já está APROVADO no banco, retorna os ingressos gerados
     if (pedido && pedido.status === 'aprovado') {
       const { data: ingressos } = await supabase
         .from('ingressos')
@@ -130,7 +127,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 3. RECONCILIAÇÃO ATIVA EM TEMPO REAL COM O MERCADO PAGO
+    // 3. RECONCILIAÇÃO ATIVA COM O MERCADO PAGO
     if (ehMercadoPagoConfigurado()) {
       try {
         let pagamentoAprovado: Record<string, unknown> | null = null;
@@ -163,71 +160,51 @@ export async function GET(request: NextRequest) {
           pagamentoAprovado = pags.find((p) => p.status === 'approved') || null;
         }
 
-        // 3.3 Busca nos últimos 20 pagamentos aprovados da conta Mercado Pago cruzando com o usuário
-        if (!pagamentoAprovado) {
-          const searchRes = await paymentClient.search({
-            options: {
-              sort: 'date_created',
-              criteria: 'desc',
-              limit: 20,
-            },
-          });
-
-          const pags = (searchRes.results || []) as Record<string, unknown>[];
-          for (const p of pags) {
-            if (p.status !== 'approved') continue;
-
-            const extRef = String(p.external_reference || '');
-            const meta = (p.metadata || {}) as Record<string, unknown>;
-
-            // Verifica se o pagamento pertence a este usuário
-            const compId = meta.comprador_id || (extRef.includes(user.id) ? user.id : null);
-            const evtId = pedido?.evento_id || meta.evento_id || (eventoIdParam && extRef.includes(eventoIdParam) ? eventoIdParam : null);
-            const ltId = pedido?.lote_id || meta.lote_id || (loteIdParam && extRef.includes(loteIdParam) ? loteIdParam : null);
-
-            if (compId === user.id && (evtId || ltId)) {
-              // Verifica se este pagamento já não foi creditado anteriormente
-              const { data: jaCreditado } = await supabase
-                .from('pagamentos')
-                .select('id')
-                .eq('gateway_transaction_id', String(p.id))
-                .maybeSingle();
-
-              if (!jaCreditado) {
-                pagamentoAprovado = p;
-                if (!pedido && evtId && ltId) {
-                  // Cria o pedido na memória para processamento
-                  pedido = {
-                    id: crypto.randomUUID(),
-                    comprador_id: user.id,
-                    evento_id: evtId,
-                    lote_id: ltId,
-                    quantidade: parseInt(String(meta.quantidade || '1'), 10),
-                    valor_unitario: Number(p.transaction_amount || 0) / parseInt(String(meta.quantidade || '1'), 10),
-                    valor_total: Number(p.transaction_amount || 0),
-                    status: 'pendente',
-                  };
-                }
-                break;
-              }
-            }
-          }
-        }
-
-        // Se encontramos pagamento aprovado no gateway, emite os ingressos imediatamente!
+        // 3.3 Se encontramos pagamento aprovado
         if (pagamentoAprovado && pedido) {
           const paymentIdStr = String(pagamentoAprovado.id);
           const metodoPagamento = String(pagamentoAprovado.payment_method_id || 'mercadopago');
-          const quantidade = pedido.quantidade || 1;
-          const valorUnitario = pedido.valor_unitario !== undefined ? Number(pedido.valor_unitario) : (Number(pagamentoAprovado.transaction_amount || 0) / quantidade);
+          const meta = (pagamentoAprovado.metadata || {}) as Record<string, unknown>;
 
-          logger.info('Auto-reconciliação ativada: Pagamento aprovado detectado no gateway Mercado Pago', {
+          // QUANTIDADE EXATA: usa a quantidade do pedido ou do metadata da compra
+          const quantidade = pedido.quantidade || parseInt(String(meta.quantidade || '1'), 10) || 1;
+          const valorUnitario = pedido.valor_unitario !== undefined && Number(pedido.valor_unitario) > 0
+            ? Number(pedido.valor_unitario)
+            : (Number(pagamentoAprovado.transaction_amount || 0) / quantidade);
+
+          // ⚠️ GUARDA DE IDEMPOTÊNCIA: Verifica se JÁ existem ingressos para este pagamento no banco
+          const { data: pagsExistentes } = await supabase
+            .from('pagamentos')
+            .select('id, ingresso_id')
+            .eq('gateway_transaction_id', paymentIdStr);
+
+          if (pagsExistentes && pagsExistentes.length > 0) {
+            // Já existem ingressos gerados para este pagamento específico! NÃO INSERIR MAIS NADA!
+            await supabase
+              .from('pedidos')
+              .update({
+                status: 'aprovado',
+                gateway_payment_id: paymentIdStr,
+                gateway_transaction_id: paymentIdStr,
+                pago_em: String(pagamentoAprovado.date_approved || new Date().toISOString()),
+              })
+              .eq('id', pedido.id);
+
+            return NextResponse.json({
+              status_pedido: 'aprovado',
+              mensagem: 'Pagamento confirmado e ingressos liberados!',
+              quantidade_ingressos: pagsExistentes.length,
+              pedido_id: pedido.id,
+            });
+          }
+
+          logger.info('Auto-reconciliação: Emitindo quantidade exata de ingressos', {
             pedidoId: pedido.id,
             paymentId: paymentIdStr,
-            userId: user.id,
+            quantidade,
           });
 
-          // Gera hashes seguras para os ingressos
+          // Gera exatamente a quantidade necessária de hashes
           const qrHashes: string[] = [];
           for (let i = 0; i < quantidade; i++) {
             qrHashes.push(gerarHashIngresso(`${pedido.evento_id}-${paymentIdStr}-${i}-${Date.now()}`, pedido.evento_id));
@@ -256,7 +233,7 @@ export async function GET(request: NextRequest) {
             });
           }
 
-          // 2. Fallback JS Atômico
+          // 2. Fallback JS Atômico com verificação de duplicação
           await supabase
             .from('pedidos')
             .upsert({
@@ -319,31 +296,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 4. Se já existem ingressos válidos no banco para este usuário e evento
-    const targetEventoId = pedido?.evento_id || eventoIdParam;
-    const targetLoteId = pedido?.lote_id || loteIdParam;
-    if (user.id && targetEventoId && targetLoteId) {
-      const { data: ingressosExistentes } = await supabase
-        .from('ingressos')
-        .select('id, status, data_compra')
-        .eq('comprador_id', user.id)
-        .eq('evento_id', targetEventoId)
-        .eq('lote_id', targetLoteId)
-        .in('status', ['valido', 'utilizado'])
-        .order('data_compra', { ascending: false })
-        .limit(10);
-
-      if (ingressosExistentes && ingressosExistentes.length > 0) {
-        return NextResponse.json({
-          status_pedido: 'aprovado',
-          mensagem: 'Pagamento confirmado! Seus ingressos foram liberados.',
-          quantidade_ingressos: ingressosExistentes.length,
-          pedido_id: pedido?.id,
-        });
-      }
-    }
-
-    // 5. Status Padrão
+    // 4. Status Padrão
     return NextResponse.json({
       status_pedido: 'aguardando',
       mensagem: 'Aguardando confirmação do pagamento pelo gateway...',

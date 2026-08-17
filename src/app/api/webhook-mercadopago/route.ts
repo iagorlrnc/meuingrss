@@ -107,9 +107,9 @@ async function executarLiberacaoIngressos(
     .from('pagamentos')
     .select('id')
     .eq('gateway_transaction_id', params.gatewayPaymentId)
-    .maybeSingle();
+    .limit(1);
 
-  if (pagExistente) {
+  if (pagExistente && pagExistente.length > 0) {
     if (pedido && pedido.status !== 'aprovado') {
       await supabase.from('pedidos').update({
         status: 'aprovado',
