@@ -41,6 +41,7 @@ yarn-error.log*
 
 # arquivos SQL e dumps de banco de dados
 *.sql
+!supabase/migracoes/*.sql
 *.dump
 *.sqlite
 *.db
