@@ -140,43 +140,52 @@ export default function PaginaGerenciarLotes() {
     setSalvando(true);
 
     try {
-      if (loteEdicao) {
-        // Atualização de lote existente
-        const { error } = await supabase
-          .from('lotes_ingresso')
-          .update({
-            nome_lote: nomeLote.trim(),
-            preco: precoNum,
-            quantidade_total: qtdTotalNum,
-            ativo,
-          })
-          .eq('id', loteEdicao.id);
+      if (!evento?.id) {
+        throw new Error('Identificador do evento não carregado. Recarregue a página.');
+      }
 
-        if (error) throw error;
+      const { data: { session } } = await supabase.auth.getSession();
+
+      const resp = await fetch('/api/diretor/lotes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({
+          lote_id: loteEdicao?.id,
+          evento_id: evento.id,
+          nome_lote: nomeLote.trim(),
+          preco: precoNum,
+          quantidade_total: qtdTotalNum,
+          ativo,
+        }),
+      });
+
+      const texto = await resp.text();
+      let dados: Record<string, any> = {};
+      try {
+        dados = JSON.parse(texto);
+      } catch {
+        dados = { erro: resp.ok ? null : `Erro ${resp.status}: Não foi possível processar a resposta do servidor.` };
+      }
+
+      if (!resp.ok || dados.erro) {
+        throw new Error(dados.erro || 'Falha ao salvar lote');
+      }
+
+      if (loteEdicao) {
         sucesso('Lote atualizado!', `O ${nomeLote} foi atualizado com sucesso.`);
       } else {
-        // Criação de novo lote
-        const { error } = await supabase
-          .from('lotes_ingresso')
-          .insert({
-            evento_id: params.id,
-            nome_lote: nomeLote.trim(),
-            preco: precoNum,
-            quantidade_total: qtdTotalNum,
-            quantidade_vendida: 0,
-            ordem: lotes.length,
-            ativo,
-          });
-
-        if (error) throw error;
         sucesso('Novo lote criado!', `O ${nomeLote} foi adicionado ao evento.`);
       }
 
       fecharModal();
       await buscarDados();
-    } catch (err) {
-      console.error(err);
-      notificarErro('Erro ao salvar', 'Ocorreu um problema ao salvar o lote. Tente novamente.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : (typeof err === 'object' && err && 'message' in err ? String((err as { message: string }).message) : 'Ocorreu um problema ao salvar o lote. Tente novamente.');
+      console.error('Erro ao salvar lote:', err);
+      notificarErro('Erro ao salvar lote', msg);
     } finally {
       setSalvando(false);
     }
@@ -184,21 +193,47 @@ export default function PaginaGerenciarLotes() {
 
   async function alternarStatusLote(lote: LoteIngresso) {
     try {
-      const { error } = await supabase
-        .from('lotes_ingresso')
-        .update({ ativo: !lote.ativo })
-        .eq('id', lote.id);
+      if (!evento?.id) return;
 
-      if (error) throw error;
+      const { data: { session } } = await supabase.auth.getSession();
+
+      const resp = await fetch('/api/diretor/lotes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({
+          lote_id: lote.id,
+          evento_id: evento.id,
+          nome_lote: lote.nome_lote,
+          preco: lote.preco,
+          quantidade_total: lote.quantidade_total,
+          ativo: !lote.ativo,
+        }),
+      });
+
+      const texto = await resp.text();
+      let dados: Record<string, any> = {};
+      try {
+        dados = JSON.parse(texto);
+      } catch {
+        dados = { erro: resp.ok ? null : `Erro ${resp.status}` };
+      }
+
+      if (!resp.ok || dados.erro) {
+        throw new Error(dados.erro || 'Não foi possível alterar o status do lote.');
+      }
 
       sucesso(
         !lote.ativo ? 'Lote ativado' : 'Lote desativado',
         `O lote "${lote.nome_lote}" foi ${!lote.ativo ? 'ativado' : 'desativado'}.`
       );
       await buscarDados();
-    } catch (err) {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Não foi possível alterar o status do lote.';
       console.error(err);
-      notificarErro('Erro', 'Não foi possível alterar o status do lote.');
+      notificarErro('Erro', msg);
     }
   }
 
@@ -211,18 +246,33 @@ export default function PaginaGerenciarLotes() {
     if (!confirm(`Tem certeza que deseja excluir o lote "${lote.nome_lote}"?`)) return;
 
     try {
-      const { error } = await supabase
-        .from('lotes_ingresso')
-        .delete()
-        .eq('id', lote.id);
+      const { data: { session } } = await supabase.auth.getSession();
 
-      if (error) throw error;
+      const resp = await fetch(`/api/diretor/lotes?lote_id=${lote.id}`, {
+        method: 'DELETE',
+        headers: {
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+      });
+
+      const texto = await resp.text();
+      let dados: Record<string, any> = {};
+      try {
+        dados = JSON.parse(texto);
+      } catch {
+        dados = { erro: resp.ok ? null : `Erro ${resp.status}` };
+      }
+
+      if (!resp.ok || dados.erro) {
+        throw new Error(dados.erro || 'Não foi possível remover este lote.');
+      }
 
       sucesso('Lote excluído', `O lote "${lote.nome_lote}" foi removido.`);
       await buscarDados();
-    } catch (err) {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Não foi possível remover este lote.';
       console.error(err);
-      notificarErro('Erro ao excluir', 'Não foi possível remover este lote.');
+      notificarErro('Erro ao excluir', msg);
     }
   }
 

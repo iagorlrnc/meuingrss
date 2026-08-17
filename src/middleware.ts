@@ -66,6 +66,11 @@ export async function middleware(request: NextRequest) {
   const ehAreaDiretor = subdominio === 'diretoria';
   const ehAreaAdmin = subdominio === 'dev';
 
+  // 0. Rotas de API e Webhooks nunca sofrem reescrita de subdomínio ou redirecionamento de tela
+  if (pathname.startsWith('/api')) {
+    return response;
+  }
+
   // Redireciona acessos legados com /diretor, /diretoria, /admin ou /dev para URLs limpas no respectivo subdomínio
   if (pathname.startsWith('/diretor') || pathname.startsWith('/diretoria')) {
     const caminhoLimpo = pathname.replace(/^\/(diretor|diretoria)/, '') || '/';
@@ -169,16 +174,12 @@ export async function middleware(request: NextRequest) {
     return reescreverComCookies(url);
   }
 
-  // --- REGRAS DO SUBDOMÍNIO CLIENTE (PRINCIPAL) & APIS ---
+  // --- REGRAS DO SUBDOMÍNIO CLIENTE (PRINCIPAL) & TELAS ---
   if (precisaAuthCliente && !user) {
     const urlLogin = request.nextUrl.clone();
     urlLogin.pathname = '/autenticacao/entrar';
     urlLogin.searchParams.set('redirecionar', `${pathname}${request.nextUrl.search}`);
     return redirecionarComCookies(urlLogin);
-  }
-
-  if (pathname.startsWith('/api')) {
-    return response;
   }
 
   const url = request.nextUrl.clone();
