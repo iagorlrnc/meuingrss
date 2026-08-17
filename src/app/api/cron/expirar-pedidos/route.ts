@@ -44,25 +44,6 @@ export async function POST(request: NextRequest) {
     const supabase = criarClienteAdmin();
     let totalExpirados = 0;
 
-    // 0. Expirar pedidos pendentes na tabela `pedidos` criados há mais de 10 minutos (tempo limite Pix)
-    const limiteExpiracaoPix = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-    try {
-      const { data: pedidosExpirados } = await supabase
-        .from('pedidos')
-        .update({ status: 'cancelled' })
-        .eq('status', 'pending')
-        .lt('criado_em', limiteExpiracaoPix)
-        .select('id');
-
-      if (pedidosExpirados && pedidosExpirados.length > 0) {
-        logger.info(`Cron expiração: ${pedidosExpirados.length} pedido(s) pendente(s) cancelado(s) por expiração de PIX (10 min)`, {
-          total: pedidosExpirados.length,
-        });
-      }
-    } catch {
-      // Ignora se tabela pedidos estiver ausente em dev
-    }
-
     // 1. Buscar ingressos "válidos" que possuem pagamentos com status "pendente"
     //    há mais de 30 minutos (indica pedido abandonado/expirado)
     const limiteExpiracao = new Date(Date.now() - 30 * 60 * 1000).toISOString();

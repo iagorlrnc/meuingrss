@@ -83,26 +83,21 @@ function ConteudoMeusIngressos() {
 
   // Parâmetros do URL para verificação de status pós-pagamento
   const statusPedidoParam = searchParams.get('status_pedido');
+  const pedidoIdParam = searchParams.get('pedido_id');
   const eventoIdParam = searchParams.get('evento_id');
   const loteIdParam = searchParams.get('lote_id');
   const compradorIdParam = searchParams.get('comprador_id');
-  const paymentIdParam = searchParams.get('payment_id') || searchParams.get('collection_id');
-  const preferenceIdParam = searchParams.get('preference_id');
-  const statusGatewayParam = searchParams.get('status') || searchParams.get('collection_status');
 
   // --- Polling de status do pedido ---
   const consultarStatusPedido = useCallback(async () => {
-    if (!compradorIdParam || !eventoIdParam || !loteIdParam) return;
+    if (!pedidoIdParam && (!compradorIdParam || !eventoIdParam || !loteIdParam)) return;
 
     try {
-      const params = new URLSearchParams({
-        comprador_id: compradorIdParam,
-        evento_id: eventoIdParam,
-        lote_id: loteIdParam,
-      });
-
-      if (paymentIdParam) params.set('payment_id', paymentIdParam);
-      if (preferenceIdParam) params.set('preference_id', preferenceIdParam);
+      const params = new URLSearchParams();
+      if (pedidoIdParam) params.set('pedido_id', pedidoIdParam);
+      if (compradorIdParam) params.set('comprador_id', compradorIdParam);
+      if (eventoIdParam) params.set('evento_id', eventoIdParam);
+      if (loteIdParam) params.set('lote_id', loteIdParam);
 
       const resp = await fetch(`/api/consultar-status-pedido?${params.toString()}`);
       const dados = await resp.json();
@@ -110,7 +105,7 @@ function ConteudoMeusIngressos() {
       if (dados.status_pedido === 'aprovado') {
         setStatusPedido('aprovado');
         setPollingAtivo(false);
-        // Recarregar ingressos para mostrar o novo
+        // Recarregar ingressos para mostrar o novo imediatamente
         buscarIngressos(true);
       } else if (dados.status_pedido === 'estoque_esgotado') {
         setStatusPedido('estoque_esgotado');
@@ -126,39 +121,34 @@ function ConteudoMeusIngressos() {
 
     tentativasPollingRef.current += 1;
 
-    // Para o polling após 20 tentativas (60 segundos com intervalo de 3s)
+    // Para o polling após 20 tentativas (40 segundos com intervalo de 2s)
     if (tentativasPollingRef.current >= 20) {
       setPollingAtivo(false);
-      // Se ainda está aguardando após 60s, mostra mensagem informativa
+      // Se ainda está aguardando após 40s, mostra mensagem informativa
       setStatusPedido((prev) => (prev === 'aguardando' || prev === null ? 'aguardando' : prev));
     }
-  }, [compradorIdParam, eventoIdParam, loteIdParam, paymentIdParam, preferenceIdParam]);
+  }, [pedidoIdParam, compradorIdParam, eventoIdParam, loteIdParam]);
 
   useEffect(() => {
     if (statusPedidoParam === 'aprovado') {
-      // Ingresso gratuito ou pagamento já confirmado pelo redirect
+      // Ingresso gratuito ou pagamento já confirmado
       setStatusPedido('aprovado');
-      if (usuario?.id) buscarIngressos(true);
+      buscarIngressos(true);
     } else if (statusPedidoParam === 'estoque_esgotado') {
       setStatusPedido('estoque_esgotado');
-    } else if (
-      (statusPedidoParam === 'aguardando' || paymentIdParam || statusGatewayParam === 'approved') &&
-      compradorIdParam &&
-      eventoIdParam &&
-      loteIdParam
-    ) {
-      // Retorno do gateway — iniciar verificação/polling imediatamente para liberar o ingresso
+    } else if (statusPedidoParam === 'aguardando' && (pedidoIdParam || (compradorIdParam && eventoIdParam && loteIdParam))) {
+      // Retorno do gateway — iniciar polling para confirmar e liberar ingresso
       setStatusPedido('aguardando');
       setPollingAtivo(true);
       tentativasPollingRef.current = 0;
     }
-  }, [statusPedidoParam, compradorIdParam, eventoIdParam, loteIdParam, paymentIdParam, statusGatewayParam, usuario?.id]);
+  }, [statusPedidoParam, pedidoIdParam, compradorIdParam, eventoIdParam, loteIdParam]);
 
   useEffect(() => {
     if (pollingAtivo) {
-      // Consultar imediatamente e depois a cada 3 segundos
+      // Consultar imediatamente e depois a cada 2 segundos
       consultarStatusPedido();
-      pollingRef.current = setInterval(consultarStatusPedido, 3000);
+      pollingRef.current = setInterval(consultarStatusPedido, 2000);
     }
 
     return () => {
@@ -169,27 +159,22 @@ function ConteudoMeusIngressos() {
     };
   }, [pollingAtivo, consultarStatusPedido]);
 
-  // --- Supabase Realtime: Atualização em tempo real do status dos ingressos e pedidos ---
+
+  // --- Supabase Realtime: Atualização em tempo real do status dos ingressos ---
   useEffect(() => {
     if (!usuario?.id) return;
 
-    const canalIngressos = supabase
+    const canal = supabase
       .channel(`ingressos-cliente-${usuario.id}`)
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'UPDATE',
           schema: 'public',
           table: 'ingressos',
           filter: `comprador_id=eq.${usuario.id}`,
         },
-        (payload: { eventType: string; new: Partial<IngressoCompleto> }) => {
-          if (payload.eventType === 'INSERT') {
-            // Novo ingresso emitido — buscar lista atualizada
-            buscarIngressos(true);
-            return;
-          }
-
+        (payload: { new: Partial<IngressoCompleto> }) => {
           const atualizado = payload.new;
           if (!atualizado?.id) return;
 
@@ -214,25 +199,8 @@ function ConteudoMeusIngressos() {
       )
       .subscribe();
 
-    const canalPedidos = supabase
-      .channel(`pedidos-cliente-${usuario.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'pedidos',
-          filter: `comprador_id=eq.${usuario.id}`,
-        },
-        () => {
-          buscarIngressos(true);
-        }
-      )
-      .subscribe();
-
     return () => {
-      supabase.removeChannel(canalIngressos);
-      supabase.removeChannel(canalPedidos);
+      supabase.removeChannel(canal);
     };
   }, [usuario?.id, supabase]);
 

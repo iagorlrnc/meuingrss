@@ -104,6 +104,46 @@ export interface Pagamento {
   criado_em: string;
 }
 
+export interface Pedido {
+  id: string;
+  comprador_id: string;
+  evento_id: string;
+  lote_id: string;
+  quantidade: number;
+  valor_unitario: number;
+  taxa_servico: number;
+  valor_total: number;
+  status: StatusPagamento;
+  gateway_payment_id: string | null;
+  metodo_pagamento: string | null;
+  preference_id: string | null;
+  expira_em?: string | null;
+  pago_em?: string | null;
+  criado_em: string;
+  atualizado_em: string;
+
+  evento?: Evento;
+  lote?: LoteIngresso;
+  comprador?: Perfil;
+}
+
+export interface WebhookLog {
+  id: string;
+  gateway: string;
+  tipo_evento: string | null;
+  acao: string | null;
+  data_id: string | null;
+  request_id: string | null;
+  assinatura: string | null;
+  payload: Record<string, unknown> | null;
+  status_resposta: number | null;
+  resultado: string | null;
+  erro: string | null;
+  ip: string | null;
+  duracao_ms: number | null;
+  criado_em: string;
+}
+
 export interface ResultadoValidacao {
   sucesso: boolean;
   mensagem: string;
@@ -127,3 +167,5 @@ export interface EstatisticasAdmin {
   volumeFinanceiro: number;
   usuariosAtivos: number;
 }
+
+

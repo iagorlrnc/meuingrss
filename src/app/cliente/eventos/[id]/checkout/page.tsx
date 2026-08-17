@@ -131,11 +131,11 @@ function ConteudoCheckout() {
   const TAXA_PERCENTUAL = 0.12;
   const subtotal = lote.preco * qtd;
   const taxaServico = lote.preco === 0 ? 0 : Math.round((subtotal * TAXA_PERCENTUAL) * 100) / 100;
-  const totalFinal = Math.round((subtotal + taxaServico) * 100) / 100;
+  const totalFinal = subtotal + taxaServico;
 
   return (
     <div className="min-h-screen pt-16 sm:pt-20 md:pt-24 pb-12 px-4">
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-3xl mx-auto">
         <Link
           href={`/eventos/${params.id}`}
           className="inline-flex items-center gap-2 text-sm text-texto-secundario hover:text-texto-principal transition-colors mb-8"
