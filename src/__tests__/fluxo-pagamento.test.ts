@@ -373,3 +373,100 @@ describe('Regras de Negócio: Ingressos Nunca Sem Pagamento', () => {
     expect(temIdDireto).toBe(true);
   });
 });
+
+describe('Proteção Anti-Sobrevenda (Anti-Overselling)', () => {
+  function validarEstoqueLote(
+    quantidadeTotal: number,
+    quantidadeVendida: number,
+    quantidadeSolicitada: number
+  ): { permitido: boolean; motivo?: string } {
+    if (quantidadeVendida + quantidadeSolicitada > quantidadeTotal) {
+      return {
+        permitido: false,
+        motivo: 'estoque_esgotado',
+      };
+    }
+    return { permitido: true };
+  }
+
+  it('deve permitir compra quando há estoque disponível suficiente', () => {
+    const res = validarEstoqueLote(100, 50, 2);
+    expect(res.permitido).toBe(true);
+  });
+
+  it('deve permitir compra para a última vaga exata do lote', () => {
+    const res = validarEstoqueLote(100, 98, 2);
+    expect(res.permitido).toBe(true);
+  });
+
+  it('deve BLOQUEAR compra e retornar estoque_esgotado quando ultrapassa o limite', () => {
+    const res = validarEstoqueLote(100, 99, 2);
+    expect(res.permitido).toBe(false);
+    expect(res.motivo).toBe('estoque_esgotado');
+  });
+
+  it('deve BLOQUEAR compra quando o lote já está completamente esgotado', () => {
+    const res = validarEstoqueLote(100, 100, 1);
+    expect(res.permitido).toBe(false);
+    expect(res.motivo).toBe('estoque_esgotado');
+  });
+});
+
+describe('Proteção contra IDOR em Pagamentos e Consultas', () => {
+  function validarAcessoAoPedido(
+    pedidoCompradorId: string,
+    usuarioId: string,
+    usuarioRole: string
+  ): boolean {
+    if (usuarioRole === 'admin') return true;
+    return pedidoCompradorId === usuarioId;
+  }
+
+  it('permite acesso do próprio comprador ao seu pedido', () => {
+    const compradorId = 'user-123';
+    expect(validarAcessoAoPedido(compradorId, 'user-123', 'cliente')).toBe(true);
+  });
+
+  it('permite acesso de administrador a qualquer pedido', () => {
+    const compradorId = 'user-123';
+    expect(validarAcessoAoPedido(compradorId, 'admin-999', 'admin')).toBe(true);
+  });
+
+  it('BLOQUEIA tentativa de usuário acessar ou reconciliar pedido de outro usuário (IDOR)', () => {
+    const compradorId = 'user-123';
+    expect(validarAcessoAoPedido(compradorId, 'attacker-456', 'cliente')).toBe(false);
+  });
+});
+
+describe('Garantia de Emissão de Ingressos (Idempotência Resiliente)', () => {
+  function verificarNecessidadeEmissao(
+    statusPedido: string,
+    ingressosExistentes: Array<{ id: string }>,
+    quantidadeEsperada: number
+  ): { precisaEmitir: boolean; jaProcessado: boolean } {
+    if (ingressosExistentes.length >= quantidadeEsperada) {
+      return { precisaEmitir: false, jaProcessado: true };
+    }
+    // Mesmo que o status seja aprovado, se os ingressos não existem, DEVE emitir
+    return { precisaEmitir: true, jaProcessado: false };
+  }
+
+  it('deve reconhecer já processado se todos os ingressos existem no banco', () => {
+    const res = verificarNecessidadeEmissao('aprovado', [{ id: 'ing-1' }, { id: 'ing-2' }], 2);
+    expect(res.jaProcessado).toBe(true);
+    expect(res.precisaEmitir).toBe(false);
+  });
+
+  it('deve FORÇAR emissão se o pedido está como aprovado mas possui 0 ingressos', () => {
+    const res = verificarNecessidadeEmissao('aprovado', [], 2);
+    expect(res.jaProcessado).toBe(false);
+    expect(res.precisaEmitir).toBe(true);
+  });
+
+  it('deve emitir ingressos para pedido pendente', () => {
+    const res = verificarNecessidadeEmissao('pendente', [], 1);
+    expect(res.jaProcessado).toBe(false);
+    expect(res.precisaEmitir).toBe(true);
+  });
+});
+

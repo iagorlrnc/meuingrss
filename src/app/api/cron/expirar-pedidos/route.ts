@@ -85,35 +85,23 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 2. Verificar consistência: ingressos "válidos" sem NENHUM pagamento
-    //    (criados há mais de 5 minutos — pode indicar erro no fluxo)
-    const limiteOrfao = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    // 2. Limpar pedidos com status 'pendente' criados há mais de 30 minutos
+    const { data: pedidosExpirados } = await supabase
+      .from('pedidos')
+      .update({ status: 'recusado', atualizado_em: new Date().toISOString() })
+      .eq('status', 'pendente')
+      .lt('criado_em', limiteExpiracao)
+      .select('id');
 
-    const { data: ingressosOrfaos, error: erroOrfaos } = await supabase
-      .from('ingressos')
-      .select('id, lote_id')
-      .eq('status', 'valido')
-      .lt('data_compra', limiteOrfao)
-      .not('id', 'in', `(SELECT ingresso_id FROM pagamentos)`);
-
-    // Note: A query acima com subselect pode não funcionar via PostgREST.
-    // Alternativa: busca via RPC ou verifica manualmente.
-    // Na prática, com a arquitetura atual, ingressos SEMPRE são criados com pagamento,
-    // então este caso é extremamente raro.
-
-    if (erroOrfaos) {
-      logger.warn('Não foi possível verificar ingressos órfãos via PostgREST', {
-        erro: erroOrfaos.message,
-      });
-    } else if (ingressosOrfaos && ingressosOrfaos.length > 0) {
-      logger.warn('Ingressos órfãos sem pagamento detectados', {
-        total: ingressosOrfaos.length,
-      });
+    const totalPedidosExpirados = pedidosExpirados?.length || 0;
+    if (totalPedidosExpirados > 0) {
+      logger.info(`Expiração de pedidos: ${totalPedidosExpirados} pedido(s) pendente(s) cancelado(s) por timeout.`);
     }
 
     return NextResponse.json({
       sucesso: true,
-      pedidos_expirados: totalExpirados,
+      ingressos_expirados: totalExpirados,
+      pedidos_expirados: totalPedidosExpirados,
       executado_em: new Date().toISOString(),
     });
   } catch (error) {

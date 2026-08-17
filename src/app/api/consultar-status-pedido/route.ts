@@ -137,7 +137,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 2. Se o pedido já está APROVADO no banco, retorna os ingressos gerados
+    // 2. Se o pedido já está APROVADO no banco, verifica se os ingressos existem
     if (pedido && pedido.status === 'aprovado') {
       const { data: ingressos } = await supabase
         .from('ingressos')
@@ -149,12 +149,15 @@ export async function GET(request: NextRequest) {
         .order('data_compra', { ascending: false })
         .limit(pedido.quantidade || 10);
 
-      return NextResponse.json({
-        status_pedido: 'aprovado',
-        mensagem: 'Pagamento confirmado! Seus ingressos foram liberados.',
-        quantidade_ingressos: ingressos?.length || pedido.quantidade,
-        pedido_id: pedido.id,
-      });
+      if (ingressos && ingressos.length >= (pedido.quantidade || 1)) {
+        return NextResponse.json({
+          status_pedido: 'aprovado',
+          mensagem: 'Pagamento confirmado! Seus ingressos foram liberados.',
+          quantidade_ingressos: ingressos.length,
+          pedido_id: pedido.id,
+        });
+      }
+      // Se o pedido estava aprovado mas os ingressos não foram gerados, continua para a reconciliação emitir os ingressos
     }
 
     // 2.1 Verifica se já existem pagamentos aprovados no banco para o payment_id informado
@@ -263,6 +266,16 @@ export async function GET(request: NextRequest) {
           const metodoPagamento = String(pagamentoAprovado.payment_method_id || pagamentoAprovado.payment_type_id || 'mercadopago');
           const meta = (pagamentoAprovado.metadata || {}) as Record<string, any>;
 
+          // Proteção IDOR no Gateway Payload
+          const compMeta = meta?.comprador_id || meta?.compradorid;
+          if (compMeta && compMeta !== user.id) {
+            const { data: perfilUser } = await supabaseServidor.from('profiles').select('role').eq('id', user.id).single();
+            if (!perfilUser || perfilUser.role !== 'admin') {
+              logger.security('IDOR prevenido ao tentar reconciliar pagamento de outro comprador', { caller: user.id, target: compMeta });
+              return NextResponse.json({ erro: 'Acesso não autorizado aos dados deste pagamento.' }, { status: 403 });
+            }
+          }
+
           // Resolução dos dados da compra
           const eventoId = pedido?.evento_id || meta?.evento_id || meta?.eventoid || eventoIdParam;
           const loteId = pedido?.lote_id || meta?.lote_id || meta?.loteid || loteIdParam;
@@ -282,7 +295,7 @@ export async function GET(request: NextRequest) {
             .select('id, ingresso_id')
             .eq('gateway_transaction_id', paymentIdStr);
 
-          if (pagsExistentes && pagsExistentes.length > 0) {
+          if (pagsExistentes && pagsExistentes.length >= quantidade) {
             if (pedidoIdFinal) {
               await supabase
                 .from('pedidos')
@@ -341,10 +354,48 @@ export async function GET(request: NextRequest) {
                 pedido_id: pedidoIdFinal,
               });
             }
+
+            if (resRpc?.erro === 'estoque_esgotado') {
+              return NextResponse.json({
+                status_pedido: 'estoque_esgotado',
+                mensagem: 'O estoque do lote esgotou durante o processamento. O valor será estornado.',
+                pedido_id: pedidoIdFinal,
+              });
+            }
           }
 
           // 2. Fallback JS Atômico e Resiliente
           if (eventoId && loteId && compradorId) {
+            // Trava anti-sobrevenda no Fallback
+            const { data: loteAtual } = await supabase
+              .from('lotes_ingresso')
+              .select('quantidade_total, quantidade_vendida')
+              .eq('id', loteId)
+              .single();
+
+            if (loteAtual && (loteAtual.quantidade_vendida + quantidade) > loteAtual.quantidade_total) {
+              await supabase.from('pedidos').upsert({
+                id: pedidoIdFinal,
+                comprador_id: compradorId,
+                evento_id: eventoId,
+                lote_id: loteId,
+                quantidade,
+                valor_unitario: valorUnitario,
+                taxa_servico: pedido?.taxa_servico || 0,
+                valor_total: valorTotal,
+                status: 'estoque_esgotado',
+                gateway_payment_id: paymentIdStr,
+                gateway_transaction_id: paymentIdStr,
+                metodo_pagamento: metodoPagamento,
+              });
+
+              return NextResponse.json({
+                status_pedido: 'estoque_esgotado',
+                mensagem: 'Estoque esgotado durante o processamento. O valor será estornado.',
+                pedido_id: pedidoIdFinal,
+              });
+            }
+
             try {
               await supabase
                 .from('pedidos')

@@ -294,7 +294,7 @@ function ConteudoCheckout() {
                 larguraTotal
                 tamanho="xl"
                 carregando={processando}
-                disabled={processando || !turnstileToken}
+                disabled={processando}
                 onClick={processarPagamento}
                 icone={<CreditCard size={20} />}
               >

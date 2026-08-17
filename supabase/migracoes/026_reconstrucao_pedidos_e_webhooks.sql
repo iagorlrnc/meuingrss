@@ -129,7 +129,7 @@ BEGIN
     );
   END IF;
 
-  -- Checagem de Idempotência: Se já aprovado, retorna sucesso sem reprocessar
+  -- Checagem de Idempotência: Se já aprovado E os ingressos existem no banco
   IF v_pedido.status = 'aprovado' THEN
     SELECT array_agg(i.id) INTO v_ingressos_ids
     FROM public.ingressos i
@@ -137,13 +137,16 @@ BEGIN
     WHERE pag.gateway_transaction_id = p_gateway_payment_id
        OR (i.comprador_id = v_pedido.comprador_id AND i.lote_id = v_pedido.lote_id AND i.evento_id = v_pedido.evento_id);
 
-    RETURN jsonb_build_object(
-      'sucesso', true,
-      'ja_processado', true,
-      'pedido_id', v_pedido.id,
-      'ingressos_ids', to_jsonb(COALESCE(v_ingressos_ids, ARRAY[]::UUID[])),
-      'mensagem', 'Pagamento já processado e aprovado anteriormente'
-    );
+    IF v_ingressos_ids IS NOT NULL AND array_length(v_ingressos_ids, 1) >= v_pedido.quantidade THEN
+      RETURN jsonb_build_object(
+        'sucesso', true,
+        'ja_processado', true,
+        'pedido_id', v_pedido.id,
+        'ingressos_ids', to_jsonb(v_ingressos_ids),
+        'mensagem', 'Pagamento já processado e aprovado anteriormente'
+      );
+    END IF;
+    -- Caso os ingressos ainda não tenham sido inseridos, prossegue para gerá-los abaixo
   END IF;
 
   -- 5.2 Validação da quantidade de Hashes
@@ -155,7 +158,7 @@ BEGIN
     );
   END IF;
 
-  -- 5.3 Bloqueio e Validação do Lote de Ingressos
+  -- 5.3 Bloqueio e Validação do Lote de Ingressos + Proteção Anti-Sobrevenda
   SELECT * INTO v_lote
   FROM public.lotes_ingresso
   WHERE id = v_pedido.lote_id
@@ -165,6 +168,23 @@ BEGIN
     RETURN jsonb_build_object(
       'sucesso', false,
       'erro', 'Lote de ingressos não encontrado'
+    );
+  END IF;
+
+  -- Trava Anti-Sobrevenda (Anti-Overselling)
+  IF (v_lote.quantidade_vendida + v_pedido.quantidade) > v_lote.quantidade_total THEN
+    UPDATE public.pedidos
+    SET status = 'estoque_esgotado',
+        gateway_payment_id = p_gateway_payment_id,
+        gateway_transaction_id = p_gateway_payment_id,
+        metodo_pagamento = p_metodo_pagamento,
+        atualizado_em = now()
+    WHERE id = v_pedido.id;
+
+    RETURN jsonb_build_object(
+      'sucesso', false,
+      'erro', 'estoque_esgotado',
+      'motivo', 'A quantidade total de ingressos deste lote foi esgotada durante o processamento'
     );
   END IF;
 
@@ -282,12 +302,20 @@ BEGIN
      OR gateway_transaction_id = p_gateway_payment_id;
 
   IF v_pedido_existente.id IS NOT NULL THEN
-    RETURN jsonb_build_object(
-      'sucesso', true,
-      'ja_processado', true,
-      'pedido_id', v_pedido_existente.id,
-      'mensagem', 'Pagamento já havia sido reconciliado anteriormente'
-    );
+    SELECT array_agg(i.id) INTO v_ingressos_ids
+    FROM public.ingressos i
+    JOIN public.pagamentos pag ON pag.ingresso_id = i.id
+    WHERE pag.gateway_transaction_id = p_gateway_payment_id;
+
+    IF v_ingressos_ids IS NOT NULL AND array_length(v_ingressos_ids, 1) >= p_quantidade THEN
+      RETURN jsonb_build_object(
+        'sucesso', true,
+        'ja_processado', true,
+        'pedido_id', v_pedido_existente.id,
+        'ingressos_ids', to_jsonb(v_ingressos_ids),
+        'mensagem', 'Pagamento já havia sido reconciliado anteriormente'
+      );
+    END IF;
   END IF;
 
   -- 6.2 Cria o pedido diretamente como 'aprovado'

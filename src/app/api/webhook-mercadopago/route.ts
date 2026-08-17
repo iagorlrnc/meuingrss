@@ -107,30 +107,6 @@ async function executarLiberacaoIngressos(
     .eq('id', params.pedidoId)
     .maybeSingle();
 
-  if (pedido && pedido.status === 'aprovado') {
-    return { sucesso: true, ja_processado: true };
-  }
-
-  // 2.2 Checagem de idempotência em pagamentos
-  const { data: pagExistente } = await supabase
-    .from('pagamentos')
-    .select('id')
-    .eq('gateway_transaction_id', params.gatewayPaymentId)
-    .limit(1);
-
-  if (pagExistente && pagExistente.length > 0) {
-    if (pedido && pedido.status !== 'aprovado') {
-      await supabase.from('pedidos').update({
-        status: 'aprovado',
-        gateway_payment_id: params.gatewayPaymentId,
-        gateway_transaction_id: params.gatewayPaymentId,
-        metodo_pagamento: params.metodoPagamento,
-        pago_em: new Date().toISOString(),
-      }).eq('id', params.pedidoId);
-    }
-    return { sucesso: true, ja_processado: true };
-  }
-
   const eventoId = pedido?.evento_id || params.fallbackData?.eventoId;
   const loteId = pedido?.lote_id || params.fallbackData?.loteId;
   const compradorId = pedido?.comprador_id || params.fallbackData?.compradorId;
@@ -141,7 +117,46 @@ async function executarLiberacaoIngressos(
     return { sucesso: false, erro: 'Dados do pedido incompletos para liberação de ingressos' };
   }
 
-  // 2.3 Atualiza o pedido para 'aprovado'
+  // 2.2 Checagem de idempotência: Já existem ingressos gerados para este pagamento ou pedido?
+  const { data: pagExistente } = await supabase
+    .from('pagamentos')
+    .select('id, ingresso_id')
+    .eq('gateway_transaction_id', params.gatewayPaymentId);
+
+  if (pagExistente && pagExistente.length >= quantidade) {
+    if (pedido && pedido.status !== 'aprovado') {
+      await supabase.from('pedidos').update({
+        status: 'aprovado',
+        gateway_payment_id: params.gatewayPaymentId,
+        gateway_transaction_id: params.gatewayPaymentId,
+        metodo_pagamento: params.metodoPagamento,
+        pago_em: new Date().toISOString(),
+      }).eq('id', params.pedidoId);
+    }
+    return { sucesso: true, ja_processado: true, ingressos_ids: pagExistente.map((p) => p.ingresso_id) };
+  }
+
+  // 2.3 Proteção Anti-Sobrevenda no Fallback
+  const { data: loteAtual } = await supabase
+    .from('lotes_ingresso')
+    .select('quantidade_total, quantidade_vendida')
+    .eq('id', loteId)
+    .single();
+
+  if (loteAtual && (loteAtual.quantidade_vendida + quantidade) > loteAtual.quantidade_total) {
+    if (pedido) {
+      await supabase.from('pedidos').update({
+        status: 'estoque_esgotado',
+        gateway_payment_id: params.gatewayPaymentId,
+        gateway_transaction_id: params.gatewayPaymentId,
+        metodo_pagamento: params.metodoPagamento,
+      }).eq('id', params.pedidoId);
+    }
+    logger.warn('Sobrevenda bloqueada no webhook fallback', { loteId, pedidoId: params.pedidoId });
+    return { sucesso: false, erro: 'estoque_esgotado' };
+  }
+
+  // 2.4 Atualiza o pedido para 'aprovado'
   if (pedido) {
     await supabase
       .from('pedidos')
@@ -155,7 +170,7 @@ async function executarLiberacaoIngressos(
       .eq('id', params.pedidoId);
   }
 
-  // 2.4 Cria os ingressos e pagamentos
+  // 2.5 Cria os ingressos e pagamentos
   const ingressosIds: string[] = [];
   for (let i = 0; i < quantidade; i++) {
     const hash = params.qrHashes[i] || gerarHashIngresso(`${eventoId}-${params.gatewayPaymentId}-${i}-${Date.now()}`, eventoId);
@@ -190,7 +205,7 @@ async function executarLiberacaoIngressos(
     });
   }
 
-  // 2.5 Cria notificação in-app
+  // 2.6 Cria notificação in-app
   await supabase.from('notificacoes_cliente').insert({
     usuario_id: compradorId,
     titulo: 'Ingresso(s) Liberado(s)!',
@@ -495,11 +510,10 @@ export async function POST(request: NextRequest) {
           quantidade,
           valor_unitario: valorUnitarioCalculado,
           valor_total: Number(payment.transaction_amount || 0),
-          status: 'aprovado',
+          status: 'pendente',
           gateway_payment_id: gatewayPaymentId,
           gateway_transaction_id: gatewayPaymentId,
           metodo_pagamento: metodoPagamento,
-          pago_em: new Date().toISOString(),
         })
         .select('id')
         .single();
