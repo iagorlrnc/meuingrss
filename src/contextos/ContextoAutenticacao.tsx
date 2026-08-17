@@ -74,15 +74,30 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
   const [carregando, setCarregando] = useState(true);
   const supabase = criarClienteNavegador();
 
-  const buscarPerfil = useCallback(async (userId: string) => {
+  const buscarPerfil = useCallback(async (userId: string, userMeta?: Record<string, any>) => {
     const { data } = await supabase
       .from('profiles')
-      .select('id, nome, email, role, atletica_id, avatar_url, telefone, status, criado_em, atualizado_em')
+      .select('id, nome, email, role, atletica_id, avatar_url, telefone, status, criado_em, atualizado_em, cpf')
       .eq('id', userId)
       .single();
 
     if (data) {
       setPerfil(data as Perfil);
+
+      // Auto-sincronização: se a conta possui CPF/Telefone no auth metadata e está ausente em profiles, salva no banco
+      const metaCpf = userMeta?.cpf;
+      const metaTelefone = userMeta?.telefone;
+      const precisaCpf = metaCpf && !data.cpf;
+      const precisaTel = metaTelefone && !data.telefone;
+
+      if (precisaCpf || precisaTel) {
+        const payload: Record<string, any> = {};
+        if (precisaCpf) payload.cpf = metaCpf;
+        if (precisaTel) payload.telefone = metaTelefone;
+
+        await supabase.from('profiles').update(payload).eq('id', userId);
+        setPerfil((prev) => (prev ? { ...prev, ...payload } : prev));
+      }
     }
   }, [supabase]);
 
@@ -92,7 +107,7 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
 
       if (session?.user) {
         setUsuario(session.user);
-        await buscarPerfil(session.user.id);
+        await buscarPerfil(session.user.id, session.user.user_metadata);
       }
 
       setCarregando(false);
@@ -104,7 +119,7 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
       async (_evento: AuthChangeEvent, session: Session | null) => {
         if (session?.user) {
           setUsuario(session.user);
-          await buscarPerfil(session.user.id);
+          await buscarPerfil(session.user.id, session.user.user_metadata);
         } else {
           setUsuario(null);
           setPerfil(null);

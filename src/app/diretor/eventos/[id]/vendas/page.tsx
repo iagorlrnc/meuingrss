@@ -16,6 +16,7 @@ import {
   formatarDataHora,
   formatarTelefone,
   formatarCPF,
+  mascararCPF,
   obterIniciais,
 } from '@/lib/utilitarios';
 import {
@@ -433,7 +434,7 @@ export default function PaginaVendas() {
                   const nome = ing.comprador?.nome || 'Comprador Anônimo';
                   const email = ing.comprador?.email || 'N/A';
                   const telefone = ing.comprador?.telefone ? formatarTelefone(ing.comprador.telefone) : null;
-                  const cpf = ing.comprador?.cpf ? formatarCPF(ing.comprador.cpf) : null;
+                  const cpf = ing.comprador?.cpf ? mascararCPF(ing.comprador.cpf) : null;
                   const fotoUrl = ing.comprador?.avatar_url;
                   const iniciais = obterIniciais(nome);
 
@@ -461,20 +462,15 @@ export default function PaginaVendas() {
                       </td>
 
                       {/* Contato & CPF */}
-                      <td className="p-4 text-xs text-texto-secundario space-y-0.5">
-                        {telefone && (
-                          <div className="flex items-center gap-1">
-                            <Phone size={12} className="text-primaria-400 shrink-0" />
-                            <span>{telefone}</span>
-                          </div>
-                        )}
-                        {cpf && (
-                          <div className="flex items-center gap-1 text-texto-terciario">
-                            <CreditCard size={12} className="shrink-0" />
-                            <span>{cpf}</span>
-                          </div>
-                        )}
-                        {!telefone && !cpf && <span className="text-texto-terciario">—</span>}
+                      <td className="p-4 text-xs space-y-1">
+                        <div className="flex items-center gap-1.5 text-texto-secundario">
+                          <Phone size={12} className="text-primaria-400 shrink-0" />
+                          <span>{telefone || <span className="text-texto-terciario">Sem telefone</span>}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-texto-secundario font-mono">
+                          <CreditCard size={12} className="text-secundaria-400 shrink-0" />
+                          <span>{cpf ? `CPF: ${cpf}` : <span className="text-texto-terciario font-sans">CPF: Não cadastrado</span>}</span>
+                        </div>
                       </td>
 
                       {/* Lote & Preço */}
@@ -581,18 +577,18 @@ export default function PaginaVendas() {
                     <Mail size={14} className="text-primaria-400 shrink-0" />
                     {ingressoSelecionado.comprador?.email || 'Sem email cadastrado'}
                   </p>
-                  {ingressoSelecionado.comprador?.telefone && (
-                    <p className="text-xs text-texto-secundario flex items-center gap-1.5">
-                      <Phone size={14} className="text-emerald-400 shrink-0" />
-                      {formatarTelefone(ingressoSelecionado.comprador.telefone)}
-                    </p>
-                  )}
-                  {ingressoSelecionado.comprador?.cpf && (
-                    <p className="text-xs text-texto-terciario flex items-center gap-1.5">
-                      <CreditCard size={14} className="shrink-0" />
-                      CPF: {formatarCPF(ingressoSelecionado.comprador.cpf)}
-                    </p>
-                  )}
+                  <p className="text-xs text-texto-secundario flex items-center gap-1.5">
+                    <Phone size={14} className="text-emerald-400 shrink-0" />
+                    {ingressoSelecionado.comprador?.telefone ? formatarTelefone(ingressoSelecionado.comprador.telefone) : <span className="text-texto-terciario">Sem telefone</span>}
+                  </p>
+                  <p className="text-xs text-texto-secundario flex items-center gap-1.5 font-mono">
+                    <CreditCard size={14} className="text-secundaria-400 shrink-0" />
+                    {ingressoSelecionado.comprador?.cpf ? (
+                      `CPF: ${mascararCPF(ingressoSelecionado.comprador.cpf)}`
+                    ) : (
+                      <span className="text-texto-terciario font-sans">CPF: Não cadastrado</span>
+                    )}
+                  </p>
                 </div>
               </div>
 

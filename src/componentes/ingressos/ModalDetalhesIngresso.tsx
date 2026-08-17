@@ -17,7 +17,7 @@ import {
   ChevronUp
 } from 'lucide-react';
 import Distintivo from '@/componentes/ui/Distintivo';
-import { formatarData, formatarDataHora, formatarMoeda } from '@/lib/utilitarios';
+import { formatarData, formatarDataHora, formatarMoeda, mascararCPF } from '@/lib/utilitarios';
 import type { Ingresso, Evento, LoteIngresso, Perfil, Atletica } from '@/tipos';
 
 interface IngressoCompleto extends Ingresso {
@@ -35,6 +35,7 @@ interface ModalDetalhesIngressoProps {
   qrCodeUrl: string;
   nomeUsuario?: string;
   emailUsuario?: string;
+  cpfUsuario?: string;
   onBaixarPdf: (ingresso: IngressoCompleto) => Promise<void>;
   estaGerandoPdf?: boolean;
 }
@@ -46,6 +47,7 @@ export default function ModalDetalhesIngresso({
   qrCodeUrl,
   nomeUsuario,
   emailUsuario,
+  cpfUsuario,
   onBaixarPdf,
   estaGerandoPdf = false,
 }: ModalDetalhesIngressoProps) {
@@ -82,6 +84,7 @@ export default function ModalDetalhesIngresso({
 
   const nomeComprador = ingresso.comprador?.nome || nomeUsuario || 'Comprador';
   const emailComprador = ingresso.comprador?.email || emailUsuario || '—';
+  const cpfMascarado = mascararCPF(ingresso.comprador?.cpf || cpfUsuario);
   const atletica = ingresso.evento?.atletica;
 
   return (
@@ -234,6 +237,11 @@ export default function ModalDetalhesIngresso({
                 <p className="text-xs text-slate-400 truncate">
                   {emailComprador}
                 </p>
+                {cpfMascarado && (
+                  <p className="text-xs font-mono text-slate-400 truncate mt-1">
+                    CPF: <span className="text-slate-200">{cpfMascarado}</span>
+                  </p>
+                )}
               </div>
             </div>
 

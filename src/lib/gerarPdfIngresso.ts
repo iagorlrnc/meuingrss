@@ -1,4 +1,4 @@
-import { formatarData, formatarMoeda } from '@/lib/utilitarios';
+import { formatarData, formatarMoeda, mascararCPF } from '@/lib/utilitarios';
 import type { Ingresso, Evento, LoteIngresso, Perfil } from '@/tipos';
 
 export interface IngressoParaPdf extends Ingresso {
@@ -51,7 +51,8 @@ export async function gerarPdfIngresso(
   ingresso: IngressoParaPdf,
   qrCodeUrl: string,
   nomeUsuarioFallBack?: string,
-  emailUsuarioFallBack?: string
+  emailUsuarioFallBack?: string,
+  cpfUsuarioFallBack?: string
 ): Promise<void> {
   const { default: jsPDF } = await import('jspdf');
 
@@ -64,6 +65,8 @@ export async function gerarPdfIngresso(
   const larguraPagina = doc.internal.pageSize.getWidth();
   const nomeComprador = ingresso.comprador?.nome || nomeUsuarioFallBack || 'Cliente MeuIngrss';
   const emailComprador = ingresso.comprador?.email || emailUsuarioFallBack || '—';
+  const cpfRaw = ingresso.comprador?.cpf || cpfUsuarioFallBack;
+  const cpfMascarado = mascararCPF(cpfRaw);
 
   // 1. Cabeçalho Superior da Plataforma (Background Escuro)
   doc.setFillColor(18, 18, 28); // #12121c
@@ -164,17 +167,24 @@ export async function gerarPdfIngresso(
   doc.setFont('helvetica', 'bold');
   doc.text('TITULAR DO INGRESSO', posXDados, posYDados);
 
-  doc.setFontSize(12);
+  doc.setFontSize(11);
   doc.setTextColor(20, 20, 35);
   doc.setFont('helvetica', 'bold');
-  doc.text(nomeComprador, posXDados, posYDados + 6);
+  doc.text(nomeComprador, posXDados, posYDados + 5);
 
-  doc.setFontSize(9);
+  doc.setFontSize(8.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(80, 80, 95);
-  doc.text(emailComprador, posXDados, posYDados + 12);
+  doc.text(emailComprador, posXDados, posYDados + 10);
 
-  posYDados += 22;
+  if (cpfMascarado) {
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(60, 60, 75);
+    doc.text(`CPF: ${cpfMascarado}`, posXDados, posYDados + 15);
+    posYDados += 22;
+  } else {
+    posYDados += 17;
+  }
 
   // Lote & Preço
   doc.setFontSize(8);
@@ -253,8 +263,12 @@ export async function gerarPdfIngresso(
 
   doc.setFontSize(8);
   doc.setTextColor(150, 150, 170);
-  doc.text(`MeuIngrss Plataforma de Bilheteria - Emitido em ${new Date().toLocaleDateString('pt-BR')}`, 15, posY + 6);
-  doc.text(`ID do Ingresso: ${ingresso.id}`, larguraPagina - 15, posY + 6, { align: 'right' });
+  const agora = new Date();
+  const dataEmitida = agora.toLocaleDateString('pt-BR');
+  const horaEmitida = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  doc.text(`MeuIngrss Plataforma de Bilheteria - Emitido em ${dataEmitida} às ${horaEmitida}`, 15, posY + 6);
+  const codigoCurto = `#ING-${ingresso.id.substring(0, 8).toUpperCase()}`;
+  doc.text(`Nº do Ingresso: ${codigoCurto}`, larguraPagina - 15, posY + 6, { align: 'right' });
 
   // Fazer o download do arquivo PDF
   const nomeArquivo = `ingresso-${ingresso.evento?.titulo ? ingresso.evento.titulo.toLowerCase().replace(/[^a-z0-9]/g, '-') : 'evento'}-${ingresso.id.substring(0, 8)}.pdf`;

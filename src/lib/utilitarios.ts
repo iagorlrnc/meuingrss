@@ -119,6 +119,18 @@ export function formatarCPF(valor: string): string {
   return `${apenasNumeros.slice(0, 3)}.${apenasNumeros.slice(3, 6)}.${apenasNumeros.slice(6, 9)}-${apenasNumeros.slice(9)}`;
 }
 
+export function mascararCPF(cpf?: string | null): string {
+  if (!cpf) return '';
+  const apenasNumeros = cpf.replace(/\D/g, '');
+  if (apenasNumeros.length !== 11) {
+    return cpf;
+  }
+  const bloco2 = apenasNumeros.slice(3, 6);
+  const bloco3Inicio = apenasNumeros.slice(6, 8);
+  return `***.${bloco2}.${bloco3Inicio}*-**`;
+}
+
+
 export function validarCPF(cpf: string): boolean {
   if (!cpf) return false;
   const apenasNumeros = cpf.replace(/\D/g, '');

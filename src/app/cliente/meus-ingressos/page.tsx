@@ -16,7 +16,7 @@ const ModalDetalhesIngresso = dynamic(
 import Botao from '@/componentes/ui/Botao';
 import { criarClienteNavegador } from '@/lib/supabase/cliente';
 import { usarAutenticacao } from '@/contextos/ContextoAutenticacao';
-import { formatarData, formatarMoeda } from '@/lib/utilitarios';
+import { formatarData, formatarMoeda, mascararCPF } from '@/lib/utilitarios';
 import type { Ingresso, Evento, LoteIngresso, Perfil, Atletica, StatusIngresso } from '@/tipos';
 import BarraNavegacaoMobile from '@/componentes/layout/BarraNavegacaoMobile';
 import { 
@@ -80,6 +80,7 @@ function ConteudoMeusIngressos() {
 
   const nomeUsuario = perfil?.nome || usuario?.user_metadata?.nome;
   const emailUsuario = perfil?.email || usuario?.email;
+  const cpfUsuario = perfil?.cpf || usuario?.user_metadata?.cpf;
 
   // Parâmetros do URL para verificação de status pós-pagamento (captura completa do retorno Mercado Pago)
   const statusPedidoParam = searchParams.get('status_pedido');
@@ -287,23 +288,45 @@ function ConteudoMeusIngressos() {
     const fim = inicio + INGRESSOS_POR_PAGINA - 1;
 
     try {
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('ingressos')
         .select(`
           id, evento_id, lote_id, comprador_id, qr_code_hash, status, data_compra, data_validacao,
           evento:eventos(id, titulo, descricao, imagem_url, data_evento, local, cidade, atletica_id,
             atletica:atleticas(id, nome, logo_url, cor_primaria, cor_secundaria)
           ),
-          lote:lotes_ingresso(id, nome_lote, preco)
+          lote:lotes_ingresso(id, nome_lote, preco),
+          comprador:profiles!ingressos_comprador_id_fkey(id, nome, email, cpf)
         `)
         .eq('comprador_id', usuario.id)
         .order('data_compra', { ascending: false })
         .range(inicio, fim);
 
       if (error) {
-        console.error('Erro ao buscar ingressos:', error.message);
-        if (resetar && !cacheIngressosPorUsuario[usuario.id]) setIngressos([]);
-      } else if (data) {
+        console.warn('Tentando busca de ingressos sem join de comprador...', error.message);
+        const { data: dataFallback, error: errorFallback } = await supabase
+          .from('ingressos')
+          .select(`
+            id, evento_id, lote_id, comprador_id, qr_code_hash, status, data_compra, data_validacao,
+            evento:eventos(id, titulo, descricao, imagem_url, data_evento, local, cidade, atletica_id,
+              atletica:atleticas(id, nome, logo_url, cor_primaria, cor_secundaria)
+            ),
+            lote:lotes_ingresso(id, nome_lote, preco)
+          `)
+          .eq('comprador_id', usuario.id)
+          .order('data_compra', { ascending: false })
+          .range(inicio, fim);
+
+        if (!errorFallback && dataFallback) {
+          data = dataFallback;
+          error = null;
+        } else {
+          console.error('Erro ao buscar ingressos:', errorFallback?.message || error?.message);
+          if (resetar && !cacheIngressosPorUsuario[usuario.id]) setIngressos([]);
+        }
+      }
+
+      if (data) {
         const ingressosProcessados = data as unknown as IngressoCompleto[];
 
         if (resetar) {
@@ -359,7 +382,8 @@ function ConteudoMeusIngressos() {
         ingresso,
         qrCode,
         nomeUsuario,
-        emailUsuario
+        emailUsuario,
+        cpfUsuario
       );
     } catch (err) {
       console.error('Erro ao baixar PDF:', err);
@@ -691,14 +715,21 @@ function ConteudoMeusIngressos() {
 
                       {/* Rodapé do Card: Preço/Lote e Ações */}
                       <div className="pt-3 border-t border-borda-sutil flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div className="flex items-center gap-2 text-xs text-texto-terciario">
-                          <span className="font-semibold text-texto-secundario bg-fundo-subtil px-2 py-0.5 rounded">
-                            {ingresso.lote?.nome_lote || 'Lote Único'}
-                          </span>
-                          <span>•</span>
-                          <span className="font-bold text-texto-principal">
-                            {formatarMoeda(ingresso.lote?.preco || 0)}
-                          </span>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2 text-xs text-texto-terciario">
+                            <span className="font-semibold text-texto-secundario bg-fundo-subtil px-2 py-0.5 rounded">
+                              {ingresso.lote?.nome_lote || 'Lote Único'}
+                            </span>
+                            <span>•</span>
+                            <span className="font-bold text-texto-principal">
+                              {formatarMoeda(ingresso.lote?.preco || 0)}
+                            </span>
+                          </div>
+                          {mascararCPF(ingresso.comprador?.cpf || cpfUsuario) && (
+                            <div className="text-[11px] font-mono text-texto-terciario flex items-center gap-1.5">
+                              <span>CPF: {mascararCPF(ingresso.comprador?.cpf || cpfUsuario)}</span>
+                            </div>
+                          )}
                         </div>
 
                         {/* Ações */}
@@ -778,6 +809,7 @@ function ConteudoMeusIngressos() {
           qrCodeUrl={qrCodeUrl}
           nomeUsuario={nomeUsuario}
           emailUsuario={emailUsuario}
+          cpfUsuario={cpfUsuario}
           onBaixarPdf={handleBaixarPdf}
           estaGerandoPdf={!!gerandoPdfId && gerandoPdfId === ingressoSelecionado?.id}
         />
