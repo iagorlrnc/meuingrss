@@ -290,6 +290,7 @@ export async function POST(request: NextRequest) {
       expires: true,
       expiration_date_from: dataInicio.toISOString(),
       expiration_date_to: dataExpiracao.toISOString(),
+      date_of_expiration: dataExpiracao.toISOString(),
       payment_methods: {
         excluded_payment_types: [{ id: 'ticket' }], // Oculta boleto e pagamentos offline em lotéricas
         installments: 12, // Permite parcelamento em até 12x no cartão de crédito

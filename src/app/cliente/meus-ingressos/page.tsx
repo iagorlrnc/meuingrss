@@ -86,6 +86,9 @@ function ConteudoMeusIngressos() {
   const eventoIdParam = searchParams.get('evento_id');
   const loteIdParam = searchParams.get('lote_id');
   const compradorIdParam = searchParams.get('comprador_id');
+  const paymentIdParam = searchParams.get('payment_id') || searchParams.get('collection_id');
+  const preferenceIdParam = searchParams.get('preference_id');
+  const statusGatewayParam = searchParams.get('status') || searchParams.get('collection_status');
 
   // --- Polling de status do pedido ---
   const consultarStatusPedido = useCallback(async () => {
@@ -97,6 +100,9 @@ function ConteudoMeusIngressos() {
         evento_id: eventoIdParam,
         lote_id: loteIdParam,
       });
+
+      if (paymentIdParam) params.set('payment_id', paymentIdParam);
+      if (preferenceIdParam) params.set('preference_id', preferenceIdParam);
 
       const resp = await fetch(`/api/consultar-status-pedido?${params.toString()}`);
       const dados = await resp.json();
@@ -126,21 +132,27 @@ function ConteudoMeusIngressos() {
       // Se ainda está aguardando após 60s, mostra mensagem informativa
       setStatusPedido((prev) => (prev === 'aguardando' || prev === null ? 'aguardando' : prev));
     }
-  }, [compradorIdParam, eventoIdParam, loteIdParam]);
+  }, [compradorIdParam, eventoIdParam, loteIdParam, paymentIdParam, preferenceIdParam]);
 
   useEffect(() => {
     if (statusPedidoParam === 'aprovado') {
       // Ingresso gratuito ou pagamento já confirmado pelo redirect
       setStatusPedido('aprovado');
+      if (usuario?.id) buscarIngressos(true);
     } else if (statusPedidoParam === 'estoque_esgotado') {
       setStatusPedido('estoque_esgotado');
-    } else if (statusPedidoParam === 'aguardando' && compradorIdParam && eventoIdParam && loteIdParam) {
-      // Retorno do gateway — iniciar polling para confirmar
+    } else if (
+      (statusPedidoParam === 'aguardando' || paymentIdParam || statusGatewayParam === 'approved') &&
+      compradorIdParam &&
+      eventoIdParam &&
+      loteIdParam
+    ) {
+      // Retorno do gateway — iniciar verificação/polling imediatamente para liberar o ingresso
       setStatusPedido('aguardando');
       setPollingAtivo(true);
       tentativasPollingRef.current = 0;
     }
-  }, [statusPedidoParam, compradorIdParam, eventoIdParam, loteIdParam]);
+  }, [statusPedidoParam, compradorIdParam, eventoIdParam, loteIdParam, paymentIdParam, statusGatewayParam, usuario?.id]);
 
   useEffect(() => {
     if (pollingAtivo) {

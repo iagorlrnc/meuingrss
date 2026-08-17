@@ -4,22 +4,23 @@ import { criarClienteAdmin } from '@/lib/supabase/admin';
 import { criarClienteServidor } from '@/lib/supabase/servidor';
 import { logger } from '@/lib/logger';
 import { verificarRateLimit } from '@/lib/rateLimit';
+import { reconciliarEPagamentoeEmitirIngressos } from '@/lib/processarPagamento';
 
 /**
  * Consulta o status real de um pedido de compra de ingresso.
  *
- * O frontend deve usar este endpoint para polling após o retorno do Mercado Pago,
- * NUNCA confiando apenas no redirect de sucesso do navegador.
+ * O frontend usa este endpoint para polling pós-checkout ou ao retornar do Mercado Pago.
  *
  * Fluxo:
  * 1. Verifica se já existem ingressos no banco (confirma que o webhook já processou)
- * 2. Se não encontrou ingressos, consulta o Mercado Pago para saber o status real do pagamento
- * 3. Retorna um status unificado para o frontend exibir a mensagem correta
+ * 2. Se não encontrou ingressos no banco, mas recebeu um payment_id/collection_id do gateway,
+ *    consulta a API do Mercado Pago diretamente e EMITE os ingressos de forma síncrona/atômica.
+ * 3. Retorna o status final unificado para o cliente.
  */
 export async function GET(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1';
 
-  // Rate limit: máx 30 req/min por IP (polling a cada 3s = ~20 req/min)
+  // Rate limit: máx 30 req/min por IP
   const rateLimit = verificarRateLimit(`status_pedido_${ip}`, { janelaMs: 60000, maxRequisicoes: 30 });
   if (!rateLimit.permitido) {
     return NextResponse.json(
@@ -30,6 +31,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const searchParams = request.nextUrl.searchParams;
+    const paymentId = searchParams.get('payment_id') || searchParams.get('collection_id');
     const preferenceId = searchParams.get('preference_id');
     const compradorId = searchParams.get('comprador_id');
     const eventoId = searchParams.get('evento_id');
@@ -61,7 +63,7 @@ export async function GET(request: NextRequest) {
     const supabase = criarClienteAdmin();
 
     // 1. Verificar se já existem ingressos gerados para este comprador/evento/lote
-    //    (indica que o webhook já processou o pagamento com sucesso)
+    //    (indica que o webhook ou reconciliação prévia já liberou os ingressos)
     const { data: ingressosExistentes, error: erroIngressos } = await supabase
       .from('ingressos')
       .select('id, status, data_compra')
@@ -73,7 +75,6 @@ export async function GET(request: NextRequest) {
       .limit(10);
 
     if (!erroIngressos && ingressosExistentes && ingressosExistentes.length > 0) {
-      // Ingressos já foram gerados pelo webhook — pagamento confirmado
       return NextResponse.json({
         status_pedido: 'aprovado',
         mensagem: 'Pagamento confirmado! Seus ingressos foram liberados.',
@@ -81,7 +82,34 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 2. Verificar se a transação foi estornada por falta de estoque no lote (proteção anti-sobrevenda)
+    // 2. Se o gateway enviou o payment_id no retorno do checkout ou query param
+    //    e os ingressos ainda não estão no banco, realiza a reconciliação direta
+    if (paymentId && ehMercadoPagoConfigurado()) {
+      logger.info('Iniciando reconciliação direta via payment_id no consultar-status-pedido', {
+        paymentId,
+        compradorId,
+        eventoId,
+      });
+
+      const resultadoReconciliacao = await reconciliarEPagamentoeEmitirIngressos(paymentId, supabase);
+
+      if (resultadoReconciliacao.status_pedido === 'aprovado') {
+        return NextResponse.json({
+          status_pedido: 'aprovado',
+          mensagem: resultadoReconciliacao.mensagem,
+          quantidade_ingressos: resultadoReconciliacao.quantidade_ingressos,
+        });
+      }
+
+      if (resultadoReconciliacao.status_pedido === 'cancelado') {
+        return NextResponse.json({
+          status_pedido: 'cancelado',
+          mensagem: resultadoReconciliacao.mensagem,
+        });
+      }
+    }
+
+    // 3. Verificar se a transação foi estornada por falta de estoque no lote (proteção anti-sobrevenda)
     const { data: transacaoProcessada } = await supabase
       .from('transacoes_processadas')
       .select('status')
@@ -99,7 +127,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 3. Verificar se existe algum pagamento recusado/estornado para este pedido
+    // 4. Verificar se existe algum pagamento recusado/estornado para este pedido
     const { data: ingressosCancelados } = await supabase
       .from('ingressos')
       .select('id, status')
@@ -117,25 +145,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 3. Se não tem ingressos no banco, o pagamento ainda está pendente
-    //    ou o webhook ainda não foi recebido.
-    //    Se o MP estiver configurado e tivermos preference_id, podemos tentar consultar.
-    if (preferenceId && ehMercadoPagoConfigurado()) {
-      try {
-        // Buscar pagamentos associados a esta preference pelo external_reference
-        // O Mercado Pago não permite buscar pagamentos por preference_id diretamente,
-        // então retornamos "aguardando" e deixamos o webhook fazer o trabalho
-        logger.info('Status consultado para preference sem ingressos no banco', {
-          preferenceId,
-          compradorId,
-          eventoId,
-        });
-      } catch (mpErr) {
-        logger.warn('Erro ao consultar Mercado Pago para status', { preferenceId, error: mpErr });
-      }
-    }
-
-    // Status padrão: pagamento ainda não foi confirmado pelo webhook
+    // Status padrão: pagamento ainda não foi confirmado pelo webhook nem pelo gateway
     return NextResponse.json({
       status_pedido: 'aguardando',
       mensagem: 'Aguardando confirmação do pagamento pelo gateway...',

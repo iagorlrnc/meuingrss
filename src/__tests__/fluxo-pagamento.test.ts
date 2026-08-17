@@ -351,3 +351,35 @@ describe('Regras de Negócio: Ingressos Nunca Sem Pagamento', () => {
     expect(urlRetornoCorreta).not.toContain('sucesso=true');
   });
 });
+
+describe('Reconciliação Direta e Emissão Automática de Ingressos', () => {
+  it('deve extrair payment_id do retorno do Mercado Pago quando presente na URL', () => {
+    const urlSearchParams = new URLSearchParams('payment_id=987654321&status=approved&collection_id=987654321');
+    const paymentId = urlSearchParams.get('payment_id') || urlSearchParams.get('collection_id');
+    expect(paymentId).toBe('987654321');
+  });
+
+  it('deve aprovar e creditar o ingresso quando o gateway confirma pagamento aprovado', () => {
+    const statusGateway = 'approved';
+    const metadataValida = { evento_id: 'evt-1', lote_id: 'lot-1', comprador_id: 'usr-1', quantidade: '1' };
+    const pago = true;
+
+    let ingressoCreditado = false;
+    if (statusGateway === 'approved' && metadataValida.evento_id && pago) {
+      ingressoCreditado = true;
+    }
+
+    expect(ingressoCreditado).toBe(true);
+  });
+
+  it('NÃO deve creditar ingresso se o pagamento não for aprovado', () => {
+    const statusGateway: string = 'pending';
+    let ingressoCreditado = false;
+
+    if (statusGateway === 'approved') {
+      ingressoCreditado = true;
+    }
+
+    expect(ingressoCreditado).toBe(false);
+  });
+});

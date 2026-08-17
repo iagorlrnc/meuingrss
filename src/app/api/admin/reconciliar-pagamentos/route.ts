@@ -4,6 +4,7 @@ import { criarClienteAdmin } from '@/lib/supabase/admin';
 import { criarClienteServidor } from '@/lib/supabase/servidor';
 import { logger } from '@/lib/logger';
 import { gerarHashIngresso } from '@/lib/gerarQrCode';
+import { processarAprovadoAuxiliar } from '@/lib/processarPagamento';
 
 interface DetalheReconciliacao {
   id: string | number;
@@ -107,21 +108,21 @@ export async function POST(request: NextRequest) {
             qrHashes.push(gerarHashIngresso(`REC-${evento_id}-${payment.id}-${i}`, evento_id));
           }
 
-          const { data: resRpc, error: errRpc } = await supabase.rpc('processar_pagamento_aprovado', {
-            p_gateway_transaction_id: String(payment.id),
-            p_evento_id: evento_id,
-            p_lote_id: lote_id,
-            p_comprador_id: comprador_id,
-            p_quantidade: quantidade,
-            p_valor_unitario: Number(payment.transaction_amount || 0) / quantidade,
-            p_metodo_pagamento: payment.payment_method_id || 'mercadopago',
-            p_qr_hashes: qrHashes,
+          const resRpc = await processarAprovadoAuxiliar(supabase, {
+            gatewayTransactionId: String(payment.id),
+            eventoId: evento_id,
+            loteId: lote_id,
+            compradorId: comprador_id,
+            quantidade,
+            valorUnitario: Number(payment.transaction_amount || 0) / quantidade,
+            metodoPagamento: payment.payment_method_id || 'mercadopago',
+            qrHashes,
           });
 
-          if (errRpc) {
+          if (!resRpc.sucesso) {
             relatorioReconciliacao.erros++;
-            relatorioReconciliacao.detalhes.push({ id, erro: errRpc.message });
-          } else if (resRpc?.ja_processado) {
+            relatorioReconciliacao.detalhes.push({ id, erro: resRpc.erro || 'Falha ao reconciliar' });
+          } else if (resRpc.ja_processado) {
             relatorioReconciliacao.ja_existentes++;
             relatorioReconciliacao.detalhes.push({ id, reconciliado: false, motivo: 'Já existia no banco' });
           } else {
