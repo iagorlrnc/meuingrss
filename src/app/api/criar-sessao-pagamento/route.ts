@@ -163,11 +163,13 @@ export async function POST(request: NextRequest) {
 
     const TAXA_PERCENTUAL = 0.12;
     const subtotal = Number(lote.preco) * qtd;
-    const taxaServicoUnitaria = Number(lote.preco) === 0 ? 0 : Math.round((Number(lote.preco) * TAXA_PERCENTUAL) * 100) / 100;
-    const taxaServicoTotal = taxaServicoUnitaria * qtd;
-    const totalFinal = subtotal + taxaServicoTotal;
+    const taxaServicoTotal = Number(lote.preco) === 0 ? 0 : Math.round((subtotal * TAXA_PERCENTUAL) * 100) / 100;
+    const totalFinal = Math.round((subtotal + taxaServicoTotal) * 100) / 100;
+
+    const sessionId = `SES-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
 
     const metadata = {
+      session_id: sessionId,
       evento_id,
       lote_id,
       comprador_id,
@@ -218,14 +220,14 @@ export async function POST(request: NextRequest) {
       },
     ];
 
-    if (taxaServicoUnitaria > 0) {
+    if (taxaServicoTotal > 0) {
       itemsPayload.push({
         id: `TAXA-${lote_id}`,
         title: 'Taxa de Serviço e Plataforma (12%)',
         description: 'Taxa da plataforma e custos de processamento bancário',
         category_id: 'services',
-        quantity: qtd,
-        unit_price: taxaServicoUnitaria,
+        quantity: 1,
+        unit_price: taxaServicoTotal,
         currency_id: 'BRL',
       });
     }

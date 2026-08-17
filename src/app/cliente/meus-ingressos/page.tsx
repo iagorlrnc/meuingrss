@@ -178,12 +178,18 @@ function ConteudoMeusIngressos() {
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: '*',
           schema: 'public',
           table: 'ingressos',
           filter: `comprador_id=eq.${usuario.id}`,
         },
-        (payload: { new: Partial<IngressoCompleto> }) => {
+        (payload: { eventType: string; new: Partial<IngressoCompleto> }) => {
+          if (payload.eventType === 'INSERT') {
+            // Novo ingresso emitido — buscar lista atualizada
+            buscarIngressos(true);
+            return;
+          }
+
           const atualizado = payload.new;
           if (!atualizado?.id) return;
 

@@ -72,6 +72,14 @@ export async function POST(request: NextRequest) {
         });
         return NextResponse.json({ erro: 'Assinatura do webhook inválida' }, { status: 401 });
       }
+      logger.info('Assinatura HMAC do webhook validada com sucesso', { paymentId });
+    } else {
+      if (process.env.NODE_ENV === 'production') {
+        logger.security('REJEITADO EM PRODUÇÃO: MERCADOPAGO_WEBHOOK_SECRET não configurado.', { ip, paymentId });
+        return NextResponse.json({ erro: 'Segurança do webhook não configurada no servidor' }, { status: 401 });
+      } else {
+        logger.warn('MERCADOPAGO_WEBHOOK_SECRET ausente. HMAC ignorado apenas em modo de desenvolvimento.', { ip, paymentId });
+      }
     }
 
     // 3. Verificação Direta com a API Oficial do Mercado Pago

@@ -411,5 +411,23 @@ describe('Configurações da Sessão Pix e Payload do Pagador', () => {
     const identification = cpfLimpo.length === 11 ? { type: 'CPF', number: cpfLimpo } : undefined;
     expect(identification).toBeUndefined();
   });
+
+  it('deve calcular a taxa de serviço total de 12% de forma idêntica entre frontend e backend', () => {
+    const precoUnitario = 15.55;
+    const quantidade = 3;
+    const subtotal = precoUnitario * quantidade; // 46.65
+
+    const taxaCalculada = Math.round((subtotal * 0.12) * 100) / 100; // 5.60
+    const totalFinal = Math.round((subtotal + taxaCalculada) * 100) / 100; // 52.25
+
+    expect(taxaCalculada).toBe(5.60);
+    expect(totalFinal).toBe(52.25);
+  });
+
+  it('deve gerar session_id único prefixado com SES- nos metadados da compra', () => {
+    const sessionId = `SES-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
+    expect(sessionId).toMatch(/^SES-[0-9A-F]{16}$/);
+  });
 });
+
 

@@ -131,7 +131,7 @@ function ConteudoCheckout() {
   const TAXA_PERCENTUAL = 0.12;
   const subtotal = lote.preco * qtd;
   const taxaServico = lote.preco === 0 ? 0 : Math.round((subtotal * TAXA_PERCENTUAL) * 100) / 100;
-  const totalFinal = subtotal + taxaServico;
+  const totalFinal = Math.round((subtotal + taxaServico) * 100) / 100;
 
   return (
     <div className="min-h-screen pt-16 sm:pt-20 md:pt-24 pb-12 px-4">
