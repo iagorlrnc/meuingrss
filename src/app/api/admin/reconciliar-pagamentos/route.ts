@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
 
       const qrHashes: string[] = [];
       for (let i = 0; i < quantidade; i++) {
-        qrHashes.push(gerarHashIngresso(`${eventoId}-${paymentId}-${i}-${Date.now()}`, eventoId));
+        qrHashes.push(gerarHashIngresso(`${eventoId}-${paymentId}-${i}`, eventoId));
       }
 
       try {
@@ -186,36 +186,59 @@ export async function POST(request: NextRequest) {
             .eq('id', finalOrderId);
         }
 
-        // Insere Ingressos e Pagamentos
+        // Insere Ingressos e Pagamentos com anti-duplicação
         const ingressosIds: string[] = [];
         for (let i = 0; i < quantidade; i++) {
-          const { data: ing, error: errIng } = await supabase
-            .from('ingressos')
-            .insert({
-              evento_id: eventoId,
-              lote_id: loteId,
-              comprador_id: compradorId,
-              qr_code_hash: qrHashes[i],
-              status: 'valido',
-              data_compra: payment.date_approved || new Date().toISOString(),
-            })
-            .select('id')
-            .single();
+          const hash = qrHashes[i];
 
-          if (errIng || !ing) {
-            throw new Error(errIng?.message || 'Falha ao inserir ingresso na reconciliação');
+          const { data: ingExistente } = await supabase
+            .from('ingressos')
+            .select('id')
+            .eq('qr_code_hash', hash)
+            .maybeSingle();
+
+          let ingressoId = ingExistente?.id;
+
+          if (!ingressoId) {
+            const { data: ing, error: errIng } = await supabase
+              .from('ingressos')
+              .insert({
+                evento_id: eventoId,
+                lote_id: loteId,
+                comprador_id: compradorId,
+                qr_code_hash: hash,
+                status: 'valido',
+                data_compra: payment.date_approved || new Date().toISOString(),
+              })
+              .select('id')
+              .single();
+
+            if (errIng || !ing) {
+              throw new Error(errIng?.message || 'Falha ao inserir ingresso na reconciliação');
+            }
+
+            ingressoId = ing.id;
           }
 
-          ingressosIds.push(ing.id);
+          ingressosIds.push(ingressoId);
 
-          await supabase.from('pagamentos').insert({
-            ingresso_id: ing.id,
-            valor: valorUnitario,
-            status: 'aprovado',
-            gateway_transaction_id: paymentId,
-            metodo_pagamento: metodoPagamento,
-            criado_em: payment.date_approved || new Date().toISOString(),
-          });
+          const { data: pagExist } = await supabase
+            .from('pagamentos')
+            .select('id')
+            .eq('ingresso_id', ingressoId)
+            .eq('gateway_transaction_id', paymentId)
+            .maybeSingle();
+
+          if (!pagExist) {
+            await supabase.from('pagamentos').insert({
+              ingresso_id: ingressoId,
+              valor: valorUnitario,
+              status: 'aprovado',
+              gateway_transaction_id: paymentId,
+              metodo_pagamento: metodoPagamento,
+              criado_em: payment.date_approved || new Date().toISOString(),
+            });
+          }
         }
 
         enviarNotificacaoIngressoLiberado({

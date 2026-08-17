@@ -129,24 +129,30 @@ BEGIN
     );
   END IF;
 
-  -- Checagem de Idempotência: Se já aprovado E os ingressos existem no banco
-  IF v_pedido.status = 'aprovado' THEN
-    SELECT array_agg(i.id) INTO v_ingressos_ids
-    FROM public.ingressos i
-    JOIN public.pagamentos pag ON pag.ingresso_id = i.id
-    WHERE pag.gateway_transaction_id = p_gateway_payment_id
-       OR (i.comprador_id = v_pedido.comprador_id AND i.lote_id = v_pedido.lote_id AND i.evento_id = v_pedido.evento_id);
+  -- Checagem de Idempotência Estrita por gateway_payment_id: Já existem pagamentos/ingressos criados?
+  SELECT array_agg(pag.ingresso_id) INTO v_ingressos_ids
+  FROM public.pagamentos pag
+  WHERE pag.gateway_transaction_id = p_gateway_payment_id;
 
-    IF v_ingressos_ids IS NOT NULL AND array_length(v_ingressos_ids, 1) >= v_pedido.quantidade THEN
-      RETURN jsonb_build_object(
-        'sucesso', true,
-        'ja_processado', true,
-        'pedido_id', v_pedido.id,
-        'ingressos_ids', to_jsonb(v_ingressos_ids),
-        'mensagem', 'Pagamento já processado e aprovado anteriormente'
-      );
+  IF v_ingressos_ids IS NOT NULL AND array_length(v_ingressos_ids, 1) >= v_pedido.quantidade THEN
+    IF v_pedido.status <> 'aprovado' THEN
+      UPDATE public.pedidos
+      SET status = 'aprovado',
+          gateway_payment_id = p_gateway_payment_id,
+          gateway_transaction_id = p_gateway_payment_id,
+          metodo_pagamento = p_metodo_pagamento,
+          pago_em = COALESCE(v_pedido.pago_em, now()),
+          atualizado_em = now()
+      WHERE id = v_pedido.id;
     END IF;
-    -- Caso os ingressos ainda não tenham sido inseridos, prossegue para gerá-los abaixo
+
+    RETURN jsonb_build_object(
+      'sucesso', true,
+      'ja_processado', true,
+      'pedido_id', v_pedido.id,
+      'ingressos_ids', to_jsonb(v_ingressos_ids),
+      'mensagem', 'Pagamento já processado e aprovado anteriormente'
+    );
   END IF;
 
   -- 5.2 Validação da quantidade de Hashes
@@ -198,26 +204,35 @@ BEGIN
       atualizado_em = now()
   WHERE id = v_pedido.id;
 
-  -- 5.5 Inserção dos Ingressos e Pagamentos Vinculados
+  -- 5.5 Inserção com Anti-Duplicação Estrita dos Ingressos e Pagamentos
+  v_ingressos_ids := ARRAY[]::UUID[];
   FOR v_i IN 1..v_pedido.quantidade LOOP
-    INSERT INTO public.ingressos (
-      evento_id,
-      lote_id,
-      comprador_id,
-      qr_code_hash,
-      status,
-      data_compra
-    ) VALUES (
-      v_pedido.evento_id,
-      v_pedido.lote_id,
-      v_pedido.comprador_id,
-      p_qr_hashes[v_i],
-      'valido',
-      now()
-    ) RETURNING id INTO v_ingresso_id;
+    -- Verifica se já existe ingresso com esta hash exata
+    SELECT id INTO v_ingresso_id
+    FROM public.ingressos
+    WHERE qr_code_hash = p_qr_hashes[v_i];
+
+    IF v_ingresso_id IS NULL THEN
+      INSERT INTO public.ingressos (
+        evento_id,
+        lote_id,
+        comprador_id,
+        qr_code_hash,
+        status,
+        data_compra
+      ) VALUES (
+        v_pedido.evento_id,
+        v_pedido.lote_id,
+        v_pedido.comprador_id,
+        p_qr_hashes[v_i],
+        'valido',
+        now()
+      ) RETURNING id INTO v_ingresso_id;
+    END IF;
 
     v_ingressos_ids := array_append(v_ingressos_ids, v_ingresso_id);
 
+    -- Insere pagamento vinculado se não existir
     INSERT INTO public.pagamentos (
       ingresso_id,
       valor,
@@ -225,13 +240,11 @@ BEGIN
       gateway_transaction_id,
       metodo_pagamento,
       criado_em
-    ) VALUES (
-      v_ingresso_id,
-      v_pedido.valor_unitario,
-      'aprovado',
-      p_gateway_payment_id,
-      p_metodo_pagamento,
-      now()
+    )
+    SELECT v_ingresso_id, v_pedido.valor_unitario, 'aprovado', p_gateway_payment_id, p_metodo_pagamento, now()
+    WHERE NOT EXISTS (
+      SELECT 1 FROM public.pagamentos
+      WHERE ingresso_id = v_ingresso_id AND gateway_transaction_id = p_gateway_payment_id
     );
   END LOOP;
 
@@ -295,75 +308,86 @@ DECLARE
   v_ingresso_id UUID;
   v_ingressos_ids UUID[] := ARRAY[]::UUID[];
 BEGIN
-  -- 6.1 Verifica se já existe pagamento com este gateway_payment_id
-  SELECT id INTO v_pedido_existente
-  FROM public.pedidos
-  WHERE gateway_payment_id = p_gateway_payment_id
-     OR gateway_transaction_id = p_gateway_payment_id;
+  -- 6.1 Verifica se já existem ingressos vinculados a este gateway_payment_id
+  SELECT array_agg(pag.ingresso_id) INTO v_ingressos_ids
+  FROM public.pagamentos pag
+  WHERE pag.gateway_transaction_id = p_gateway_payment_id;
 
-  IF v_pedido_existente.id IS NOT NULL THEN
-    SELECT array_agg(i.id) INTO v_ingressos_ids
-    FROM public.ingressos i
-    JOIN public.pagamentos pag ON pag.ingresso_id = i.id
-    WHERE pag.gateway_transaction_id = p_gateway_payment_id;
+  IF v_ingressos_ids IS NOT NULL AND array_length(v_ingressos_ids, 1) >= p_quantidade THEN
+    SELECT id INTO v_novo_pedido_id
+    FROM public.pedidos
+    WHERE gateway_payment_id = p_gateway_payment_id OR gateway_transaction_id = p_gateway_payment_id
+    LIMIT 1;
 
-    IF v_ingressos_ids IS NOT NULL AND array_length(v_ingressos_ids, 1) >= p_quantidade THEN
-      RETURN jsonb_build_object(
-        'sucesso', true,
-        'ja_processado', true,
-        'pedido_id', v_pedido_existente.id,
-        'ingressos_ids', to_jsonb(v_ingressos_ids),
-        'mensagem', 'Pagamento já havia sido reconciliado anteriormente'
-      );
-    END IF;
+    RETURN jsonb_build_object(
+      'sucesso', true,
+      'ja_processado', true,
+      'pedido_id', v_novo_pedido_id,
+      'ingressos_ids', to_jsonb(v_ingressos_ids),
+      'mensagem', 'Pagamento já havia sido reconciliado anteriormente'
+    );
   END IF;
 
-  -- 6.2 Cria o pedido diretamente como 'aprovado'
-  INSERT INTO public.pedidos (
-    comprador_id,
-    evento_id,
-    lote_id,
-    quantidade,
-    valor_unitario,
-    taxa_servico,
-    valor_total,
-    status,
-    gateway_payment_id,
-    gateway_transaction_id,
-    metodo_pagamento,
-    pago_em
-  ) VALUES (
-    p_comprador_id,
-    p_evento_id,
-    p_lote_id,
-    p_quantidade,
-    p_valor_unitario,
-    0,
-    p_valor_unitario * p_quantidade,
-    'aprovado',
-    p_gateway_payment_id,
-    p_gateway_payment_id,
-    p_metodo_pagamento,
-    now()
-  ) RETURNING id INTO v_novo_pedido_id;
+  -- 6.2 Cria o pedido diretamente como 'aprovado' se não existir
+  SELECT id INTO v_novo_pedido_id
+  FROM public.pedidos
+  WHERE gateway_payment_id = p_gateway_payment_id OR gateway_transaction_id = p_gateway_payment_id
+  LIMIT 1;
 
-  -- 6.3 Insere Ingressos e Pagamentos
-  FOR v_i IN 1..p_quantidade LOOP
-    INSERT INTO public.ingressos (
+  IF v_novo_pedido_id IS NULL THEN
+    INSERT INTO public.pedidos (
+      comprador_id,
       evento_id,
       lote_id,
-      comprador_id,
-      qr_code_hash,
+      quantidade,
+      valor_unitario,
+      taxa_servico,
+      valor_total,
       status,
-      data_compra
+      gateway_payment_id,
+      gateway_transaction_id,
+      metodo_pagamento,
+      pago_em
     ) VALUES (
+      p_comprador_id,
       p_evento_id,
       p_lote_id,
-      p_comprador_id,
-      p_qr_hashes[v_i],
-      'valido',
+      p_quantidade,
+      p_valor_unitario,
+      0,
+      p_valor_unitario * p_quantidade,
+      'aprovado',
+      p_gateway_payment_id,
+      p_gateway_payment_id,
+      p_metodo_pagamento,
       now()
-    ) RETURNING id INTO v_ingresso_id;
+    ) RETURNING id INTO v_novo_pedido_id;
+  END IF;
+
+  -- 6.3 Insere Ingressos e Pagamentos com Anti-Duplicação
+  v_ingressos_ids := ARRAY[]::UUID[];
+  FOR v_i IN 1..p_quantidade LOOP
+    SELECT id INTO v_ingresso_id
+    FROM public.ingressos
+    WHERE qr_code_hash = p_qr_hashes[v_i];
+
+    IF v_ingresso_id IS NULL THEN
+      INSERT INTO public.ingressos (
+        evento_id,
+        lote_id,
+        comprador_id,
+        qr_code_hash,
+        status,
+        data_compra
+      ) VALUES (
+        p_evento_id,
+        p_lote_id,
+        p_comprador_id,
+        p_qr_hashes[v_i],
+        'valido',
+        now()
+      ) RETURNING id INTO v_ingresso_id;
+    END IF;
 
     v_ingressos_ids := array_append(v_ingressos_ids, v_ingresso_id);
 
@@ -374,13 +398,11 @@ BEGIN
       gateway_transaction_id,
       metodo_pagamento,
       criado_em
-    ) VALUES (
-      v_ingresso_id,
-      p_valor_unitario,
-      'aprovado',
-      p_gateway_payment_id,
-      p_metodo_pagamento,
-      now()
+    )
+    SELECT v_ingresso_id, p_valor_unitario, 'aprovado', p_gateway_payment_id, p_metodo_pagamento, now()
+    WHERE NOT EXISTS (
+      SELECT 1 FROM public.pagamentos
+      WHERE ingresso_id = v_ingresso_id AND gateway_transaction_id = p_gateway_payment_id
     );
   END LOOP;
 

@@ -170,39 +170,61 @@ async function executarLiberacaoIngressos(
       .eq('id', params.pedidoId);
   }
 
-  // 2.5 Cria os ingressos e pagamentos
+  // 2.5 Cria os ingressos e pagamentos com anti-duplicação
   const ingressosIds: string[] = [];
   for (let i = 0; i < quantidade; i++) {
-    const hash = params.qrHashes[i] || gerarHashIngresso(`${eventoId}-${params.gatewayPaymentId}-${i}-${Date.now()}`, eventoId);
+    const hash = params.qrHashes[i] || gerarHashIngresso(`${eventoId}-${params.gatewayPaymentId}-${i}`, eventoId);
 
-    const { data: ingresso, error: errIng } = await supabase
+    // Verifica se o ingresso já existe com esta hash
+    const { data: ingExistente } = await supabase
       .from('ingressos')
-      .insert({
-        evento_id: eventoId,
-        lote_id: loteId,
-        comprador_id: compradorId,
-        qr_code_hash: hash,
-        status: 'valido',
-        data_compra: new Date().toISOString(),
-      })
       .select('id')
-      .single();
+      .eq('qr_code_hash', hash)
+      .maybeSingle();
 
-    if (errIng || !ingresso) {
-      logger.error('Erro ao inserir ingresso no fallback JS', errIng);
-      return { sucesso: false, erro: errIng?.message || 'Falha ao inserir ingresso' };
+    let ingressoId = ingExistente?.id;
+
+    if (!ingressoId) {
+      const { data: ingresso, error: errIng } = await supabase
+        .from('ingressos')
+        .insert({
+          evento_id: eventoId,
+          lote_id: loteId,
+          comprador_id: compradorId,
+          qr_code_hash: hash,
+          status: 'valido',
+          data_compra: new Date().toISOString(),
+        })
+        .select('id')
+        .single();
+
+      if (errIng || !ingresso) {
+        logger.error('Erro ao inserir ingresso no fallback JS', errIng);
+        return { sucesso: false, erro: errIng?.message || 'Falha ao inserir ingresso' };
+      }
+
+      ingressoId = ingresso.id;
     }
 
-    ingressosIds.push(ingresso.id);
+    ingressosIds.push(ingressoId);
 
-    await supabase.from('pagamentos').insert({
-      ingresso_id: ingresso.id,
-      valor: valorUnitario,
-      status: 'aprovado',
-      gateway_transaction_id: params.gatewayPaymentId,
-      metodo_pagamento: params.metodoPagamento,
-      criado_em: new Date().toISOString(),
-    });
+    const { data: pagExist } = await supabase
+      .from('pagamentos')
+      .select('id')
+      .eq('ingresso_id', ingressoId)
+      .eq('gateway_transaction_id', params.gatewayPaymentId)
+      .maybeSingle();
+
+    if (!pagExist) {
+      await supabase.from('pagamentos').insert({
+        ingresso_id: ingressoId,
+        valor: valorUnitario,
+        status: 'aprovado',
+        gateway_transaction_id: params.gatewayPaymentId,
+        metodo_pagamento: params.metodoPagamento,
+        criado_em: new Date().toISOString(),
+      });
+    }
   }
 
   // 2.6 Cria notificação in-app
@@ -490,10 +512,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ recebido: true, erro: msgErro }, { status: 200 });
     }
 
-    // 6. Geração de Hashes Seguras e Únicas para os Ingressos
+    // 6. Geração de Hashes Seguras, Determinísticas e Únicas para os Ingressos
     const qrHashes: string[] = [];
     for (let i = 0; i < quantidade; i++) {
-      qrHashes.push(gerarHashIngresso(`${eventoId}-${gatewayPaymentId}-${i}-${Date.now()}`, eventoId));
+      qrHashes.push(gerarHashIngresso(`${eventoId}-${gatewayPaymentId}-${i}`, eventoId));
     }
 
     // 7. Se não havia pedido na tabela 'pedidos', cria/atualiza agora para manter consistência

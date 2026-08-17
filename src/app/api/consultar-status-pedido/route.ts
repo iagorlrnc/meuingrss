@@ -49,6 +49,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ erro: 'Não autorizado' }, { status: 401 });
     }
 
+    const temParametrosBusca = Boolean(
+      pedidoId ||
+      paymentIdParam ||
+      preferenceIdParam ||
+      externalReferenceParam ||
+      (compradorIdParam && eventoIdParam && loteIdParam)
+    );
+
+    if (!temParametrosBusca) {
+      return NextResponse.json({
+        status_pedido: null,
+        mensagem: 'Nenhum pedido especificado para consulta.',
+      });
+    }
+
     const supabase = criarClienteAdmin();
     let pedido: Record<string, any> | null = null;
 
@@ -105,22 +120,6 @@ export async function GET(request: NextRequest) {
         .eq('comprador_id', compradorIdParam)
         .eq('evento_id', eventoIdParam)
         .eq('lote_id', loteIdParam)
-        .order('criado_em', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      pedido = p;
-    }
-
-    // 1.5 Busca pedido pendente recente (últimas 24h) do usuário autenticado
-    if (!pedido) {
-      const limite24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      const { data: p } = await supabase
-        .from('pedidos')
-        .select('*')
-        .eq('comprador_id', user.id)
-        .eq('status', 'pendente')
-        .gt('criado_em', limite24h)
         .order('criado_em', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -324,10 +323,10 @@ export async function GET(request: NextRequest) {
             compradorId,
           });
 
-          // Gera exatamente a quantidade necessária de hashes
+          // Gera exatamente a quantidade necessária de hashes determinísticas
           const qrHashes: string[] = [];
           for (let i = 0; i < quantidade; i++) {
-            qrHashes.push(gerarHashIngresso(`${eventoId}-${paymentIdStr}-${i}-${Date.now()}`, eventoId || 'evento'));
+            qrHashes.push(gerarHashIngresso(`${eventoId}-${paymentIdStr}-${i}`, eventoId || 'evento'));
           }
 
           // 1. Tenta via RPC atômica
@@ -419,32 +418,58 @@ export async function GET(request: NextRequest) {
             }
 
             for (let i = 0; i < quantidade; i++) {
-              const { data: ing, error: errIng } = await supabase
-                .from('ingressos')
-                .insert({
-                  evento_id: eventoId,
-                  lote_id: loteId,
-                  comprador_id: compradorId,
-                  qr_code_hash: qrHashes[i],
-                  status: 'valido',
-                  data_compra: String(pagamentoAprovado.date_approved || new Date().toISOString()),
-                })
-                .select('id')
-                .single();
+              const hash = qrHashes[i];
 
-              if (errIng) {
-                logger.error('Erro ao inserir ingresso no fallback', errIng);
+              // Verifica se já existe ingresso com esta hash determinística
+              const { data: ingExistente } = await supabase
+                .from('ingressos')
+                .select('id')
+                .eq('qr_code_hash', hash)
+                .maybeSingle();
+
+              let ingressoId = ingExistente?.id;
+
+              if (!ingressoId) {
+                const { data: ing, error: errIng } = await supabase
+                  .from('ingressos')
+                  .insert({
+                    evento_id: eventoId,
+                    lote_id: loteId,
+                    comprador_id: compradorId,
+                    qr_code_hash: hash,
+                    status: 'valido',
+                    data_compra: String(pagamentoAprovado.date_approved || new Date().toISOString()),
+                  })
+                  .select('id')
+                  .single();
+
+                if (errIng) {
+                  logger.error('Erro ao inserir ingresso no fallback', errIng);
+                }
+
+                if (ing) {
+                  ingressoId = ing.id;
+                }
               }
 
-              if (ing) {
-                await supabase.from('pagamentos').insert({
-                  ingresso_id: ing.id,
-                  valor: valorUnitario,
-                  status: 'aprovado',
-                  gateway_transaction_id: paymentIdStr,
-                  metodo_pagamento: metodoPagamento,
-                  criado_em: String(pagamentoAprovado.date_approved || new Date().toISOString()),
-                });
+              if (ingressoId) {
+                const { data: pagExist } = await supabase
+                  .from('pagamentos')
+                  .select('id')
+                  .eq('ingresso_id', ingressoId)
+                  .eq('gateway_transaction_id', paymentIdStr)
+                  .maybeSingle();
+
+                if (!pagExist) {
+                  await supabase.from('pagamentos').insert({
+                    ingresso_id: ingressoId,
+                    valor: valorUnitario,
+                    status: 'aprovado',
+                    gateway_transaction_id: paymentIdStr,
+                    metodo_pagamento: metodoPagamento,
+                    criado_em: String(pagamentoAprovado.date_approved || new Date().toISOString()),
+                  });
+                }
               }
             }
 

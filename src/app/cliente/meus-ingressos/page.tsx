@@ -113,16 +113,42 @@ function ConteudoMeusIngressos() {
       if (dados.status_pedido === 'aprovado') {
         setStatusPedido('aprovado');
         setPollingAtivo(false);
+        if (pollingRef.current) {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+        }
+        // Limpar parâmetros da URL imediatamente para nunca mais reaparecer status antigo
+        window.history.replaceState({}, '', '/meus-ingressos');
         // Recarregar ingressos para mostrar o novo imediatamente
         buscarIngressos(true);
+        // Oculta mensagem de sucesso automaticamente após 7 segundos
+        setTimeout(() => {
+          setStatusPedido((prev) => (prev === 'aprovado' ? null : prev));
+        }, 7000);
       } else if (dados.status_pedido === 'estoque_esgotado') {
         setStatusPedido('estoque_esgotado');
         setPollingAtivo(false);
+        if (pollingRef.current) {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+        }
+        window.history.replaceState({}, '', '/meus-ingressos');
       } else if (dados.status_pedido === 'cancelado') {
         setStatusPedido('cancelado');
         setPollingAtivo(false);
+        if (pollingRef.current) {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+        }
+        window.history.replaceState({}, '', '/meus-ingressos');
+      } else if (dados.status_pedido === null || dados.status_pedido === 'nenhum') {
+        setStatusPedido(null);
+        setPollingAtivo(false);
+        if (pollingRef.current) {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+        }
       }
-      // Se 'aguardando', continua o polling
     } catch {
       // Silenciosamente continua tentando
     }
@@ -133,8 +159,12 @@ function ConteudoMeusIngressos() {
       // Para o polling automático após 25 tentativas (50 segundos com intervalo de 2s)
       if (tentativasPollingRef.current >= 25) {
         setPollingAtivo(false);
-        // Se ainda está aguardando após 50s, mantém mensagem informativa com opção de re-checar
-        setStatusPedido((prev) => (prev === 'aguardando' || prev === null ? 'aguardando' : prev));
+        if (pollingRef.current) {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+        }
+        window.history.replaceState({}, '', '/meus-ingressos');
+        setStatusPedido(null);
       }
     }
   }, [pedidoIdParam, paymentIdParam, statusGatewayParam, preferenceIdParam, externalReferenceParam, compradorIdParam, eventoIdParam, loteIdParam]);
@@ -152,11 +182,17 @@ function ConteudoMeusIngressos() {
     } else if (statusPedidoParam === 'aprovado') {
       // Ingresso gratuito ou pagamento já confirmado
       setStatusPedido('aprovado');
+      window.history.replaceState({}, '', '/meus-ingressos');
       buscarIngressos(true);
+      setTimeout(() => {
+        setStatusPedido((prev) => (prev === 'aprovado' ? null : prev));
+      }, 7000);
     } else if (statusPedidoParam === 'estoque_esgotado') {
       setStatusPedido('estoque_esgotado');
+      window.history.replaceState({}, '', '/meus-ingressos');
     } else if (statusGatewayParam === 'rejected' || statusGatewayParam === 'cancelled' || statusPedidoParam === 'cancelado') {
       setStatusPedido('cancelado');
+      window.history.replaceState({}, '', '/meus-ingressos');
     } else if (statusPedidoParam === 'aguardando' && temIdentificador) {
       // Retorno do gateway — iniciar polling para confirmar e liberar ingresso
       setStatusPedido('aguardando');
@@ -283,19 +319,6 @@ function ConteudoMeusIngressos() {
 
         // Verifica se tem mais páginas
         setTemMais(ingressosProcessados.length === INGRESSOS_POR_PAGINA);
-
-        // Auto-reconciliação silenciosa sob demanda: verifica se há pagamento recente pendente de emissão
-        if (resetar && usuario?.id && ingressosProcessados.length === 0) {
-          fetch('/api/consultar-status-pedido')
-            .then((r) => r.json())
-            .then((res) => {
-              if (res?.status_pedido === 'aprovado') {
-                setStatusPedido('aprovado');
-                buscarIngressos(true);
-              }
-            })
-            .catch(() => {});
-        }
       }
     } catch (err) {
       console.error('Erro ao buscar ingressos do cliente:', err);

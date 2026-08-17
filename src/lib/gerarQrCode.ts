@@ -12,15 +12,27 @@ function obterChaveSecreta(): string {
   return secret;
 }
 
-export function gerarHashIngresso(ingressoId: string, eventoId: string): string {
-  const payload = `${ingressoId}:${eventoId}:${Date.now()}`;
-  const uuid = uuidv4();
-  const hmac = crypto
-    .createHmac('sha256', obterChaveSecreta())
+export function gerarHashIngresso(identificadorUnico: string, eventoId: string): string {
+  const secret = obterChaveSecreta();
+  const payload = `${identificadorUnico}:${eventoId}`;
+  
+  // Gera hash HMAC SHA-256 determinístico de 64 caracteres hex
+  const hmacHex = crypto
+    .createHmac('sha256', secret)
     .update(payload)
-    .digest('hex')
-    .slice(0, 16);
-  return `${uuid}-${hmac}`;
+    .digest('hex');
+
+  // Formata os primeiros 32 caracteres como UUID determinístico
+  const uuidParte = [
+    hmacHex.slice(0, 8),
+    hmacHex.slice(8, 12),
+    '4' + hmacHex.slice(13, 16),
+    ((parseInt(hmacHex.slice(16, 18), 16) & 0x3f) | 0x80).toString(16) + hmacHex.slice(18, 20),
+    hmacHex.slice(20, 32),
+  ].join('-');
+
+  const hmacSufixo = hmacHex.slice(32, 48);
+  return `${uuidParte}-${hmacSufixo}`;
 }
 
 export async function gerarQrCodeDataUrlComLogo(

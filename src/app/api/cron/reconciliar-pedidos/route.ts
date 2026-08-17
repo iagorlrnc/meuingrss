@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
 
           const qrHashes: string[] = [];
           for (let i = 0; i < pedido.quantidade; i++) {
-            qrHashes.push(gerarHashIngresso(`${pedido.evento_id}-${gatewayPaymentId}-${i}-${Date.now()}`, pedido.evento_id));
+            qrHashes.push(gerarHashIngresso(`${pedido.evento_id}-${gatewayPaymentId}-${i}`, pedido.evento_id));
           }
 
           // 1. Tenta via RPC
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
             continue;
           }
 
-          // 2. Fallback JS
+          // 2. Fallback JS com anti-duplicação
           await supabase.from('pedidos').update({
             status: 'aprovado',
             gateway_payment_id: gatewayPaymentId,
@@ -140,27 +140,52 @@ export async function POST(request: NextRequest) {
           }).eq('id', pedido.id);
 
           for (let i = 0; i < pedido.quantidade; i++) {
-            const { data: ing } = await supabase
-              .from('ingressos')
-              .insert({
-                evento_id: pedido.evento_id,
-                lote_id: pedido.lote_id,
-                comprador_id: pedido.comprador_id,
-                qr_code_hash: qrHashes[i],
-                status: 'valido',
-                data_compra: new Date().toISOString(),
-              })
-              .select('id')
-              .single();
+            const hash = qrHashes[i];
 
-            if (ing) {
-              await supabase.from('pagamentos').insert({
-                ingresso_id: ing.id,
-                valor: pedido.valor_unitario,
-                status: 'aprovado',
-                gateway_transaction_id: gatewayPaymentId,
-                metodo_pagamento: metodoPagamento,
-              });
+            const { data: ingExistente } = await supabase
+              .from('ingressos')
+              .select('id')
+              .eq('qr_code_hash', hash)
+              .maybeSingle();
+
+            let ingressoId = ingExistente?.id;
+
+            if (!ingressoId) {
+              const { data: ing } = await supabase
+                .from('ingressos')
+                .insert({
+                  evento_id: pedido.evento_id,
+                  lote_id: pedido.lote_id,
+                  comprador_id: pedido.comprador_id,
+                  qr_code_hash: hash,
+                  status: 'valido',
+                  data_compra: new Date().toISOString(),
+                })
+                .select('id')
+                .single();
+
+              if (ing) {
+                ingressoId = ing.id;
+              }
+            }
+
+            if (ingressoId) {
+              const { data: pagExist } = await supabase
+                .from('pagamentos')
+                .select('id')
+                .eq('ingresso_id', ingressoId)
+                .eq('gateway_transaction_id', gatewayPaymentId)
+                .maybeSingle();
+
+              if (!pagExist) {
+                await supabase.from('pagamentos').insert({
+                  ingresso_id: ingressoId,
+                  valor: pedido.valor_unitario,
+                  status: 'aprovado',
+                  gateway_transaction_id: gatewayPaymentId,
+                  metodo_pagamento: metodoPagamento,
+                });
+              }
             }
           }
 
