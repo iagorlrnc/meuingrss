@@ -169,11 +169,11 @@ function ConteudoMeusIngressos() {
     };
   }, [pollingAtivo, consultarStatusPedido]);
 
-  // --- Supabase Realtime: Atualização em tempo real do status dos ingressos ---
+  // --- Supabase Realtime: Atualização em tempo real do status dos ingressos e pedidos ---
   useEffect(() => {
     if (!usuario?.id) return;
 
-    const canal = supabase
+    const canalIngressos = supabase
       .channel(`ingressos-cliente-${usuario.id}`)
       .on(
         'postgres_changes',
@@ -214,8 +214,25 @@ function ConteudoMeusIngressos() {
       )
       .subscribe();
 
+    const canalPedidos = supabase
+      .channel(`pedidos-cliente-${usuario.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'pedidos',
+          filter: `comprador_id=eq.${usuario.id}`,
+        },
+        () => {
+          buscarIngressos(true);
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(canal);
+      supabase.removeChannel(canalIngressos);
+      supabase.removeChannel(canalPedidos);
     };
   }, [usuario?.id, supabase]);
 

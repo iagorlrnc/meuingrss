@@ -62,6 +62,37 @@ export async function GET(request: NextRequest) {
 
     const supabase = criarClienteAdmin();
 
+    // 0. Consultar primeiro a tabela oficial de `pedidos` se disponível
+    try {
+      const { data: pedido } = await supabase
+        .from('pedidos')
+        .select('status, quantidade, id')
+        .eq('comprador_id', compradorId)
+        .eq('evento_id', eventoId)
+        .eq('lote_id', loteId)
+        .order('criado_em', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (pedido) {
+        if (pedido.status === 'approved') {
+          return NextResponse.json({
+            status_pedido: 'aprovado',
+            mensagem: 'Pagamento confirmado! Seus ingressos foram liberados.',
+            quantidade_ingressos: pedido.quantidade,
+          });
+        }
+        if (['rejected', 'cancelled', 'refunded', 'charged_back'].includes(pedido.status)) {
+          return NextResponse.json({
+            status_pedido: 'cancelado',
+            mensagem: 'O pagamento foi recusado, cancelado ou estornado pelo gateway.',
+          });
+        }
+      }
+    } catch {
+      // Ignora se tabela pedidos estiver ausente em dev
+    }
+
     // 1. Verificar se já existem ingressos gerados para este comprador/evento/lote
     //    (indica que o webhook ou reconciliação prévia já liberou os ingressos)
     const { data: ingressosExistentes, error: erroIngressos } = await supabase

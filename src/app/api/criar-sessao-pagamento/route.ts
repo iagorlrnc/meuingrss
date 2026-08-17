@@ -167,9 +167,11 @@ export async function POST(request: NextRequest) {
     const totalFinal = Math.round((subtotal + taxaServicoTotal) * 100) / 100;
 
     const sessionId = `SES-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
+    const externalReference = `PED-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
 
     const metadata = {
       session_id: sessionId,
+      external_reference: externalReference,
       evento_id,
       lote_id,
       comprador_id,
@@ -179,6 +181,22 @@ export async function POST(request: NextRequest) {
       taxa: String(taxaServicoTotal),
       total_final: String(totalFinal),
     };
+
+    // Salvar o pedido no banco com status inicial 'pending' ANTES de chamar a API do Mercado Pago
+    try {
+      await supabase.from('pedidos').insert({
+        external_reference: externalReference,
+        comprador_id,
+        evento_id,
+        lote_id,
+        quantidade: qtd,
+        valor_total: totalFinal,
+        status: 'pending',
+        metadados: metadata,
+      });
+    } catch (errPedido) {
+      logger.warn('Aviso: Não foi possível pré-salvar o pedido em pedidos (tabela pode estar ausente em dev)', { errPedido });
+    }
 
     const dataFormatada = evento.data_evento
       ? new Date(evento.data_evento).toLocaleDateString('pt-BR', {
@@ -291,8 +309,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // URL do Webhook oficial
+    // URL do Webhook oficial (dedicado em /api/webhooks/mercadopago)
     const ehUrlPublica = !baseUrl.includes('localhost') && !baseUrl.includes('127.0.0.1') && !baseUrl.includes('.local');
+    const webhookUrl = `${baseUrl}/api/webhooks/mercadopago`;
 
     const preferencePayload = {
       items: itemsPayload,
@@ -306,7 +325,6 @@ export async function POST(request: NextRequest) {
       expires: true,
       expiration_date_from: dataInicio.toISOString(),
       expiration_date_to: dataExpiracao.toISOString(),
-      date_of_expiration: dataExpiracao.toISOString(),
       payment_methods: {
         excluded_payment_types: [{ id: 'ticket' }], // Oculta boleto e pagamentos offline em lotéricas
         installments: 12, // Permite parcelamento em até 12x no cartão de crédito
@@ -315,7 +333,7 @@ export async function POST(request: NextRequest) {
       external_reference: JSON.stringify(metadata),
       metadata: metadata,
       payer: payerData,
-      notification_url: ehUrlPublica ? `${baseUrl}/api/webhook-mercadopago` : undefined,
+      notification_url: ehUrlPublica ? webhookUrl : undefined,
     };
 
     try {
@@ -330,14 +348,25 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ erro: 'Não foi possível obter o link de checkout do Mercado Pago.' }, { status: 500 });
       }
 
+      // Atualiza o pedido com o ID da preferência do Mercado Pago
+      try {
+        await supabase
+          .from('pedidos')
+          .update({ preference_id: preference.id })
+          .eq('external_reference', externalReference);
+      } catch {
+        // Ignora silenciosamente se a tabela de pedidos for opcional em dev
+      }
+
       logger.info('Sessão de pagamento criada com sucesso no Mercado Pago (Validade Pix: 10 min, Parcelamento: até 12x)', {
         evento_id,
         comprador_id,
+        external_reference: externalReference,
         preference_id: preference.id,
         expiracao: dataExpiracao.toISOString(),
       });
 
-      return NextResponse.json({ url: checkoutUrl, preference_id: preference.id });
+      return NextResponse.json({ url: checkoutUrl, preference_id: preference.id, external_reference: externalReference });
     } catch (mpErr: unknown) {
       const msg = mpErr instanceof Error ? mpErr.message : 'Falha na comunicação com o Mercado Pago';
       logger.error('Erro ao comunicar com a API do Mercado Pago', mpErr);

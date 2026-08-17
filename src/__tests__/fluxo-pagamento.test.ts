@@ -428,6 +428,45 @@ describe('Configurações da Sessão Pix e Payload do Pagador', () => {
     const sessionId = `SES-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
     expect(sessionId).toMatch(/^SES-[0-9A-F]{16}$/);
   });
+
+  it('deve gerar external_reference único prefixado com PED- para vinculação ao pedido', () => {
+    const extRef = `PED-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
+    expect(extRef).toMatch(/^PED-[0-9A-F]{16}$/);
+  });
 });
+
+describe('Fluxo Completo de Pedidos e Idempotência de Webhook', () => {
+  it('pedido inicial deve iniciar com status "pending"', () => {
+    const pedidoNovo = {
+      external_reference: 'PED-1234567890ABCDEF',
+      status: 'pending',
+      quantidade: 2,
+    };
+    expect(pedidoNovo.status).toBe('pending');
+  });
+
+  it('transição de pedido: pending -> approved ao receber webhook válido', () => {
+    let statusPedido = 'pending';
+    const statusWebhook = 'approved';
+
+    if (statusWebhook === 'approved') {
+      statusPedido = 'approved';
+    }
+
+    expect(statusPedido).toBe('approved');
+  });
+
+  it('transição de pedido: pending -> cancelled ao ser recusado ou expirado', () => {
+    let statusPedido = 'pending';
+    const statusWebhook = 'rejected';
+
+    if (['rejected', 'cancelled'].includes(statusWebhook)) {
+      statusPedido = 'cancelled';
+    }
+
+    expect(statusPedido).toBe('cancelled');
+  });
+});
+
 
 

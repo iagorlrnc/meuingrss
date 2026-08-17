@@ -13,6 +13,7 @@ export interface ParametrosProcessamentoAprovado {
   valorUnitario: number;
   metodoPagamento: string;
   qrHashes: string[];
+  externalReference?: string;
 }
 
 export interface ResultadoProcessamentoAprovado {
@@ -29,7 +30,7 @@ export async function processarAprovadoAuxiliar(
   supabase: ReturnType<typeof criarClienteAdmin>,
   params: ParametrosProcessamentoAprovado
 ): Promise<ResultadoProcessamentoAprovado> {
-  // 1. Tenta executar via RPC Atômica no PostgreSQL (Migration 004)
+  // 1. Tenta executar via RPC Atômica no PostgreSQL (Migration 026)
   const { data: resRpc, error: errRpc } = await supabase.rpc('processar_pagamento_aprovado', {
     p_gateway_transaction_id: params.gatewayTransactionId,
     p_evento_id: params.eventoId,
@@ -39,6 +40,7 @@ export async function processarAprovadoAuxiliar(
     p_valor_unitario: params.valorUnitario,
     p_metodo_pagamento: params.metodoPagamento,
     p_qr_hashes: params.qrHashes,
+    p_external_reference: params.externalReference || null,
   });
 
   // Se a RPC funcionou normalmente e sem erro
