@@ -81,20 +81,28 @@ function ConteudoMeusIngressos() {
   const nomeUsuario = perfil?.nome || usuario?.user_metadata?.nome;
   const emailUsuario = perfil?.email || usuario?.email;
 
-  // Parâmetros do URL para verificação de status pós-pagamento
+  // Parâmetros do URL para verificação de status pós-pagamento (captura completa do retorno Mercado Pago)
   const statusPedidoParam = searchParams.get('status_pedido');
   const pedidoIdParam = searchParams.get('pedido_id');
+  const paymentIdParam = searchParams.get('payment_id') || searchParams.get('collection_id') || searchParams.get('data.id') || searchParams.get('id');
+  const statusGatewayParam = searchParams.get('status') || searchParams.get('collection_status');
+  const preferenceIdParam = searchParams.get('preference_id');
+  const externalReferenceParam = searchParams.get('external_reference');
   const eventoIdParam = searchParams.get('evento_id');
   const loteIdParam = searchParams.get('lote_id');
   const compradorIdParam = searchParams.get('comprador_id');
 
-  // --- Polling de status do pedido ---
-  const consultarStatusPedido = useCallback(async () => {
-    if (!pedidoIdParam && (!compradorIdParam || !eventoIdParam || !loteIdParam)) return;
+  // --- Polling de status do pedido com resolução instantânea ---
+  const consultarStatusPedido = useCallback(async (forcarReverificacao: boolean = false) => {
+    if (!pedidoIdParam && !paymentIdParam && !externalReferenceParam && (!compradorIdParam || !eventoIdParam || !loteIdParam)) return;
 
     try {
       const params = new URLSearchParams();
       if (pedidoIdParam) params.set('pedido_id', pedidoIdParam);
+      if (paymentIdParam) params.set('payment_id', paymentIdParam);
+      if (statusGatewayParam) params.set('status', statusGatewayParam);
+      if (preferenceIdParam) params.set('preference_id', preferenceIdParam);
+      if (externalReferenceParam) params.set('external_reference', externalReferenceParam);
       if (compradorIdParam) params.set('comprador_id', compradorIdParam);
       if (eventoIdParam) params.set('evento_id', eventoIdParam);
       if (loteIdParam) params.set('lote_id', loteIdParam);
@@ -119,30 +127,43 @@ function ConteudoMeusIngressos() {
       // Silenciosamente continua tentando
     }
 
-    tentativasPollingRef.current += 1;
+    if (!forcarReverificacao) {
+      tentativasPollingRef.current += 1;
 
-    // Para o polling após 20 tentativas (40 segundos com intervalo de 2s)
-    if (tentativasPollingRef.current >= 20) {
-      setPollingAtivo(false);
-      // Se ainda está aguardando após 40s, mostra mensagem informativa
-      setStatusPedido((prev) => (prev === 'aguardando' || prev === null ? 'aguardando' : prev));
+      // Para o polling automático após 25 tentativas (50 segundos com intervalo de 2s)
+      if (tentativasPollingRef.current >= 25) {
+        setPollingAtivo(false);
+        // Se ainda está aguardando após 50s, mantém mensagem informativa com opção de re-checar
+        setStatusPedido((prev) => (prev === 'aguardando' || prev === null ? 'aguardando' : prev));
+      }
     }
-  }, [pedidoIdParam, compradorIdParam, eventoIdParam, loteIdParam]);
+  }, [pedidoIdParam, paymentIdParam, statusGatewayParam, preferenceIdParam, externalReferenceParam, compradorIdParam, eventoIdParam, loteIdParam]);
 
   useEffect(() => {
-    if (statusPedidoParam === 'aprovado') {
+    const ehRetornoAprovado = statusGatewayParam === 'approved' || statusPedidoParam === 'aprovado';
+    const temIdentificador = Boolean(pedidoIdParam || paymentIdParam || externalReferenceParam || (compradorIdParam && eventoIdParam && loteIdParam));
+
+    if (ehRetornoAprovado && temIdentificador) {
+      // Pagamento aprovado no gateway — iniciar verificação imediata para liberação instantânea
+      setStatusPedido('aguardando');
+      setPollingAtivo(true);
+      tentativasPollingRef.current = 0;
+      consultarStatusPedido(true);
+    } else if (statusPedidoParam === 'aprovado') {
       // Ingresso gratuito ou pagamento já confirmado
       setStatusPedido('aprovado');
       buscarIngressos(true);
     } else if (statusPedidoParam === 'estoque_esgotado') {
       setStatusPedido('estoque_esgotado');
-    } else if (statusPedidoParam === 'aguardando' && (pedidoIdParam || (compradorIdParam && eventoIdParam && loteIdParam))) {
+    } else if (statusGatewayParam === 'rejected' || statusGatewayParam === 'cancelled' || statusPedidoParam === 'cancelado') {
+      setStatusPedido('cancelado');
+    } else if (statusPedidoParam === 'aguardando' && temIdentificador) {
       // Retorno do gateway — iniciar polling para confirmar e liberar ingresso
       setStatusPedido('aguardando');
       setPollingAtivo(true);
       tentativasPollingRef.current = 0;
     }
-  }, [statusPedidoParam, pedidoIdParam, compradorIdParam, eventoIdParam, loteIdParam]);
+  }, [statusPedidoParam, statusGatewayParam, pedidoIdParam, paymentIdParam, externalReferenceParam, compradorIdParam, eventoIdParam, loteIdParam, consultarStatusPedido]);
 
   useEffect(() => {
     if (pollingAtivo) {
@@ -365,7 +386,7 @@ function ConteudoMeusIngressos() {
 
         {/* === Banner de Status do Pedido === */}
         {statusPedido === 'aguardando' && (
-          <div className="mb-6 p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 animate-pulse">
+          <div className="mb-6 p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30">
             <div className="flex items-start gap-3">
               <div className="p-2 rounded-full bg-amber-500/20 shrink-0">
                 <Clock className="w-5 h-5 text-amber-400 animate-spin" style={{ animationDuration: '3s' }} />
@@ -376,13 +397,26 @@ function ConteudoMeusIngressos() {
                 </h3>
                 <p className="text-xs text-amber-200/80 leading-relaxed">
                   Estamos verificando a confirmação do seu pagamento junto ao gateway. 
-                  Isso pode levar alguns segundos. Não feche esta página.
+                  Isso pode levar alguns instantes. Seu ingresso será liberado automaticamente.
                 </p>
-                <div className="mt-3 flex items-center gap-2">
-                  <Loader2 className="w-3 h-3 text-amber-400 animate-spin" />
-                  <span className="text-[11px] text-amber-300/70">
-                    Verificando... (tentativa {tentativasPollingRef.current}/20)
-                  </span>
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className={`w-3 h-3 text-amber-400 ${pollingAtivo ? 'animate-spin' : ''}`} />
+                    <span className="text-[11px] text-amber-300/70">
+                      {pollingAtivo ? `Verificando... (tentativa ${tentativasPollingRef.current}/25)` : 'Verificação pausada'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setPollingAtivo(true);
+                      tentativasPollingRef.current = 0;
+                      consultarStatusPedido(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-bold border border-amber-500/40 transition-colors"
+                  >
+                    <RefreshCw size={12} className={pollingAtivo ? 'animate-spin' : ''} />
+                    Verificar Agora
+                  </button>
                 </div>
               </div>
               <button

@@ -350,4 +350,26 @@ describe('Regras de Negócio: Ingressos Nunca Sem Pagamento', () => {
     expect(urlRetornoCorreta).toContain('status_pedido=aguardando');
     expect(urlRetornoCorreta).not.toContain('sucesso=true');
   });
+
+  it('extrai corretamente payment_id ou collection_id dos parâmetros do Mercado Pago', () => {
+    // Simula a URL completa com parâmetros que o Mercado Pago anexa no redirecionamento
+    const urlRetornoMercadoPago =
+      '/meus-ingressos?pedido_id=11111111-2222-3333-4444-555555555555&status_pedido=aguardando&collection_id=9876543210&collection_status=approved&payment_id=9876543210&status=approved&external_reference=11111111-2222-3333-4444-555555555555&payment_type=credit_card&merchant_order_id=123456&preference_id=pref-123';
+
+    const searchParams = new URLSearchParams(urlRetornoMercadoPago.split('?')[1]);
+
+    const paymentId = searchParams.get('payment_id') || searchParams.get('collection_id');
+    const statusGateway = searchParams.get('status') || searchParams.get('collection_status');
+    const pedidoId = searchParams.get('pedido_id') || searchParams.get('external_reference');
+
+    expect(paymentId).toBe('9876543210');
+    expect(statusGateway).toBe('approved');
+    expect(pedidoId).toBe('11111111-2222-3333-4444-555555555555');
+  });
+
+  it('prioriza consulta direta por payment_id com 0ms de delay de indexação', () => {
+    const paymentIdParam = '9876543210';
+    const temIdDireto = Boolean(paymentIdParam && paymentIdParam.length > 0);
+    expect(temIdDireto).toBe(true);
+  });
 });

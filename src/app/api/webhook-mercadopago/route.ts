@@ -68,27 +68,36 @@ async function executarLiberacaoIngressos(
   }
 ): Promise<{ sucesso: boolean; ja_processado?: boolean; erro?: string; ingressos_ids?: string[] }> {
   // 1. Tenta executar via RPC Atômica no PostgreSQL (Migration 026)
-  const { data: resRpc, error: errRpc } = await supabase.rpc('processar_pagamento_aprovado', {
-    p_pedido_id: params.pedidoId,
-    p_gateway_payment_id: params.gatewayPaymentId,
-    p_metodo_pagamento: params.metodoPagamento,
-    p_qr_hashes: params.qrHashes,
-  });
+  if (params.pedidoId && UUID_REGEX.test(params.pedidoId)) {
+    const { data: resRpc, error: errRpc } = await supabase.rpc('processar_pagamento_aprovado', {
+      p_pedido_id: params.pedidoId,
+      p_gateway_payment_id: params.gatewayPaymentId,
+      p_metodo_pagamento: params.metodoPagamento,
+      p_qr_hashes: params.qrHashes,
+    });
 
-  if (!errRpc && resRpc) {
-    return {
-      sucesso: Boolean(resRpc.sucesso),
-      ja_processado: Boolean(resRpc.ja_processado),
-      erro: resRpc.erro,
-      ingressos_ids: resRpc.ingressos_ids,
-    };
+    if (!errRpc && resRpc?.sucesso) {
+      return {
+        sucesso: true,
+        ja_processado: Boolean(resRpc.ja_processado),
+        erro: resRpc.erro,
+        ingressos_ids: resRpc.ingressos_ids,
+      };
+    }
+
+    if (errRpc || (resRpc && !resRpc.sucesso)) {
+      logger.warn('RPC processar_pagamento_aprovado não concluiu com sucesso. Prosseguindo com fallback JS atômico', {
+        pedidoId: params.pedidoId,
+        erroRpc: errRpc?.message,
+        erroRetorno: resRpc?.erro,
+      });
+    }
   }
 
   // 2. Fallback JS Atômico (caso a migration 026 ainda esteja pendente de execução no SQL Editor)
   logger.info('Executando fallback JS resiliente para liberação de pedido e ingressos', {
     pedidoId: params.pedidoId,
     gatewayPaymentId: params.gatewayPaymentId,
-    erroRpc: errRpc?.message,
   });
 
   // 2.1 Verifica se o pedido existe e seu status atual
