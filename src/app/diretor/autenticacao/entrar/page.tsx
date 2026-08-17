@@ -180,7 +180,7 @@ function FormularioEntrarDiretor() {
           {/* Headline & Badges */}
           <div className="max-w-xl space-y-6">
             <h1 className="text-4xl xl:text-5xl font-black font-titulo text-white leading-tight tracking-tight">
-              Gerencie sua Atlética com{' '}
+              <span className="text-slate-400">Gerencie sua Atlética com </span>{' '}
               <span className="bg-gradient-to-r from-[#ff007a] via-[#8b5cf6] to-[#00e5ff] bg-clip-text text-transparent">
                 Painel Executivo
               </span>

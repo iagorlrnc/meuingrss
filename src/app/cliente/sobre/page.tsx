@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
-import { Ticket, ShieldCheck, Zap, Users, Sparkles, Award } from 'lucide-react';
+import { Ticket, ShieldCheck, CreditCard, Users, Sparkles, Award } from 'lucide-react';
 
 const dominioPrincipal = (process.env.NEXT_PUBLIC_DOMINIO_PRINCIPAL || 'meuingrss.com.br').replace(/\/+$/, '');
 const protocolo = process.env.NEXT_PUBLIC_PROTOCOLO || 'https';
@@ -58,20 +58,19 @@ export default function PaginaSobre() {
           {/* Header Banner */}
           <header className="text-center space-y-4 pt-6">
             <span className="inline-block px-3 py-1 rounded-full bg-[#ff007a]/15 text-[#ff007a] text-xs font-black uppercase tracking-widest border border-[#ff007a]/30">
-              Plataforma Oficial de Ingressos
+              Plataforma de vendas de Ingressos
             </span>
             <h1 className="text-3xl sm:text-5xl font-black font-titulo tracking-tight uppercase leading-tight">
-              Sobre o <span className="gradiente-texto">meuingrss</span>
+              <span className="text-slate-400">Sobre o</span> Meu<span className="gradiente-texto">ingrss</span>
             </h1>
             <p className="text-slate-300 text-sm sm:text-base max-w-2xl mx-auto leading-relaxed">
-              O <strong>meuingrss</strong> é a plataforma tecnológica de referência em Palmas (Tocantins) para a compra e venda de ingressos de festas universitárias, calouradas, cervejadas e eventos de atléticas.
+              O <strong>Meuingrss</strong> é a plataforma tecnológica de referência em Palmas (Tocantins) para a compra e venda de ingressos de festas universitárias, calouradas e eventos de atléticas.
             </p>
           </header>
 
           {/* Missão e O que Fazemos */}
           <section className="bg-[#0f172a] border border-white/10 rounded-2xl p-6 sm:p-8 space-y-6 shadow-xl">
             <h2 className="text-xl sm:text-2xl font-black uppercase font-titulo text-[#00e5ff] flex items-center gap-2">
-              <Sparkles size={24} className="text-[#ff007a]" />
               Nossa Missão
             </h2>
             <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
@@ -83,7 +82,7 @@ export default function PaginaSobre() {
           <section className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             <div className="bg-[#0f172a] border border-white/10 rounded-xl p-6 space-y-3">
               <div className="w-12 h-12 rounded-lg bg-[#ff007a]/10 flex items-center justify-center text-[#ff007a]">
-                <Zap size={24} />
+                <CreditCard size={24} />
               </div>
               <h3 className="text-lg font-black uppercase font-titulo text-white">Pagamento Instantâneo</h3>
               <p className="text-xs text-slate-400 leading-relaxed">
@@ -119,7 +118,7 @@ export default function PaginaSobre() {
               Onde Comprar Ingressos de Festa em Palmas/TO?
             </h2>
             <p className="text-slate-300 text-sm leading-relaxed">
-              Se você está procurando onde comprar ingressos para as melhores festas universitárias de Palmas/TO (como recepções de calouros da UFT, Unitins, Ulbra, IFTO e faculdades da região), o <strong>meuingrss</strong> é o canal oficial. Acesse os eventos ativos, escolha o lote desejado e garanta seu ingresso com facilidade.
+              Se você está procurando onde comprar ingressos para as melhores festas universitárias de Palmas/TO (como recepções de calouros da UFT, Unitins, Ulbra, IFTO e faculdades da região), o <strong>Meuingrss</strong> é o canal oficial. Acesse os eventos ativos, escolha o lote desejado e garanta seu ingresso com facilidade.
             </p>
             <div className="pt-4 flex flex-wrap gap-4">
               <Link href="/eventos">

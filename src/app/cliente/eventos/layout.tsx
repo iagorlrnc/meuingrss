@@ -5,9 +5,9 @@ const protocolo = process.env.NEXT_PUBLIC_PROTOCOLO || 'https';
 const baseUrl = `${protocolo}://${dominioPrincipal}`;
 
 export const metadata: Metadata = {
-  title: 'Festas Universitárias e Ingressos em Palmas/TO | meuingrss',
+  title: 'Eventos | Meuingrss',
   description:
-    'Confira todos os eventos, calouradas, cervejadas e festas de atléticas universitárias em Palmas e no Tocantins. Compre seus ingressos digitais via Pix ou Cartão no meuingrss!',
+    'Confira todos os eventos, calouradas e festas de atléticas universitárias em Palmas e no Tocantins. Compre seus ingressos digitais via Pix ou Cartão no Meuingrss!',
   alternates: {
     canonical: `${baseUrl}/eventos`,
   },
@@ -21,18 +21,18 @@ export const metadata: Metadata = {
     },
   },
   openGraph: {
-    title: 'Festas Universitárias e Ingressos em Palmas/TO | meuingrss',
+    title: 'Eventos | Meuingrss',
     description:
       'Encontre os melhores eventos universitários e garanta seus ingressos digitais com segurança.',
     url: `${baseUrl}/eventos`,
-    siteName: 'meuingrss',
+    siteName: 'Meuingrss',
     locale: 'pt_BR',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Todos os Eventos | meuingrss',
-    description: 'Compre ingressos para festas universitárias em Palmas/TO com aprovação instantânea.',
+    title: 'Todos os Eventos | Meuingrss',
+    description: 'Adquira ingressos para eventos universitários com aprovação instantânea.',
   },
 };
 
@@ -44,8 +44,8 @@ export default function LayoutEventos({
   const jsonLdEventos = {
     '@context': 'https://schema.org',
     '@type': 'CollectionPage',
-    name: 'Eventos e Festas Universitárias em Palmas/TO',
-    description: 'Catálogo oficial de festas, calouradas e eventos organizados por atléticas acadêmicas.',
+    name: 'Eventos Universitários',
+    description: 'Catálogo oficial de eventos, calouradas e festas organizadas por atléticas.',
     url: `${baseUrl}/eventos`,
   };
 

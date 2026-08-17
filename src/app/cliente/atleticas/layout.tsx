@@ -5,9 +5,9 @@ const protocolo = process.env.NEXT_PUBLIC_PROTOCOLO || 'https';
 const baseUrl = `${protocolo}://${dominioPrincipal}`;
 
 export const metadata: Metadata = {
-  title: 'Atléticas Universitárias de Palmas/TO | meuingrss',
+  title: 'Atléticas | Meuingrss',
   description:
-    'Conheça as atléticas acadêmicas parceiras do meuingrss em Palmas e no Tocantins. Encontre eventos, calouradas e festas organizadas pelas atléticas.',
+    'Conheça as atléticas acadêmicas parceiras do Meuingrss. Encontre eventos, calouradas e festas organizadas pelas atléticas.',
   alternates: {
     canonical: `${baseUrl}/atleticas`,
   },
@@ -16,11 +16,11 @@ export const metadata: Metadata = {
     follow: true,
   },
   openGraph: {
-    title: 'Atléticas Universitárias de Palmas/TO | meuingrss',
+    title: 'Atléticas | Meuingrss',
     description:
-      'Diretório oficial de atléticas universitárias parceiras da plataforma meuingrss.',
+      'Painel oficial de atléticas universitárias parceiras da plataforma meuingrss.',
     url: `${baseUrl}/atleticas`,
-    siteName: 'meuingrss',
+    siteName: 'Meuingrss',
     locale: 'pt_BR',
     type: 'website',
   },
