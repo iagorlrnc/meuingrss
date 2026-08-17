@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
 
     const { data: comprador } = await supabase
       .from('profiles')
-      .select('nome, email, telefone')
+      .select('nome, email, telefone, cpf')
       .eq('id', comprador_id)
       .maybeSingle();
 
@@ -237,9 +237,9 @@ export async function POST(request: NextRequest) {
       itemsPayload[0].picture_url = imgUrl;
     }
 
-    // Define a validade da preferência e do QR Code PIX em exatamente 5 minutos
+    // Define a validade da preferência e do QR Code PIX em exatamente 10 minutos
     const dataInicio = new Date();
-    const dataExpiracao = new Date(dataInicio.getTime() + 5 * 60 * 1000); // 5 minutos
+    const dataExpiracao = new Date(dataInicio.getTime() + 10 * 60 * 1000); // 10 minutos
 
     interface PayerDataPayload {
       email: string;
@@ -247,6 +247,10 @@ export async function POST(request: NextRequest) {
       surname: string;
       phone?: {
         area_code: string;
+        number: string;
+      };
+      identification?: {
+        type: string;
         number: string;
       };
     }
@@ -263,6 +267,16 @@ export async function POST(request: NextRequest) {
         name: primeiroNome,
         surname: sobrenome,
       };
+
+      if (comprador.cpf) {
+        const cpfLimpo = comprador.cpf.replace(/\D/g, '');
+        if (cpfLimpo.length === 11) {
+          payerData.identification = {
+            type: 'CPF',
+            number: cpfLimpo,
+          };
+        }
+      }
 
       if (comprador.telefone) {
         const telLimpo = comprador.telefone.replace(/\D/g, '');

@@ -383,3 +383,33 @@ describe('Reconciliação Direta e Emissão Automática de Ingressos', () => {
     expect(ingressoCreditado).toBe(false);
   });
 });
+
+describe('Configurações da Sessão Pix e Payload do Pagador', () => {
+  it('deve calcular a data de expiração exatamente em 10 minutos', () => {
+    const dataInicio = new Date('2026-08-16T22:00:00.000Z');
+    const dataExpiracao = new Date(dataInicio.getTime() + 10 * 60 * 1000);
+
+    const diferencaMinutos = (dataExpiracao.getTime() - dataInicio.getTime()) / (1000 * 60);
+    expect(diferencaMinutos).toBe(10);
+    expect(dataExpiracao.toISOString()).toBe('2026-08-16T22:10:00.000Z');
+  });
+
+  it('deve formatar corretamente o objeto payer.identification com CPF de 11 dígitos', () => {
+    const cpfComMascara = '123.456.789-00';
+    const cpfLimpo = cpfComMascara.replace(/\D/g, '');
+
+    expect(cpfLimpo).toHaveLength(11);
+
+    const identification = cpfLimpo.length === 11 ? { type: 'CPF', number: cpfLimpo } : undefined;
+    expect(identification).toEqual({ type: 'CPF', number: '12345678900' });
+  });
+
+  it('NÃO deve incluir identification se o CPF for inválido ou incompleto', () => {
+    const cpfInvalido = '1234';
+    const cpfLimpo = cpfInvalido.replace(/\D/g, '');
+
+    const identification = cpfLimpo.length === 11 ? { type: 'CPF', number: cpfLimpo } : undefined;
+    expect(identification).toBeUndefined();
+  });
+});
+

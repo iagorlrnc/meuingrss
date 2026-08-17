@@ -135,7 +135,7 @@ function ConteudoCheckout() {
 
   return (
     <div className="min-h-screen pt-16 sm:pt-20 md:pt-24 pb-12 px-4">
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-5xl mx-auto">
         <Link
           href={`/eventos/${params.id}`}
           className="inline-flex items-center gap-2 text-sm text-texto-secundario hover:text-texto-principal transition-colors mb-8"
