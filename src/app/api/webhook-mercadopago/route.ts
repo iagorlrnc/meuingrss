@@ -388,11 +388,13 @@ export async function POST(request: NextRequest) {
     }
 
     const statusPagamento = String(payment.status || '');
+    const statusDetail = String(payment.status_detail || '');
     const gatewayPaymentId = String(payment.id);
     const metodoPagamento = payment.payment_method_id || payment.payment_type_id || 'mercadopago';
 
     logger.info(`Webhook recebido para pagamento ${gatewayPaymentId}`, {
       status: statusPagamento,
+      status_detail: statusDetail,
       metodo: metodoPagamento,
       valor: payment.transaction_amount,
     });
@@ -405,12 +407,12 @@ export async function POST(request: NextRequest) {
         tipo_evento: 'payment',
         data_id: gatewayPaymentId,
         status_resposta: 200,
-        resultado: `Status ${statusPagamento} processado com sucesso`,
+        resultado: `Status ${statusPagamento} (${statusDetail}) processado com sucesso`,
         ip,
         duracao_ms: duracao,
-        payload: { status: statusPagamento, gateway_id: gatewayPaymentId },
+        payload: { status: statusPagamento, status_detail: statusDetail, gateway_id: gatewayPaymentId },
       });
-      return NextResponse.json({ recebido: true, status: statusPagamento }, { status: 200 });
+      return NextResponse.json({ recebido: true, status: statusPagamento, status_detail: statusDetail }, { status: 200 });
     }
 
     // Se o pagamento ainda está pendente / em análise

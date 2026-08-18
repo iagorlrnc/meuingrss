@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
 
     const { data: comprador } = await supabase
       .from('profiles')
-      .select('nome, email, telefone')
+      .select('nome, email, telefone, cpf')
       .eq('id', comprador_id)
       .maybeSingle();
 
@@ -294,6 +294,10 @@ export async function POST(request: NextRequest) {
         area_code: string;
         number: string;
       };
+      identification?: {
+        type: string;
+        number: string;
+      };
     }
 
     let payerData: PayerDataPayload | undefined;
@@ -314,6 +318,16 @@ export async function POST(request: NextRequest) {
           payerData.phone = {
             area_code: telLimpo.substring(0, 2),
             number: telLimpo.substring(2),
+          };
+        }
+      }
+
+      if (comprador.cpf) {
+        const cpfLimpo = comprador.cpf.replace(/\D/g, '');
+        if (cpfLimpo.length === 11) {
+          payerData.identification = {
+            type: 'CPF',
+            number: cpfLimpo,
           };
         }
       }
