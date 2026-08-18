@@ -261,10 +261,10 @@ export async function POST(request: NextRequest) {
       {
         id: lote_id,
         title: `${evento.titulo} — ${lote.nome_lote}`,
-        description: descricaoEvento || `Ingresso para ${evento.titulo}`,
+        description: descricaoEvento ? `${descricaoEvento} (R$ ${precoUnitario.toFixed(2).replace('.', ',')})` : `Ingresso para ${evento.titulo} (R$ ${precoUnitario.toFixed(2).replace('.', ',')})`,
         category_id: 'tickets',
         quantity: qtd,
-        unit_price: precoUnitario,
+        unit_price: Number(precoUnitario.toFixed(2)),
         currency_id: 'BRL',
       },
     ];
@@ -272,11 +272,11 @@ export async function POST(request: NextRequest) {
     if (taxaServicoUnitaria > 0) {
       itemsPayload.push({
         id: `TAXA-${lote_id}`,
-        title: `Taxa de Serviço e Plataforma (${TAXA_SERVICO_LABEL})`,
-        description: 'Taxa de intermediação da plataforma e custos de processamento bancário',
+        title: `Taxa da Plataforma (${TAXA_SERVICO_LABEL})`,
+        description: `Taxa de intermediação da plataforma e processamento (R$ ${taxaServicoUnitaria.toFixed(2).replace('.', ',')})`,
         category_id: 'services',
         quantity: qtd,
-        unit_price: taxaServicoUnitaria,
+        unit_price: Number(taxaServicoUnitaria.toFixed(2)),
         currency_id: 'BRL',
       });
     }
