@@ -9,6 +9,8 @@ import { criarClienteNavegador } from '@/lib/supabase/cliente';
 import Botao from '@/componentes/ui/Botao';
 import CampoTexto from '@/componentes/ui/CampoTexto';
 import Carregando from '@/componentes/ui/Carregando';
+import IndicadorForcaSenha from '@/componentes/ui/IndicadorForcaSenha';
+import { avaliarSenha } from '@/lib/utilitarios';
 import { Lock, CheckCircle2, AlertCircle, ArrowLeft, KeyRound, ShieldCheck } from 'lucide-react';
 
 function FormularioRedefinirSenha() {
@@ -174,8 +176,9 @@ function FormularioRedefinirSenha() {
     e.preventDefault();
     setErro('');
 
-    if (novaSenha.length < 6) {
-      setErro('A nova senha deve ter no mínimo 6 caracteres.');
+    const statusSenha = avaliarSenha(novaSenha);
+    if (!statusSenha.valida) {
+      setErro('A senha deve conter no mínimo 8 caracteres, 1 letra maiúscula, 1 número e 1 caractere especial (!@#$...).');
       return;
     }
 
@@ -255,7 +258,7 @@ function FormularioRedefinirSenha() {
                   tamanho="lg"
                   onClick={() => router.push('/autenticacao/entrar')}
                 >
-                  Ir para o Login 🚀
+                  Ir para o Login
                 </Botao>
               </div>
             </div>
@@ -304,7 +307,7 @@ function FormularioRedefinirSenha() {
               <CampoTexto
                 rotulo="Nova Senha"
                 type="password"
-                placeholder="Mínimo 6 caracteres"
+                placeholder="Ex: Senha#2026"
                 value={novaSenha}
                 onChange={(e) => setNovaSenha((e.target as HTMLInputElement).value)}
                 icone={<Lock size={18} />}
@@ -321,6 +324,8 @@ function FormularioRedefinirSenha() {
                 required
               />
 
+              <IndicadorForcaSenha senha={novaSenha} />
+
               {erro && (
                 <div className="p-3 sm:p-3.5 rounded-xl bg-red-500/15 border border-red-500/30 text-xs font-semibold text-red-400 leading-relaxed flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-red-400 animate-ping shrink-0" />
@@ -334,7 +339,7 @@ function FormularioRedefinirSenha() {
                 larguraTotal
                 tamanho="lg"
                 carregando={carregando}
-                disabled={carregando || !novaSenha || !confirmarSenha}
+                disabled={carregando || !novaSenha || !confirmarSenha || !avaliarSenha(novaSenha).valida}
               >
                 Salvar Nova Senha
               </Botao>
