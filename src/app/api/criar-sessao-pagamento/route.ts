@@ -5,6 +5,7 @@ import { criarClienteServidor } from '@/lib/supabase/servidor';
 import { logger } from '@/lib/logger';
 import { verificarRateLimit } from '@/lib/rateLimit';
 import { gerarHashIngresso } from '@/lib/gerarQrCode';
+import { TAXA_SERVICO_PERCENTUAL, TAXA_SERVICO_LABEL } from '@/lib/constantes';
 import crypto from 'crypto';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -99,7 +100,7 @@ export async function POST(request: NextRequest) {
       .eq('id', comprador_id)
       .maybeSingle();
 
-    const TAXA_PERCENTUAL = 0.12;
+    const TAXA_PERCENTUAL = TAXA_SERVICO_PERCENTUAL;
     const precoUnitario = Number(lote.preco);
     const subtotal = precoUnitario * qtd;
     const taxaServicoUnitaria = precoUnitario === 0 ? 0 : Math.round((precoUnitario * TAXA_PERCENTUAL) * 100) / 100;
@@ -270,7 +271,7 @@ export async function POST(request: NextRequest) {
     if (taxaServicoUnitaria > 0) {
       itemsPayload.push({
         id: `TAXA-${lote_id}`,
-        title: 'Taxa de Serviço e Plataforma (12%)',
+        title: `Taxa de Serviço e Plataforma (${TAXA_SERVICO_LABEL})`,
         description: 'Taxa de intermediação da plataforma e custos de processamento bancário',
         category_id: 'services',
         quantity: qtd,

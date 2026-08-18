@@ -9,6 +9,7 @@ import Carregando from '@/componentes/ui/Carregando';
 import CaptchaCloudflare from '@/componentes/ui/CaptchaCloudflare';
 import { criarClienteNavegador } from '@/lib/supabase/cliente';
 import { formatarMoeda, formatarDataHora } from '@/lib/utilitarios';
+import { TAXA_SERVICO_PERCENTUAL, TAXA_SERVICO_LABEL } from '@/lib/constantes';
 import { usarAutenticacao } from '@/contextos/ContextoAutenticacao';
 import type { Evento, LoteIngresso } from '@/tipos';
 import {
@@ -128,7 +129,7 @@ function ConteudoCheckout() {
     );
   }
 
-  const TAXA_PERCENTUAL = 0.12;
+  const TAXA_PERCENTUAL = TAXA_SERVICO_PERCENTUAL;
   const subtotal = lote.preco * qtd;
   const taxaServico = lote.preco === 0 ? 0 : Math.round((subtotal * TAXA_PERCENTUAL) * 100) / 100;
   const totalFinal = subtotal + taxaServico;
@@ -240,7 +241,7 @@ function ConteudoCheckout() {
                       </div>
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-texto-secundario flex items-center gap-1">
-                          Taxa da plataforma e banco (12%)
+                          Taxa da plataforma e banco ({TAXA_SERVICO_LABEL})
                         </span>
                         <span className="text-primaria-400 font-semibold">+{formatarMoeda(taxaServico)}</span>
                       </div>
