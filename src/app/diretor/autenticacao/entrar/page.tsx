@@ -27,7 +27,10 @@ import { construirUrl } from '@/lib/dominios';
 
 function FormularioEntrarDiretor() {
   const { entrar } = usarAutenticacao();
-  const { bloqueado, segundosRestantes, mensagemRateLimit, aplicarStatus } = useRateLimitAuth();
+  const [erro, setErro] = useState('');
+  const { bloqueado, segundosRestantes, mensagemRateLimit, aplicarStatus } = useRateLimitAuth(() => {
+    setErro('');
+  });
   const searchParams = useSearchParams();
   const router = useRouter();
   const redirecionar = searchParams.get('redirecionar') || '/';
@@ -35,7 +38,6 @@ function FormularioEntrarDiretor() {
 
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
-  const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(false);
   const [modalPendenteAberto, setModalPendenteAberto] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState('');
@@ -105,10 +107,18 @@ function FormularioEntrarDiretor() {
         console.warn('Erro ao consultar perfil pendente:', errCheck);
       }
 
-      if (resultado.rateLimitData) {
-        aplicarStatus(resultado.rateLimitData);
+      if (resultado.rateLimitData?.bloqueado || resultado.bloqueado) {
+        aplicarStatus(
+          resultado.rateLimitData || {
+            bloqueado: true,
+            segundosRestantes: resultado.segundosRestantes,
+            mensagem: resultado.erro,
+          }
+        );
+        setErro('');
+      } else {
+        setErro(resultado.erro);
       }
-      setErro(resultado.erro);
       setCarregando(false);
       return;
     }

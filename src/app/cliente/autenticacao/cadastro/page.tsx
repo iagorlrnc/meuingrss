@@ -26,7 +26,10 @@ import {
 
 export default function PaginaCadastro() {
   const { cadastrar } = usarAutenticacao();
-  const { bloqueado, segundosRestantes, mensagemRateLimit, aplicarStatus } = useRateLimitAuth();
+  const [erro, setErro] = useState('');
+  const { bloqueado, segundosRestantes, mensagemRateLimit, aplicarStatus } = useRateLimitAuth(() => {
+    setErro('');
+  });
   const supabase = criarClienteNavegador();
 
   const [nome, setNome] = useState('');
@@ -45,8 +48,6 @@ export default function PaginaCadastro() {
   const [emailVerificado, setEmailVerificado] = useState(false);
   const [tempoReenvio, setTempoReenvio] = useState(0);
   const [emailEnviado, setEmailEnviado] = useState('');
-
-  const [erro, setErro] = useState('');
   const [sucesso, setSucesso] = useState(false);
   const [carregando, setCarregando] = useState(false);
 
@@ -187,10 +188,18 @@ export default function PaginaCadastro() {
     );
 
     if (resultado.erro) {
-      if (resultado.rateLimitData) {
-        aplicarStatus(resultado.rateLimitData);
+      if (resultado.rateLimitData?.bloqueado || resultado.bloqueado) {
+        aplicarStatus(
+          resultado.rateLimitData || {
+            bloqueado: true,
+            segundosRestantes: resultado.segundosRestantes,
+            mensagem: resultado.erro,
+          }
+        );
+        setErro('');
+      } else {
+        setErro(resultado.erro);
       }
-      setErro(resultado.erro);
       setCarregando(false);
     } else {
       setSucesso(true);
@@ -423,9 +432,9 @@ export default function PaginaCadastro() {
                   <Clock size={16} className="animate-spin" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-xs sm:text-sm text-red-300">IP Bloqueado Temporariamente</p>
+                  <p className="font-bold text-xs sm:text-sm text-red-300">Bloqueado Temporariamente</p>
                   <p className="mt-1 leading-relaxed text-slate-300">
-                    {mensagemRateLimit || 'Muitas tentativas erradas em sequência.'}
+                    {mensagemRateLimit || 'Muitas tentativas incorretas em sequência.'}
                   </p>
                   <div className="mt-2 text-xs font-mono font-bold text-red-400 flex items-center gap-1.5 flex-wrap">
                     Tente novamente em: <span className="bg-red-950/80 px-2 py-0.5 rounded border border-red-500/30 text-red-300 text-sm font-bold">{segundosRestantes}s</span>

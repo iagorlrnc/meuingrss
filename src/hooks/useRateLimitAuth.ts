@@ -1,10 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
-export function useRateLimitAuth() {
+export function useRateLimitAuth(aoDesbloquear?: () => void) {
   const [bloqueado, setBloqueado] = useState(false);
   const [segundosRestantes, setSegundosRestantes] = useState(0);
   const [mensagem, setMensagem] = useState('');
   const [verificando, setVerificando] = useState(true);
+  const callbackRef = useRef(aoDesbloquear);
+
+  useEffect(() => {
+    callbackRef.current = aoDesbloquear;
+  }, [aoDesbloquear]);
 
   const consultarRateLimit = useCallback(async () => {
     try {
@@ -17,10 +22,12 @@ export function useRateLimitAuth() {
       if (data.bloqueado) {
         setBloqueado(true);
         setSegundosRestantes(data.segundosRestantes || 0);
-        setMensagem(data.mensagem || 'Muitas tentativas erradas. IP temporariamente bloqueado.');
+        setMensagem(data.mensagem || 'Muitas tentativas incorretas. Bloqueado temporariamente.');
       } else {
         setBloqueado(false);
         setSegundosRestantes(0);
+        setMensagem('');
+        callbackRef.current?.();
       }
     } catch {
       // Ignorar erro de rede pontual
@@ -38,6 +45,7 @@ export function useRateLimitAuth() {
       if (bloqueado) {
         setBloqueado(false);
         setMensagem('');
+        callbackRef.current?.();
       }
       return;
     }
@@ -47,6 +55,7 @@ export function useRateLimitAuth() {
         if (prev <= 1) {
           setBloqueado(false);
           setMensagem('');
+          callbackRef.current?.();
           return 0;
         }
         return prev - 1;
@@ -64,6 +73,8 @@ export function useRateLimitAuth() {
     } else {
       setBloqueado(false);
       setSegundosRestantes(0);
+      setMensagem('');
+      callbackRef.current?.();
     }
   }, []);
 

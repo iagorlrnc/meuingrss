@@ -34,7 +34,10 @@ import { useRateLimitAuth } from '@/hooks/useRateLimitAuth';
 
 export default function PaginaCadastroDiretor() {
   const { cadastrar } = usarAutenticacao();
-  const { bloqueado, segundosRestantes, mensagemRateLimit, aplicarStatus } = useRateLimitAuth();
+  const [erro, setErro] = useState('');
+  const { bloqueado, segundosRestantes, mensagemRateLimit, aplicarStatus } = useRateLimitAuth(() => {
+    setErro('');
+  });
 
   // Controle de etapas (1, 2 ou 3)
   const [etapa, setEtapa] = useState<1 | 2 | 3>(1);
@@ -58,7 +61,6 @@ export default function PaginaCadastroDiretor() {
   const [turnstileToken, setTurnstileToken] = useState('');
 
   // Estados de controle da página
-  const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(false);
 
   const supabase = criarClienteNavegador();
@@ -242,10 +244,18 @@ export default function PaginaCadastroDiretor() {
     );
 
     if (resultado.erro) {
-      if (resultado.rateLimitData) {
-        aplicarStatus(resultado.rateLimitData);
+      if (resultado.rateLimitData?.bloqueado || resultado.bloqueado) {
+        aplicarStatus(
+          resultado.rateLimitData || {
+            bloqueado: true,
+            segundosRestantes: resultado.segundosRestantes,
+            mensagem: resultado.erro,
+          }
+        );
+        setErro('');
+      } else {
+        setErro(resultado.erro);
       }
-      setErro(resultado.erro);
       setCarregando(false);
     } else {
       // Encerra a sessão temporária de OTP e redireciona para a tela de login do diretor exibindo o modal
@@ -830,9 +840,9 @@ export default function PaginaCadastroDiretor() {
                       <Clock size={18} className="animate-spin" />
                     </div>
                     <div className="flex-1">
-                      <p className="font-bold text-sm text-red-300">IP Bloqueado Temporariamente</p>
+                      <p className="font-bold text-sm text-red-300">Bloqueado Temporariamente</p>
                       <p className="mt-1 leading-relaxed text-slate-300">
-                        {mensagemRateLimit || 'Muitas tentativas erradas em sequência.'}
+                        {mensagemRateLimit || 'Muitas tentativas incorretas em sequência.'}
                       </p>
                       <div className="mt-2 text-xs font-mono font-bold text-red-400 flex items-center gap-1.5">
                         Tente novamente em: <span className="bg-red-950/80 px-2 py-0.5 rounded border border-red-500/30 text-red-300 text-sm font-bold">{segundosRestantes}s</span>

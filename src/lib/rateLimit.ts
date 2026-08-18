@@ -10,10 +10,17 @@ interface RegRateLimitOpcoes {
   resetEm: number;
 }
 
+interface RegRecuperacaoEmail {
+  ultimoEnvio: number;
+  tentativas: number;
+  bloqueadoAte: number | null;
+}
+
 // Global stores em memória
 const g = globalThis as unknown as {
   _rateLimitStore?: Map<string, RegRateLimit>;
   _rateLimitOpcoesStore?: Map<string, RegRateLimitOpcoes>;
+  _rateLimitEmailStore?: Map<string, RegRecuperacaoEmail>;
   _rateLimitCleanupInterval?: NodeJS.Timeout;
 };
 
@@ -23,9 +30,13 @@ if (!g._rateLimitStore) {
 if (!g._rateLimitOpcoesStore) {
   g._rateLimitOpcoesStore = new Map<string, RegRateLimitOpcoes>();
 }
+if (!g._rateLimitEmailStore) {
+  g._rateLimitEmailStore = new Map<string, RegRecuperacaoEmail>();
+}
 
 const rateLimitStore = g._rateLimitStore;
 const rateLimitOpcoesStore = g._rateLimitOpcoesStore;
+const rateLimitEmailStore = g._rateLimitEmailStore;
 
 // Limpeza periódica (a cada 10 minutos)
 if (!g._rateLimitCleanupInterval) {
@@ -41,6 +52,13 @@ if (!g._rateLimitCleanupInterval) {
     rateLimitOpcoesStore.forEach((dado, chave) => {
       if (agora > dado.resetEm) {
         rateLimitOpcoesStore.delete(chave);
+      }
+    });
+    rateLimitEmailStore.forEach((dado, email) => {
+      if (dado.bloqueadoAte && agora > dado.bloqueadoAte + 3600000) {
+        rateLimitEmailStore.delete(email);
+      } else if (!dado.bloqueadoAte && agora - dado.ultimoEnvio > 3600000) {
+        rateLimitEmailStore.delete(email);
       }
     });
   }, 10 * 60 * 1000);
@@ -203,7 +221,7 @@ export function registrarErroRateLimit(ip: string, ehAdmin: boolean = false): Re
         bloqueado: true,
         segundosRestantes,
         tentativasConsecutivas: dado.tentativasConsecutivas,
-        mensagem: `Limite de 5 tentativas erradas de administrador atingido. Seu IP foi bloqueado por ${tempoStr}.`,
+        mensagem: `Limite de 5 tentativas erradas de administrador atingido. Você foi bloqueado por ${tempoStr}.`,
       };
     }
 
@@ -257,4 +275,112 @@ export function registrarErroRateLimit(ip: string, ehAdmin: boolean = false): Re
 
 export function registrarSucessoRateLimit(ip: string): void {
   rateLimitStore.delete(ip);
+}
+
+export function verificarRateLimitEmailRecuperacao(email: string): ResultadoRateLimit {
+  if (!email || !email.includes('@')) {
+    return {
+      permitido: true,
+      bloqueado: false,
+      segundosRestantes: 0,
+      tentativasConsecutivas: 0,
+    };
+  }
+
+  const emailNorm = email.trim().toLowerCase();
+  const dado = rateLimitEmailStore.get(emailNorm);
+  if (!dado) {
+    return {
+      permitido: true,
+      bloqueado: false,
+      segundosRestantes: 0,
+      tentativasConsecutivas: 0,
+    };
+  }
+
+  const agora = Date.now();
+
+  // 1. Bloqueio prolongado por excesso de solicitações repetidas
+  if (dado.bloqueadoAte && agora < dado.bloqueadoAte) {
+    const segundosRestantes = Math.ceil((dado.bloqueadoAte - agora) / 1000);
+    const tempoStr = formatarTempoRestante(segundosRestantes);
+    return {
+      permitido: false,
+      bloqueado: true,
+      segundosRestantes,
+      tentativasConsecutivas: dado.tentativas,
+      mensagem: `Muitas solicitações de recuperação para este e-mail. Aguarde ${tempoStr} para tentar novamente.`,
+    };
+  }
+
+  // 2. Cooldown padrão de 60 segundos entre envios para o mesmo endereço
+  const tempoDecorrido = agora - dado.ultimoEnvio;
+  const cooldownMs = 60 * 1000;
+  if (tempoDecorrido < cooldownMs) {
+    const segundosRestantes = Math.ceil((cooldownMs - tempoDecorrido) / 1000);
+    return {
+      permitido: false,
+      bloqueado: true,
+      segundosRestantes,
+      tentativasConsecutivas: dado.tentativas,
+      mensagem: `Um link de recuperação já foi enviado para este e-mail. Por favor, aguarde ${segundosRestantes} segundo(s) para solicitar novamente.`,
+    };
+  }
+
+  return {
+    permitido: true,
+    bloqueado: false,
+    segundosRestantes: 0,
+    tentativasConsecutivas: dado.tentativas,
+  };
+}
+
+export function registrarEnvioEmailRecuperacao(email: string): ResultadoRateLimit {
+  if (!email || !email.includes('@')) {
+    return {
+      permitido: true,
+      bloqueado: false,
+      segundosRestantes: 60,
+      tentativasConsecutivas: 1,
+    };
+  }
+
+  const emailNorm = email.trim().toLowerCase();
+  const agora = Date.now();
+  let dado = rateLimitEmailStore.get(emailNorm);
+
+  if (!dado) {
+    dado = { ultimoEnvio: agora, tentativas: 1, bloqueadoAte: null };
+  } else {
+    // Se a última tentativa foi há mais de 15 minutos, reinicia a contagem de abuso
+    if (agora - dado.ultimoEnvio > 15 * 60 * 1000) {
+      dado.tentativas = 1;
+      dado.bloqueadoAte = null;
+    } else {
+      dado.tentativas += 1;
+    }
+    dado.ultimoEnvio = agora;
+
+    // 5+ solicitações em menos de 15min -> bloqueia por 15 minutos
+    if (dado.tentativas >= 5) {
+      dado.bloqueadoAte = agora + 15 * 60 * 1000;
+    } else if (dado.tentativas >= 3) {
+      // 3 solicitações -> bloqueia por 3 minutos
+      dado.bloqueadoAte = agora + 3 * 60 * 1000;
+    }
+  }
+
+  rateLimitEmailStore.set(emailNorm, dado);
+
+  const segundosRestantes = dado.bloqueadoAte && dado.bloqueadoAte > agora
+    ? Math.ceil((dado.bloqueadoAte - agora) / 1000)
+    : 60;
+
+  return {
+    permitido: true,
+    bloqueado: false,
+    segundosRestantes,
+    tentativasConsecutivas: dado.tentativas,
+    mensagem: `E-mail de recuperação registrado com sucesso. Próximo envio permitido em ${segundosRestantes}s.`,
+  };
 }

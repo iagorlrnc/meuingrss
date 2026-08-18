@@ -45,15 +45,16 @@ interface ContextoAuthType {
 const ContextoAuth = createContext<ContextoAuthType | null>(null);
 
 async function checarRateLimitOuRegistrar(
-  acao: 'verificar' | 'registrar_erro' | 'registrar_sucesso',
+  acao: 'verificar' | 'registrar_erro' | 'registrar_sucesso' | 'verificar_recuperacao' | 'registrar_recuperacao',
   tipoContexto: 'admin' | 'geral' = 'geral',
-  turnstileToken?: string
+  turnstileToken?: string,
+  email?: string
 ) {
   try {
     const res = await fetch('/api/auth/rate-limit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ acao, tipo: tipoContexto, turnstileToken }),
+      body: JSON.stringify({ acao, tipo: tipoContexto, turnstileToken, email }),
       cache: 'no-store',
     });
     return await res.json();
@@ -388,10 +389,13 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
     email: string,
     turnstileToken?: string
   ): Promise<ResultadoAuth> => {
-    const checkStatus = await checarRateLimitOuRegistrar('verificar', 'geral', turnstileToken);
+    const emailNorm = email.trim().toLowerCase();
+
+    // 1. Verifica se o IP, Captcha ou o E-mail específico estão bloqueados/em cooldown
+    const checkStatus = await checarRateLimitOuRegistrar('verificar_recuperacao', 'geral', turnstileToken, emailNorm);
     if (checkStatus.bloqueado) {
       return {
-        erro: checkStatus.mensagem || `Muitas tentativas erradas. IP bloqueado. Aguarde ${checkStatus.segundosRestantes}s.`,
+        erro: checkStatus.mensagem || `Muitas tentativas. Aguarde ${checkStatus.segundosRestantes}s para solicitar novamente.`,
         bloqueado: true,
         segundosRestantes: checkStatus.segundosRestantes,
         rateLimitData: checkStatus,
@@ -405,12 +409,12 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
       const urlBase = origens || `${protocolo}://${dominio}`;
       const urlRedirecionamento = `${urlBase}/autenticacao/redefinir-senha`;
 
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+      const { error } = await supabase.auth.resetPasswordForEmail(emailNorm, {
         redirectTo: urlRedirecionamento,
       });
 
       if (error) {
-        const errStatus = await checarRateLimitOuRegistrar('registrar_erro');
+        const errStatus = await checarRateLimitOuRegistrar('registrar_erro', 'geral', undefined, emailNorm);
         let msgFinal = traduzirErroAuth(error.message);
         if (errStatus.mensagem) {
           msgFinal = `${msgFinal}. ${errStatus.mensagem}`;
@@ -423,8 +427,14 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
         };
       }
 
-      await checarRateLimitOuRegistrar('registrar_sucesso');
-      return {};
+      // 2. Registra o envio com sucesso para este e-mail (iniciando o cooldown)
+      const statusEnvio = await checarRateLimitOuRegistrar('registrar_recuperacao', 'geral', undefined, emailNorm);
+
+      return {
+        bloqueado: false,
+        segundosRestantes: statusEnvio.segundosRestantes || 60,
+        rateLimitData: statusEnvio,
+      };
     } catch (err: any) {
       return { erro: traduzirErroAuth(err?.message) || 'Erro inesperado ao solicitar recuperação de senha.' };
     }

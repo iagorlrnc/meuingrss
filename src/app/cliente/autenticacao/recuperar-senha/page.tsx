@@ -12,10 +12,12 @@ import { Mail, ArrowLeft, KeyRound, CheckCircle2, Clock, Sparkles } from 'lucide
 
 function FormularioRecuperarSenha() {
   const { recuperarSenha } = usarAutenticacao();
-  const { bloqueado, segundosRestantes, mensagemRateLimit, aplicarStatus } = useRateLimitAuth();
+  const [erro, setErro] = useState('');
+  const { bloqueado, segundosRestantes, mensagemRateLimit, aplicarStatus } = useRateLimitAuth(() => {
+    setErro('');
+  });
 
   const [email, setEmail] = useState('');
-  const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(false);
   const [enviadoComSucesso, setEnviadoComSucesso] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState('');
@@ -30,12 +32,21 @@ function FormularioRecuperarSenha() {
     const resultado = await recuperarSenha(email, turnstileToken);
 
     if (resultado.erro) {
-      if (resultado.rateLimitData) {
-        aplicarStatus(resultado.rateLimitData);
+      if (resultado.rateLimitData?.bloqueado || resultado.bloqueado) {
+        aplicarStatus(
+          resultado.rateLimitData || {
+            bloqueado: true,
+            segundosRestantes: resultado.segundosRestantes,
+            mensagem: resultado.erro,
+          }
+        );
+        setErro('');
+      } else {
+        setErro(resultado.erro);
       }
-      setErro(resultado.erro);
       setCarregando(false);
     } else {
+      setErro('');
       setEnviadoComSucesso(true);
       setCarregando(false);
     }
@@ -129,7 +140,10 @@ function FormularioRecuperarSenha() {
                 type="email"
                 placeholder="seu@email.com"
                 value={email}
-                onChange={(e) => setEmail((e.target as HTMLInputElement).value)}
+                onChange={(e) => {
+                  setEmail((e.target as HTMLInputElement).value);
+                  if (erro) setErro('');
+                }}
                 icone={<Mail size={18} />}
                 required
               />
@@ -140,7 +154,7 @@ function FormularioRecuperarSenha() {
                     <Clock size={16} className="animate-spin" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-xs sm:text-sm text-red-300">IP Bloqueado Temporariamente</p>
+                    <p className="font-bold text-xs sm:text-sm text-red-300">Bloqueado Temporariamente</p>
                     <p className="mt-1 leading-relaxed text-slate-300">
                       {mensagemRateLimit || 'Muitas tentativas em sequência.'}
                     </p>
