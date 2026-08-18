@@ -5,6 +5,7 @@ import { usarCookies } from '@/contextos/ContextoCookies';
 import { Ticket, CreditCard, ShieldCheck } from 'lucide-react';
 import Logo from '@/componentes/ui/Logo';
 import { construirUrl } from '@/lib/dominios';
+import { VERSAO_SISTEMA } from '@/lib/constantes';
 
 export default function Rodape() {
   const { abrirBanner } = usarCookies();
@@ -59,7 +60,6 @@ export default function Rodape() {
               </li>
               <li>
                 <Link href="/meus-ingressos" className="hover:text-[#ffbe00] transition-colors flex items-center gap-1">
-                  <Ticket size={12} />
                   Meus Ingressos
                 </Link>
               </li>
@@ -120,9 +120,14 @@ export default function Rodape() {
 
         {/* Payment Methods & Bottom Bar */}
         <div className="border-t border-white/10 mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
-          <p className="text-[11px] text-slate-400">
-            © {new Date().getFullYear()} <strong className="text-white">MeuIngrss</strong> — Todos os direitos reservados. Plataforma oficial de vendas universitárias.
-          </p>
+          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-[11px] text-slate-400">
+            <span>
+              © {new Date().getFullYear()} <strong className="text-white">Meu<span className="text-[#00e5ff]">ingrss</span></strong>
+            </span>
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium text-slate-400 bg-white/5 border border-white/10">
+              {VERSAO_SISTEMA}
+            </span>
+          </div>
 
           <div className="flex flex-wrap items-center justify-center gap-2.5 text-slate-400">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Pagamento Seguro:</span>

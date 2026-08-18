@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import Logo from '@/componentes/ui/Logo';
+import { VERSAO_SISTEMA } from '@/lib/constantes';
 
 const itensMenu = [
   { href: '/', icone: LayoutDashboard, rotulo: 'Dashboard' },
@@ -120,6 +121,13 @@ export default function MenuLateralDiretor() {
                   <p className="text-[10px] text-texto-terciario truncate">{perfil.email}</p>
                 </div>
               )}
+
+              <div className="pt-3 border-t border-borda-sutil flex items-center justify-center gap-2">
+                <strong className="text-xs text-white">Meu<span className="text-[#00e5ff]">ingrss</span></strong>
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium text-slate-400 bg-white/5 border border-white/10">
+                  {VERSAO_SISTEMA}
+                </span>
+              </div>
             </div>
           </aside>
         </div>
@@ -190,13 +198,28 @@ export default function MenuLateralDiretor() {
           </button>
 
           {!recolhido && perfil && (
-            <div className="mt-3 px-3 py-2">
+            <div className="mt-2 px-3 py-2 bg-fundo-card/50 rounded-xl border border-borda-sutil">
               <p className="text-xs font-medium text-texto-secundario truncate">
                 {perfil.nome}
               </p>
               <p className="text-[10px] text-texto-terciario truncate">{perfil.email}</p>
             </div>
           )}
+
+          <div className="pt-3 mt-1 border-t border-borda-sutil flex items-center justify-center">
+            {!recolhido ? (
+              <div className="flex items-center gap-2">
+                <strong className="text-xs text-white">Meu<span className="text-[#00e5ff]">ingrss</span></strong>
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium text-slate-400 bg-white/5 border border-white/10">
+                  {VERSAO_SISTEMA}
+                </span>
+              </div>
+            ) : (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-mono font-medium text-slate-400 bg-white/5 border border-white/10" title={`MeuIngrss ${VERSAO_SISTEMA}`}>
+                {VERSAO_SISTEMA}
+              </span>
+            )}
+          </div>
         </div>
       </aside>
     </>
