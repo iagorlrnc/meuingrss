@@ -59,7 +59,10 @@ export async function GET(request: Request) {
     return resRedir;
   }
 
-  if (code) {
+  const tokenHash = searchParams.get('token_hash');
+  const tipoOtp = (searchParams.get('type') || 'recovery') as any;
+
+  if (code || tokenHash) {
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder',
@@ -82,7 +85,18 @@ export async function GET(request: Request) {
       }
     );
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    let error: any = null;
+
+    if (tokenHash) {
+      const { error: errOtp } = await supabase.auth.verifyOtp({
+        token_hash: tokenHash,
+        type: tipoOtp,
+      });
+      error = errOtp;
+    } else if (code) {
+      const { error: errCode } = await supabase.auth.exchangeCodeForSession(code);
+      error = errCode;
+    }
 
     if (!error) {
       const { data: { user } } = await supabase.auth.getUser();

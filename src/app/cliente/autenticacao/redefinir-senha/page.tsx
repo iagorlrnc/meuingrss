@@ -29,13 +29,29 @@ function FormularioRedefinirSenha() {
     let montado = true;
 
     async function validarAcessoRecuperacao() {
-      // 1. Verificar se o Supabase retornou algum erro na URL (ex: token expirado)
-      const erroUrl = searchParams.get('error') || searchParams.get('error_description');
-      if (erroUrl) {
+      if (typeof window === 'undefined') return;
+
+      // 1. Extrair parâmetros tanto da Query String (?) quanto do Fragmento Hash (#)
+      const paramsUrl = new URLSearchParams(window.location.search);
+      const hashString = window.location.hash.startsWith('#')
+        ? window.location.hash.substring(1)
+        : window.location.hash;
+      const paramsHash = new URLSearchParams(hashString);
+
+      // 1.1 Verificar erros retornados pelo Supabase (Query ou Hash)
+      const erroDesc =
+        paramsUrl.get('error_description') ||
+        paramsHash.get('error_description') ||
+        paramsUrl.get('error') ||
+        paramsHash.get('error');
+
+      if (erroDesc) {
         if (montado) {
+          const msgFormatada = decodeURIComponent(erroDesc).replace(/\+/g, ' ');
           setErro(
-            searchParams.get('error_description') ||
-            'O link de recuperação é inválido ou já expirou. Solicite um novo link.'
+            msgFormatada.includes('expired') || msgFormatada.includes('invalid')
+              ? 'O link de recuperação é inválido ou já expirou. Por favor, solicite um novo link.'
+              : msgFormatada
           );
           setSessaoValida(false);
           setVerificandoSessao(false);
@@ -43,42 +59,92 @@ function FormularioRedefinirSenha() {
         return;
       }
 
-      // 2. Se houver código PKCE nos parâmetros, trocar pela sessão
-      const code = searchParams.get('code');
-      if (code) {
+      // 2. Se houver token_hash na URL (fluxo mais seguro contra scanners de email)
+      const tokenHash = paramsUrl.get('token_hash') || paramsHash.get('token_hash');
+      const tipoOtp = (paramsUrl.get('type') || paramsHash.get('type') || 'recovery') as any;
+
+      if (tokenHash) {
         try {
-          const { error: errCode } = await supabase.auth.exchangeCodeForSession(code);
-          if (errCode) {
-            console.warn('Erro ao trocar código por sessão de recuperação:', errCode);
+          const { data: dataOtp, error: errOtp } = await supabase.auth.verifyOtp({
+            token_hash: tokenHash,
+            type: tipoOtp,
+          });
+
+          if (!errOtp && dataOtp?.session) {
+            if (montado) {
+              setSessaoValida(true);
+              setVerificandoSessao(false);
+            }
+            return;
           }
         } catch (e) {
-          console.warn('Falha na troca de código:', e);
+          console.warn('Falha na verificação de token_hash:', e);
         }
       }
 
-      // 3. Verificar se há sessão ativa ou evento de recuperação
+      // 3. Se houver código PKCE (?code=...)
+      const code = paramsUrl.get('code');
+      if (code) {
+        try {
+          const { data: dataCode, error: errCode } = await supabase.auth.exchangeCodeForSession(code);
+          if (!errCode && dataCode?.session) {
+            if (montado) {
+              setSessaoValida(true);
+              setVerificandoSessao(false);
+            }
+            return;
+          }
+        } catch (e) {
+          console.warn('Falha na troca de código PKCE:', e);
+        }
+      }
+
+      // 4. Se houver access_token e refresh_token no Hash (#access_token=...)
+      const accessToken = paramsHash.get('access_token');
+      const refreshToken = paramsHash.get('refresh_token');
+      if (accessToken && refreshToken) {
+        try {
+          const { data: dataSession, error: errSession } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          if (!errSession && dataSession?.session) {
+            if (montado) {
+              setSessaoValida(true);
+              setVerificandoSessao(false);
+            }
+            return;
+          }
+        } catch (e) {
+          console.warn('Falha ao definir sessão via hash token:', e);
+        }
+      }
+
+      // 5. Verificar se já existe uma sessão ativa estabelecida
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (montado) {
           if (session?.user) {
             setSessaoValida(true);
-          } else {
-            // Aguarda um pequeno intervalo caso o listener onAuthStateChange esteja processando o hash da URL
-            const timeoutId = setTimeout(async () => {
-              if (!montado) return;
-              const { data: { session: retrySession } } = await supabase.auth.getSession();
-              if (retrySession?.user) {
-                setSessaoValida(true);
-              } else {
-                setSessaoValida(false);
-                setErro('Link de recuperação inválido ou expirado. Por favor, solicite uma nova redefinição de senha.');
-              }
-              setVerificandoSessao(false);
-            }, 1000);
-
-            return () => clearTimeout(timeoutId);
+            setVerificandoSessao(false);
+            return;
           }
-          setVerificandoSessao(false);
+
+          // Aguarda um pequeno intervalo caso o Supabase ainda esteja processando o evento de autenticação
+          const timeoutId = setTimeout(async () => {
+            if (!montado) return;
+            const { data: { session: retrySession } } = await supabase.auth.getSession();
+            if (retrySession?.user) {
+              setSessaoValida(true);
+            } else {
+              setSessaoValida(false);
+              setErro('Link de recuperação inválido ou expirado. Por favor, solicite uma nova redefinição de senha.');
+            }
+            setVerificandoSessao(false);
+          }, 1500);
+
+          return () => clearTimeout(timeoutId);
         }
       } catch (err) {
         if (montado) {
