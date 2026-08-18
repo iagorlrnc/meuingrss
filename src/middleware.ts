@@ -104,11 +104,21 @@ export async function middleware(request: NextRequest) {
 
   // --- REGRAS DO SUBDOMÍNIO DIRETORIA ---
   if (ehAreaDiretor) {
-    const ehAuthDiretor = pathname === '/autenticacao/entrar' || pathname === '/autenticacao/cadastro';
+    const rotasAuthPublicas = [
+      '/autenticacao/entrar',
+      '/autenticacao/cadastro',
+      '/autenticacao/recuperar-senha',
+      '/autenticacao/redefinir-senha',
+    ];
+    const ehAuthDiretor = rotasAuthPublicas.includes(pathname);
 
     if (ehAuthDiretor) {
       const url = request.nextUrl.clone();
-      url.pathname = `/diretor${pathname}`;
+      if (pathname === '/autenticacao/recuperar-senha' || pathname === '/autenticacao/redefinir-senha') {
+        url.pathname = `/cliente${pathname}`;
+      } else {
+        url.pathname = `/diretor${pathname}`;
+      }
       return reescreverComCookies(url);
     }
 
@@ -140,6 +150,12 @@ export async function middleware(request: NextRequest) {
 
   // --- REGRAS DO SUBDOMÍNIO DEV / ADMIN ---
   if (ehAreaAdmin) {
+    if (pathname === '/autenticacao/recuperar-senha' || pathname === '/autenticacao/redefinir-senha') {
+      const url = request.nextUrl.clone();
+      url.pathname = `/cliente${pathname}`;
+      return reescreverComCookies(url);
+    }
+
     const ehLoginAdmin = pathname === '/autenticacao/entrar';
 
     if (ehLoginAdmin) {

@@ -38,6 +38,8 @@ interface ContextoAuthType {
   ) => Promise<ResultadoAuth>;
   sair: () => Promise<void>;
   entrarComGoogle: (redirecionarPara?: string) => Promise<void>;
+  recuperarSenha: (email: string, turnstileToken?: string) => Promise<ResultadoAuth>;
+  redefinirSenha: (novaSenha: string) => Promise<ResultadoAuth>;
 }
 
 const ContextoAuth = createContext<ContextoAuthType | null>(null);
@@ -382,6 +384,68 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
     }
   };
 
+  const recuperarSenha = async (
+    email: string,
+    turnstileToken?: string
+  ): Promise<ResultadoAuth> => {
+    const checkStatus = await checarRateLimitOuRegistrar('verificar', 'geral', turnstileToken);
+    if (checkStatus.bloqueado) {
+      return {
+        erro: checkStatus.mensagem || `Muitas tentativas erradas. IP bloqueado. Aguarde ${checkStatus.segundosRestantes}s.`,
+        bloqueado: true,
+        segundosRestantes: checkStatus.segundosRestantes,
+        rateLimitData: checkStatus,
+      };
+    }
+
+    try {
+      const origens = typeof window !== 'undefined' ? window.location.origin : '';
+      const protocolo = process.env.NEXT_PUBLIC_PROTOCOLO || 'https';
+      const dominio = (process.env.NEXT_PUBLIC_DOMINIO_PRINCIPAL || 'meuingrss.com.br').replace(/\/+$/, '');
+      const urlBase = origens || `${protocolo}://${dominio}`;
+      const urlRedirecionamento = `${urlBase}/autenticacao/redefinir-senha`;
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+        redirectTo: urlRedirecionamento,
+      });
+
+      if (error) {
+        const errStatus = await checarRateLimitOuRegistrar('registrar_erro');
+        let msgFinal = error.message;
+        if (errStatus.mensagem) {
+          msgFinal = `${msgFinal}. ${errStatus.mensagem}`;
+        }
+        return {
+          erro: msgFinal,
+          bloqueado: errStatus.bloqueado,
+          segundosRestantes: errStatus.segundosRestantes,
+          rateLimitData: errStatus,
+        };
+      }
+
+      await checarRateLimitOuRegistrar('registrar_sucesso');
+      return {};
+    } catch (err: any) {
+      return { erro: err?.message || 'Erro inesperado ao solicitar recuperação de senha.' };
+    }
+  };
+
+  const redefinirSenha = async (novaSenha: string): Promise<ResultadoAuth> => {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: novaSenha,
+      });
+
+      if (error) {
+        return { erro: error.message };
+      }
+
+      return {};
+    } catch (err: any) {
+      return { erro: err?.message || 'Erro ao redefinir senha.' };
+    }
+  };
+
   return (
     <ContextoAuth.Provider
       value={{
@@ -392,6 +456,8 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
         cadastrar,
         sair,
         entrarComGoogle,
+        recuperarSenha,
+        redefinirSenha,
       }}
     >
       {children}

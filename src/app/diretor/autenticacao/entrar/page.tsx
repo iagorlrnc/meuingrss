@@ -276,6 +276,15 @@ function FormularioEntrarDiretor() {
               required
             />
 
+            <div className="flex justify-end -mt-1 sm:-mt-2">
+              <Link
+                href="/autenticacao/recuperar-senha"
+                className="text-xs font-semibold text-[#00e5ff] hover:text-[#00e5ff]/80 hover:underline transition-colors"
+              >
+                Esqueci minha senha
+              </Link>
+            </div>
+
             {bloqueado && (
               <div className="p-3.5 sm:p-4 rounded-2xl bg-red-500/15 border border-red-500/30 text-xs font-semibold text-red-400 flex items-start gap-3 animar-entrar-baixo">
                 <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-red-500/20 flex items-center justify-center shrink-0 text-red-400 font-bold mt-0.5">

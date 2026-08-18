@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, Suspense } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { usarAutenticacao } from '@/contextos/ContextoAutenticacao';
 import Botao from '@/componentes/ui/Botao';
@@ -114,6 +115,15 @@ function FormularioEntrarAdmin() {
               icone={<Lock size={18} />}
               required
             />
+
+            <div className="flex justify-end -mt-1 sm:-mt-2">
+              <Link
+                href="/autenticacao/recuperar-senha"
+                className="text-xs font-semibold text-amber-400 hover:text-amber-300 hover:underline transition-colors"
+              >
+                Esqueci minha senha
+              </Link>
+            </div>
 
             {bloqueado && (
               <div className="p-3.5 sm:p-4 rounded-2xl bg-red-500/15 border border-red-500/30 text-xs font-semibold text-red-400 flex items-start gap-3 animar-entrar-baixo">

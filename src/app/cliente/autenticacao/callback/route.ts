@@ -22,11 +22,19 @@ function obterOrigemPublica(request: Request): string {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
-  let redirecionar = searchParams.get('redirecionar') || '/';
+  const nextParam = searchParams.get('next');
+  let redirecionar = searchParams.get('redirecionar') || nextParam || '/';
 
-  // Sanitizar URL de destino para prevenir mal-uso ou loops
-  if (!redirecionar.startsWith('/') || redirecionar.startsWith('//') || redirecionar.includes('/autenticacao/entrar') || redirecionar.includes('/autenticacao/cadastro')) {
-    redirecionar = '/';
+  // Sanitizar URL de destino para prevenir mal-uso ou loops (preservando redefinir-senha)
+  if (
+    !redirecionar.startsWith('/') ||
+    redirecionar.startsWith('//') ||
+    redirecionar.includes('/autenticacao/entrar') ||
+    redirecionar.includes('/autenticacao/cadastro')
+  ) {
+    if (!redirecionar.includes('/autenticacao/redefinir-senha')) {
+      redirecionar = '/';
+    }
   }
 
   const origemPublica = obterOrigemPublica(request);
@@ -102,6 +110,11 @@ export async function GET(request: Request) {
           if (perfil.status === 'bloqueado') {
             await supabase.auth.signOut();
             return criarRespostaRedirecionamento('/autenticacao/entrar?erro=conta_bloqueada');
+          }
+
+          // Se for fluxo de recuperação/redefinição de senha, prioriza ir para a tela de redefinir
+          if (redirecionar.includes('/autenticacao/redefinir-senha')) {
+            return criarRespostaRedirecionamento(redirecionar);
           }
 
           const protocolo = process.env.NEXT_PUBLIC_PROTOCOLO || 'https';
