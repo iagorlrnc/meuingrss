@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 import { Ticket, ShieldCheck, CreditCard, Users, Sparkles, Award } from 'lucide-react';
+import { serializarJsonLdSeguro } from '@/lib/jsonLd';
 
 const dominioPrincipal = (process.env.NEXT_PUBLIC_DOMINIO_PRINCIPAL || 'meuingrss.com.br').replace(/\/+$/, '');
 const protocolo = process.env.NEXT_PUBLIC_PROTOCOLO || 'https';
@@ -51,7 +52,7 @@ export default function PaginaSobre() {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdSobre) }}
+        dangerouslySetInnerHTML={{ __html: serializarJsonLdSeguro(jsonLdSobre) }}
       />
       <main className="min-h-screen bg-[#080c14] text-white py-12 px-4 sm:px-6">
         <div className="max-w-4xl mx-auto space-y-12">

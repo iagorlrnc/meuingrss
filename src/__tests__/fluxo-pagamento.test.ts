@@ -125,12 +125,12 @@ function mapearStatusGateway(statusGateway: string): string {
 // ========================================================================
 
 describe('Validação de Assinatura HMAC do Webhook', () => {
-  const secret = 'test-webhook-secret-123';
+  const chaveSecretaWebhook = crypto.randomBytes(32).toString('hex');
 
   function gerarAssinaturaValida(dataId: string, requestId: string): string {
     const ts = String(Math.floor(Date.now() / 1000));
     const manifest = `id:${dataId};request-id:${requestId};ts:${ts};`;
-    const hash = crypto.createHmac('sha256', secret).update(manifest).digest('hex');
+    const hash = crypto.createHmac('sha256', chaveSecretaWebhook).update(manifest).digest('hex');
     return `ts=${ts},v1=${hash}`;
   }
 
@@ -139,7 +139,7 @@ describe('Validação de Assinatura HMAC do Webhook', () => {
     const requestId = 'req-456';
     const xSignature = gerarAssinaturaValida(dataId, requestId);
 
-    expect(validarAssinaturaLocal(xSignature, requestId, dataId, secret)).toBe(true);
+    expect(validarAssinaturaLocal(xSignature, requestId, dataId, chaveSecretaWebhook)).toBe(true);
   });
 
   it('deve REJEITAR assinatura HMAC forjada', () => {
@@ -148,21 +148,21 @@ describe('Validação de Assinatura HMAC do Webhook', () => {
         'ts=123,v1=assinatura_completamente_forjada_e_invalida',
         'req-123',
         'pay-123',
-        secret
+        chaveSecretaWebhook
       )
     ).toBe(false);
   });
 
   it('deve REJEITAR quando x-signature está ausente', () => {
-    expect(validarAssinaturaLocal(null, 'req-123', 'pay-123', secret)).toBe(false);
+    expect(validarAssinaturaLocal(null, 'req-123', 'pay-123', chaveSecretaWebhook)).toBe(false);
   });
 
   it('deve REJEITAR quando x-request-id está ausente', () => {
-    expect(validarAssinaturaLocal('ts=123,v1=abc', null, 'pay-123', secret)).toBe(false);
+    expect(validarAssinaturaLocal('ts=123,v1=abc', null, 'pay-123', chaveSecretaWebhook)).toBe(false);
   });
 
   it('deve REJEITAR quando data-id está vazio', () => {
-    expect(validarAssinaturaLocal('ts=123,v1=abc', 'req-123', '', secret)).toBe(false);
+    expect(validarAssinaturaLocal('ts=123,v1=abc', 'req-123', '', chaveSecretaWebhook)).toBe(false);
   });
 
   it('deve REJEITAR quando secret está vazio', () => {
@@ -170,11 +170,11 @@ describe('Validação de Assinatura HMAC do Webhook', () => {
   });
 
   it('deve REJEITAR assinatura com formato inválido (sem ts)', () => {
-    expect(validarAssinaturaLocal('v1=abc123', 'req-123', 'pay-123', secret)).toBe(false);
+    expect(validarAssinaturaLocal('v1=abc123', 'req-123', 'pay-123', chaveSecretaWebhook)).toBe(false);
   });
 
   it('deve REJEITAR assinatura com formato inválido (sem v1)', () => {
-    expect(validarAssinaturaLocal('ts=123', 'req-123', 'pay-123', secret)).toBe(false);
+    expect(validarAssinaturaLocal('ts=123', 'req-123', 'pay-123', chaveSecretaWebhook)).toBe(false);
   });
 });
 
@@ -423,18 +423,18 @@ describe('Proteção contra IDOR em Pagamentos e Consultas', () => {
   }
 
   it('permite acesso do próprio comprador ao seu pedido', () => {
-    const compradorId = 'user-123';
-    expect(validarAcessoAoPedido(compradorId, 'user-123', 'cliente')).toBe(true);
+    const idComprador = 'comprador-doc-123';
+    expect(validarAcessoAoPedido(idComprador, 'comprador-doc-123', 'cliente')).toBe(true);
   });
 
   it('permite acesso de administrador a qualquer pedido', () => {
-    const compradorId = 'user-123';
-    expect(validarAcessoAoPedido(compradorId, 'admin-999', 'admin')).toBe(true);
+    const idComprador = 'comprador-doc-123';
+    expect(validarAcessoAoPedido(idComprador, 'admin-gestor-999', 'admin')).toBe(true);
   });
 
   it('BLOQUEIA tentativa de usuário acessar ou reconciliar pedido de outro usuário (IDOR)', () => {
-    const compradorId = 'user-123';
-    expect(validarAcessoAoPedido(compradorId, 'attacker-456', 'cliente')).toBe(false);
+    const idComprador = 'comprador-doc-123';
+    expect(validarAcessoAoPedido(idComprador, 'atacante-456', 'cliente')).toBe(false);
   });
 });
 

@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const testGatewayId = `TEST-GW-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+    const testGatewayId = `TEST-GW-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
 
     // ========================================================================
     // TESTE 1: Criação de Pedido Pendente no Banco

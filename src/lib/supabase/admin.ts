@@ -1,9 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 
 export function criarClienteAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
   return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
-    process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder',
+    url || 'https://meuingrss.supabase.co',
+    serviceKey,
     {
       auth: {
         autoRefreshToken: false,

@@ -54,7 +54,7 @@ export function ProvedorNotificacao({ children }: { children: React.ReactNode })
   }, []);
 
   const notificar = useCallback((notificacao: Omit<Notificacao, 'id'>) => {
-    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${performance.now()}`;
     const nova = { ...notificacao, id };
     setNotificacoes((prev) => [...prev, nova]);
 

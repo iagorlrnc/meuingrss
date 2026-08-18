@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { serializarJsonLdSeguro } from '@/lib/jsonLd';
 
 const dominioPrincipal = (process.env.NEXT_PUBLIC_DOMINIO_PRINCIPAL || 'meuingrss.com.br').replace(/\/+$/, '');
 const protocolo = process.env.NEXT_PUBLIC_PROTOCOLO || 'https';
@@ -53,7 +54,7 @@ export default function LayoutEventos({
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdEventos) }}
+        dangerouslySetInnerHTML={{ __html: serializarJsonLdSeguro(jsonLdEventos) }}
       />
       {children}
     </>

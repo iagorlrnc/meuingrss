@@ -30,8 +30,15 @@ const ContextoCookies = createContext<ContextoCookiesTipo | undefined>(undefined
 
 function obterCookieNativo(nome: string): string | null {
   if (typeof document === 'undefined') return null;
-  const match = document.cookie.match(new RegExp('(^| )' + nome + '=([^;]+)'));
-  return match ? decodeURIComponent(match[2]) : null;
+  const prefixo = `${encodeURIComponent(nome)}=`;
+  const cookies = document.cookie.split(';');
+  for (let i = 0; i < cookies.length; i++) {
+    const cookieAtual = cookies[i].trim();
+    if (cookieAtual.startsWith(prefixo)) {
+      return decodeURIComponent(cookieAtual.substring(prefixo.length));
+    }
+  }
+  return null;
 }
 
 export function ProvedorCookies({ children }: { children: ReactNode }) {

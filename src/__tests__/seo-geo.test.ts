@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { gerarJsonLdEvento } from '../componentes/seo/SeoJsonLd';
+import { serializarJsonLdSeguro } from '../lib/jsonLd';
 import robots from '../app/robots';
 import type { EventoCompleto } from '../lib/cacheEventos';
 
@@ -116,5 +117,21 @@ describe('Testes de SEO Técnico e GEO (Generative Engine Optimization)', () => 
     });
 
     expect(configRobots.sitemap).toContain('/sitemap.xml');
+  });
+
+  it('deve sanitizar injeções XSS em serializarJsonLdSeguro escapando caracteres HTML perigosos', () => {
+    const payloadMalicioso = {
+      titulo: 'Festa <script>alert("XSS")</script>',
+      descricao: 'Evento com & e " quebra de tag </script><script src="evil.js">',
+    };
+
+    const resultadoSerializado = serializarJsonLdSeguro(payloadMalicioso);
+
+    // Não deve conter tags <script> abertas nem fechadas diretamente em texto puro
+    expect(resultadoSerializado).not.toContain('<script>');
+    expect(resultadoSerializado).not.toContain('</script>');
+    expect(resultadoSerializado).toContain('\\u003cscript\\u003e');
+    expect(resultadoSerializado).toContain('\\u003c/script\\u003e');
+    expect(resultadoSerializado).toContain('\\u0026');
   });
 });

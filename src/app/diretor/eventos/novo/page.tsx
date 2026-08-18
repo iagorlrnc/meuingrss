@@ -87,7 +87,8 @@ export default function PaginaCriarEvento() {
     setEnviandoImagem(true);
     try {
       const ext = file.name.split('.').pop() || 'jpg';
-      const nomeArquivo = `evento_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${ext}`;
+      const randomSuffix = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID().slice(0, 8) : Date.now().toString(36);
+      const nomeArquivo = `evento_${Date.now()}_${randomSuffix}.${ext}`;
 
       const { data, error } = await supabase.storage
         .from('eventos')

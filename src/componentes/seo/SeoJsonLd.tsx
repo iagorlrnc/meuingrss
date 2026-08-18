@@ -1,4 +1,5 @@
-import type { EventoCompleto } from '@/lib/cacheEventos';
+import type { EventoCompleto } from '../../lib/cacheEventos';
+import { serializarJsonLdSeguro } from '../../lib/jsonLd';
 
 interface SeoJsonLdProps {
   evento: EventoCompleto;
@@ -171,15 +172,15 @@ export default function ComponenteJsonLdEvento(props: SeoJsonLdProps) {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaEvento) }}
+        dangerouslySetInnerHTML={{ __html: serializarJsonLdSeguro(schemaEvento) }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaBreadcrumb) }}
+        dangerouslySetInnerHTML={{ __html: serializarJsonLdSeguro(schemaBreadcrumb) }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaFAQ) }}
+        dangerouslySetInnerHTML={{ __html: serializarJsonLdSeguro(schemaFAQ) }}
       />
     </>
   );
