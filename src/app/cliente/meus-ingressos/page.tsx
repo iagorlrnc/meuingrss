@@ -171,7 +171,7 @@ function ConteudoMeusIngressos() {
   }, [pedidoIdParam, paymentIdParam, statusGatewayParam, preferenceIdParam, externalReferenceParam, compradorIdParam, eventoIdParam, loteIdParam]);
 
   useEffect(() => {
-    const ehRetornoAprovado = statusGatewayParam === 'approved' || statusPedidoParam === 'aprovado';
+    const ehRetornoAprovado = statusGatewayParam === 'approved';
     const temIdentificador = Boolean(pedidoIdParam || paymentIdParam || externalReferenceParam || (compradorIdParam && eventoIdParam && loteIdParam));
 
     if (ehRetornoAprovado && temIdentificador) {
@@ -181,7 +181,7 @@ function ConteudoMeusIngressos() {
       tentativasPollingRef.current = 0;
       consultarStatusPedido(true);
     } else if (statusPedidoParam === 'aprovado') {
-      // Ingresso gratuito ou pagamento já confirmado
+      // Ingresso gratuito ou pagamento já confirmado — exibe conclusão diretamente sem passar por aguardando
       setStatusPedido('aprovado');
       window.history.replaceState({}, '', '/meus-ingressos');
       buscarIngressos(true);

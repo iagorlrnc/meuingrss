@@ -265,23 +265,51 @@ function ConteudoCheckout() {
           <div className="lg:col-span-5 w-full">
             <Cartao variante="elevado" className="w-full">
               <h3 className="text-lg font-bold font-titulo mb-4 flex items-center gap-2">
-                <CreditCard size={20} className="text-primaria-400" />
-                Pagamento
+                {totalFinal === 0 ? (
+                  <>
+                    <Ticket size={20} className="text-primaria-400" />
+                    Reserva Gratuita
+                  </>
+                ) : (
+                  <>
+                    <CreditCard size={20} className="text-primaria-400" />
+                    Pagamento
+                  </>
+                )}
               </h3>
 
               <div className="space-y-3 mb-6">
-                <div className="flex items-center gap-2 text-xs text-texto-terciario">
-                  <Shield size={14} className="text-sucesso shrink-0" />
-                  Pagamento seguro via Mercado Pago (PIX, Cartão ou Boleto)
-                </div>
-                <div className="flex items-center gap-2 text-xs text-texto-terciario">
-                  <Lock size={14} className="text-sucesso shrink-0" />
-                  Pagamento criptografado via Mercado Pago
-                </div>
-                <div className="flex items-center gap-2 text-xs text-texto-terciario">
-                  <Ticket size={14} className="text-sucesso shrink-0" />
-                  Ingresso liberado após confirmação do pagamento
-                </div>
+                {totalFinal === 0 ? (
+                  <>
+                    <div className="flex items-center gap-2 text-xs text-texto-terciario">
+                      <Shield size={14} className="text-sucesso shrink-0" />
+                      Evento 100% Gratuito
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-texto-terciario">
+                      <Lock size={14} className="text-sucesso shrink-0" />
+                      Não será realizado cobrança
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-texto-terciario">
+                      <Ticket size={14} className="text-sucesso shrink-0" />
+                      Ingresso liberado imediatamente após a confirmação
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 text-xs text-texto-terciario">
+                      <Shield size={14} className="text-sucesso shrink-0" />
+                      Pagamento seguro via Mercado Pago (PIX ou Cartão)
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-texto-terciario">
+                      <Lock size={14} className="text-sucesso shrink-0" />
+                      Pagamento criptografado via Mercado Pago
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-texto-terciario">
+                      <Ticket size={14} className="text-sucesso shrink-0" />
+                      Ingresso liberado após confirmação do pagamento
+                    </div>
+                  </>
+                )}
               </div>
 
               {erro && (
@@ -296,9 +324,9 @@ function ConteudoCheckout() {
                 carregando={processando}
                 disabled={processando}
                 onClick={processarPagamento}
-                icone={<CreditCard size={20} />}
+                icone={totalFinal === 0 ? <Ticket size={20} /> : <CreditCard size={20} />}
               >
-                Pagar {formatarMoeda(totalFinal)}
+                {totalFinal === 0 ? 'Gratuito' : `Pagar ${formatarMoeda(totalFinal)}`}
               </Botao>
 
               <CaptchaCloudflare
@@ -308,7 +336,9 @@ function ConteudoCheckout() {
               />
 
               <p className="text-[10px] text-texto-terciario text-center mt-4">
-                Ao clicar em "Pagar", você será redirecionado para o ambiente seguro do Mercado Pago.
+                {totalFinal === 0
+                  ? 'Ao clicar em "Garantir Ingresso Gratuito", seu ingresso será gerado imediatamente sem processamento financeiro.'
+                  : 'Ao clicar em "Pagar", você será redirecionado para o ambiente seguro do Mercado Pago.'}
               </p>
             </Cartao>
           </div>

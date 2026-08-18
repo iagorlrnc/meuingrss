@@ -44,7 +44,10 @@ yarn-error.log*
 *.dump
 *.sqlite
 *.db
-!supabase/migracoes/*.sql
+
+# supabase
+supabase/
+/supabase/
 
 # chaves e certificados sensíveis
 *.pem

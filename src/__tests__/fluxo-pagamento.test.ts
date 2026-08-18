@@ -470,3 +470,45 @@ describe('Garantia de Emissão de Ingressos (Idempotência Resiliente)', () => {
   });
 });
 
+describe('Fluxo de Eventos Gratuitos (Valor 0.00)', () => {
+  function determinarStatusInicialModal(params: {
+    statusGatewayParam?: string | null;
+    statusPedidoParam?: string | null;
+    temIdentificador: boolean;
+  }): 'aguardando' | 'aprovado' | 'cancelado' | null {
+    const { statusGatewayParam, statusPedidoParam, temIdentificador } = params;
+    const ehRetornoAprovado = statusGatewayParam === 'approved';
+
+    if (ehRetornoAprovado && temIdentificador) {
+      return 'aguardando';
+    } else if (statusPedidoParam === 'aprovado') {
+      return 'aprovado';
+    } else if (statusGatewayParam === 'rejected' || statusGatewayParam === 'cancelled' || statusPedidoParam === 'cancelado') {
+      return 'cancelado';
+    } else if (statusPedidoParam === 'aguardando' && temIdentificador) {
+      return 'aguardando';
+    }
+    return null;
+  }
+
+  it('compra gratuita com status_pedido=aprovado DEVE exibir status "aprovado" diretamente sem aguardar', () => {
+    const resultado = determinarStatusInicialModal({
+      statusGatewayParam: null,
+      statusPedidoParam: 'aprovado',
+      temIdentificador: true,
+    });
+
+    expect(resultado).toBe('aprovado');
+  });
+
+  it('retorno do Mercado Pago com status=approved DEVE exibir "aguardando" para verificação', () => {
+    const resultado = determinarStatusInicialModal({
+      statusGatewayParam: 'approved',
+      statusPedidoParam: 'aguardando',
+      temIdentificador: true,
+    });
+
+    expect(resultado).toBe('aguardando');
+  });
+});
+
