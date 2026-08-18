@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useState, useCallback } from 'rea
 import { criarClienteNavegador } from '@/lib/supabase/cliente';
 import type { User, AuthChangeEvent, Session } from '@supabase/supabase-js';
 import type { Perfil } from '@/tipos';
-import { formatarCidadeEstado } from '@/lib/utilitarios';
+import { formatarCidadeEstado, traduzirErroAuth } from '@/lib/utilitarios';
 
 export interface MetadadosCadastro {
   telefone?: string | null;
@@ -411,7 +411,7 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
 
       if (error) {
         const errStatus = await checarRateLimitOuRegistrar('registrar_erro');
-        let msgFinal = error.message;
+        let msgFinal = traduzirErroAuth(error.message);
         if (errStatus.mensagem) {
           msgFinal = `${msgFinal}. ${errStatus.mensagem}`;
         }
@@ -426,7 +426,7 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
       await checarRateLimitOuRegistrar('registrar_sucesso');
       return {};
     } catch (err: any) {
-      return { erro: err?.message || 'Erro inesperado ao solicitar recuperação de senha.' };
+      return { erro: traduzirErroAuth(err?.message) || 'Erro inesperado ao solicitar recuperação de senha.' };
     }
   };
 
@@ -437,12 +437,12 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
       });
 
       if (error) {
-        return { erro: error.message };
+        return { erro: traduzirErroAuth(error.message) };
       }
 
       return {};
     } catch (err: any) {
-      return { erro: err?.message || 'Erro ao redefinir senha.' };
+      return { erro: traduzirErroAuth(err?.message) || 'Erro ao redefinir senha.' };
     }
   };
 

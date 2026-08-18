@@ -10,7 +10,7 @@ import Botao from '@/componentes/ui/Botao';
 import CampoTexto from '@/componentes/ui/CampoTexto';
 import Carregando from '@/componentes/ui/Carregando';
 import IndicadorForcaSenha from '@/componentes/ui/IndicadorForcaSenha';
-import { avaliarSenha } from '@/lib/utilitarios';
+import { avaliarSenha, traduzirErroAuth } from '@/lib/utilitarios';
 import { Lock, CheckCircle2, AlertCircle, ArrowLeft, KeyRound, ShieldCheck } from 'lucide-react';
 
 function FormularioRedefinirSenha() {
@@ -50,11 +50,7 @@ function FormularioRedefinirSenha() {
       if (erroDesc) {
         if (montado) {
           const msgFormatada = decodeURIComponent(erroDesc).replace(/\+/g, ' ');
-          setErro(
-            msgFormatada.includes('expired') || msgFormatada.includes('invalid')
-              ? 'O link de recuperação é inválido ou já expirou. Por favor, solicite um novo link.'
-              : msgFormatada
-          );
+          setErro(traduzirErroAuth(msgFormatada));
           setSessaoValida(false);
           setVerificandoSessao(false);
         }
@@ -192,7 +188,7 @@ function FormularioRedefinirSenha() {
     const resultado = await redefinirSenha(novaSenha);
 
     if (resultado.erro) {
-      setErro(resultado.erro);
+      setErro(traduzirErroAuth(resultado.erro));
       setCarregando(false);
     } else {
       setSucesso(true);

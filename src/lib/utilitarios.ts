@@ -510,3 +510,99 @@ export function tratarMudancaDataEvento(valor: string): string {
   return horaPart !== undefined ? `${dataFormatada}T${horaPart}` : dataFormatada;
 }
 
+export function traduzirErroAuth(mensagem?: string | null): string {
+  if (!mensagem) return 'Ocorreu um erro inesperado. Tente novamente.';
+
+  const msgMin = mensagem.toLowerCase();
+
+  if (
+    msgMin.includes('new password should be different') ||
+    msgMin.includes('different from the old') ||
+    msgMin.includes('same password')
+  ) {
+    return 'A nova senha deve ser diferente da senha anterior.';
+  }
+
+  if (
+    msgMin.includes('at least 6 characters') ||
+    msgMin.includes('at least 8 characters') ||
+    msgMin.includes('password should be at least')
+  ) {
+    return 'A nova senha deve conter no mínimo 8 caracteres.';
+  }
+
+  if (
+    msgMin.includes('password is too weak') ||
+    msgMin.includes('weak password') ||
+    msgMin.includes('pwned')
+  ) {
+    return 'A senha é muito fraca ou comum. Escolha uma senha mais segura com letras, números e caracteres especiais.';
+  }
+
+  if (
+    msgMin.includes('invalid login credentials') ||
+    msgMin.includes('invalid credentials') ||
+    msgMin.includes('invalid login')
+  ) {
+    return 'E-mail ou senha incorretos.';
+  }
+
+  if (msgMin.includes('email not confirmed')) {
+    return 'Seu e-mail de cadastro ainda não foi confirmado. Verifique sua caixa de entrada ou aguarde a aprovação do administrador.';
+  }
+
+  if (
+    msgMin.includes('user already registered') ||
+    msgMin.includes('user already exists')
+  ) {
+    return 'Este e-mail já está cadastrado no sistema.';
+  }
+
+  if (msgMin.includes('user not found')) {
+    return 'Nenhum usuário encontrado com este e-mail.';
+  }
+
+  if (
+    msgMin.includes('email link is invalid or has expired') ||
+    msgMin.includes('token has expired') ||
+    msgMin.includes('otp_expired') ||
+    msgMin.includes('invalid token') ||
+    msgMin.includes('token is expired')
+  ) {
+    return 'O link de recuperação é inválido ou já expirou. Por favor, solicite um novo link.';
+  }
+
+  if (
+    msgMin.includes('rate limit') ||
+    msgMin.includes('over_email_send_rate_limit') ||
+    msgMin.includes('over_request_rate_limit') ||
+    msgMin.includes('too many requests')
+  ) {
+    return 'Muitas tentativas em pouco tempo. Por favor, aguarde alguns minutos e tente novamente.';
+  }
+
+  if (
+    msgMin.includes('only request this once every') ||
+    msgMin.includes('security purposes')
+  ) {
+    return 'Por motivos de segurança, aguarde alguns instantes antes de fazer uma nova solicitação.';
+  }
+
+  if (
+    msgMin.includes('auth session missing') ||
+    msgMin.includes('session not found')
+  ) {
+    return 'Sua sessão de recuperação expirou. Por favor, solicite um novo link de redefinição.';
+  }
+
+  if (
+    msgMin.includes('network request failed') ||
+    msgMin.includes('fetch failed') ||
+    msgMin.includes('failed to fetch')
+  ) {
+    return 'Erro de conexão. Verifique sua internet e tente novamente.';
+  }
+
+  return mensagem;
+}
+
