@@ -6,7 +6,7 @@ export type StatusAtletica = 'ativa' | 'inativa' | 'pendente';
 
 export type StatusEvento = 'rascunho' | 'publicado' | 'encerrado' | 'cancelado';
 
-export type StatusIngresso = 'valido' | 'utilizado' | 'cancelado';
+export type StatusIngresso = 'valido' | 'utilizado' | 'cancelado' | 'encerrado';
 
 export type StatusPagamento = 'pendente' | 'aprovado' | 'recusado' | 'estornado';
 

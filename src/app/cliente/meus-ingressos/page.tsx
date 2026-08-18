@@ -292,7 +292,7 @@ function ConteudoMeusIngressos() {
         .from('ingressos')
         .select(`
           id, evento_id, lote_id, comprador_id, qr_code_hash, status, data_compra, data_validacao,
-          evento:eventos(id, titulo, descricao, imagem_url, data_evento, local, cidade, atletica_id,
+          evento:eventos(id, titulo, descricao, imagem_url, data_evento, local, cidade, status, apagado_pelo_diretor, atletica_id,
             atletica:atleticas(id, nome, logo_url, cor_primaria, cor_secundaria)
           ),
           lote:lotes_ingresso(id, nome_lote, preco),
@@ -308,7 +308,7 @@ function ConteudoMeusIngressos() {
           .from('ingressos')
           .select(`
             id, evento_id, lote_id, comprador_id, qr_code_hash, status, data_compra, data_validacao,
-            evento:eventos(id, titulo, descricao, imagem_url, data_evento, local, cidade, atletica_id,
+            evento:eventos(id, titulo, descricao, imagem_url, data_evento, local, cidade, status, apagado_pelo_diretor, atletica_id,
               atletica:atleticas(id, nome, logo_url, cor_primaria, cor_secundaria)
             ),
             lote:lotes_ingresso(id, nome_lote, preco)
@@ -403,9 +403,16 @@ function ConteudoMeusIngressos() {
     window.history.replaceState({}, '', '/meus-ingressos');
   }
 
+  function obterStatusEfetivo(ing: IngressoCompleto): StatusIngresso {
+    if (ing.evento?.apagado_pelo_diretor) {
+      return 'encerrado';
+    }
+    return ing.status;
+  }
+
   const ingressosFiltrados = filtroStatus === 'todos'
     ? ingressos
-    : ingressos.filter(i => i.status === filtroStatus);
+    : ingressos.filter(i => obterStatusEfetivo(i) === filtroStatus);
 
   if (carregando || carregandoAuth) {
     return (
@@ -610,10 +617,11 @@ function ConteudoMeusIngressos() {
             { id: 'valido', rotulo: 'Válidos' },
             { id: 'utilizado', rotulo: 'Utilizados' },
             { id: 'cancelado', rotulo: 'Cancelados' },
+            { id: 'encerrado', rotulo: 'Encerrados' },
           ].map((filtro) => {
             const qtd = filtro.id === 'todos' 
               ? ingressos.length 
-              : ingressos.filter(i => i.status === filtro.id).length;
+              : ingressos.filter(i => obterStatusEfetivo(i) === filtro.id).length;
             
             return (
               <button
@@ -641,6 +649,10 @@ function ConteudoMeusIngressos() {
           <div className="space-y-5">
             {ingressosFiltrados.map((ingresso) => {
               const estaGerandoPdf = gerandoPdfId === ingresso.id;
+              const statusEfetivo = obterStatusEfetivo(ingresso);
+              const ehEncerrado = statusEfetivo === 'encerrado';
+              const ehCancelado = statusEfetivo === 'cancelado';
+              const podeInteragir = !ehEncerrado && !ehCancelado;
 
               return (
                 <Cartao 
@@ -669,7 +681,7 @@ function ConteudoMeusIngressos() {
                       <div className="absolute inset-0 bg-gradient-to-t from-fundo-card via-transparent to-transparent md:bg-gradient-to-r md:from-transparent md:to-fundo-card/80 opacity-90 md:opacity-100" />
                       
                       <div className="absolute top-3 left-3 md:hidden">
-                        <Distintivo status={ingresso.status} tamanho="sm" />
+                        <Distintivo status={statusEfetivo} tamanho="sm" />
                       </div>
                     </div>
 
@@ -690,7 +702,7 @@ function ConteudoMeusIngressos() {
                           )}
 
                           <div className="hidden md:block">
-                            <Distintivo status={ingresso.status} tamanho="sm" />
+                            <Distintivo status={statusEfetivo} tamanho="sm" />
                           </div>
                         </div>
 
@@ -733,29 +745,41 @@ function ConteudoMeusIngressos() {
                         </div>
 
                         {/* Ações */}
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => abrirDetalhesEQrCode(ingresso)}
-                            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-primaria-500/15 text-primaria-400 hover:bg-primaria-500/25 border border-primaria-500/30 text-xs font-bold transition-all min-h-[38px] touch-manipulation"
-                          >
-                            <QrCode size={14} />
-                            Detalhes & QR
-                          </button>
+                        {podeInteragir ? (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => abrirDetalhesEQrCode(ingresso)}
+                              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-primaria-500/15 text-primaria-400 hover:bg-primaria-500/25 border border-primaria-500/30 text-xs font-bold transition-all min-h-[38px] touch-manipulation"
+                            >
+                              <QrCode size={14} />
+                              Detalhes & QR
+                            </button>
 
-                          <button
-                            onClick={() => handleBaixarPdf(ingresso)}
-                            disabled={estaGerandoPdf}
-                            title="Baixar ingresso em PDF"
-                            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-fundo-subtil hover:bg-fundo-elevado text-texto-principal border border-borda-media text-xs font-bold transition-all min-h-[38px] touch-manipulation disabled:opacity-50"
-                          >
-                            {estaGerandoPdf ? (
-                              <Loader2 size={14} className="animate-spin text-primaria-400" />
-                            ) : (
-                              <Download size={14} className="text-primaria-400" />
-                            )}
-                            <span className="hidden sm:inline">PDF</span>
-                          </button>
-                        </div>
+                            <button
+                              onClick={() => handleBaixarPdf(ingresso)}
+                              disabled={estaGerandoPdf}
+                              title="Baixar ingresso em PDF"
+                              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-fundo-subtil hover:bg-fundo-elevado text-texto-principal border border-borda-media text-xs font-bold transition-all min-h-[38px] touch-manipulation disabled:opacity-50"
+                            >
+                              {estaGerandoPdf ? (
+                                <Loader2 size={14} className="animate-spin text-primaria-400" />
+                              ) : (
+                                <Download size={14} className="text-primaria-400" />
+                              )}
+                              <span className="hidden sm:inline">PDF</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs font-semibold px-3 py-1.5 rounded-xl border ${
+                              ehEncerrado
+                                ? 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20'
+                                : 'bg-red-500/10 text-red-400 border-red-500/20'
+                            }`}>
+                              {ehEncerrado ? 'Evento encerrado' : 'Ingresso cancelado'}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

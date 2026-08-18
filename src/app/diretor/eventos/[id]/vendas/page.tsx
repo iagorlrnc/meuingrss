@@ -31,6 +31,8 @@ import {
   CreditCard,
   Eye,
   X,
+  Ban,
+  AlertTriangle,
 } from 'lucide-react';
 
 import type { Evento, LoteIngresso, Ingresso } from '@/tipos';
@@ -53,7 +55,7 @@ interface IngressoComDetalhes extends Omit<Ingresso, 'lote' | 'comprador'> {
 
 export default function PaginaVendas() {
   const params = useParams();
-  const { sucesso } = useNotificacao();
+  const { sucesso, erro: notificarErro } = useNotificacao();
   const supabase = criarClienteNavegador();
 
   const [evento, setEvento] = useState<(Evento & { lotes_ingresso?: LoteIngresso[] }) | null>(null);
@@ -67,6 +69,45 @@ export default function PaginaVendas() {
 
   // Modal de Detalhes do Comprador
   const [ingressoSelecionado, setIngressoSelecionado] = useState<IngressoComDetalhes | null>(null);
+  const [confirmandoCancelamento, setConfirmandoCancelamento] = useState(false);
+  const [processandoCancelamento, setProcessandoCancelamento] = useState(false);
+
+  async function aoCancelarIngresso() {
+    if (!ingressoSelecionado) return;
+    setProcessandoCancelamento(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      const resp = await fetch('/api/diretor/ingressos/cancelar', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({
+          ingresso_id: ingressoSelecionado.id,
+        }),
+      });
+
+      const dados = await resp.json().catch(() => ({}));
+
+      if (!resp.ok || dados.erro) {
+        throw new Error(dados.erro || `Erro ${resp.status}: Não foi possível cancelar o ingresso.`);
+      }
+
+      setIngressos(prev =>
+        prev.map(ing => (ing.id === ingressoSelecionado.id ? { ...ing, status: 'cancelado' } : ing))
+      );
+      setIngressoSelecionado(prev => (prev ? { ...prev, status: 'cancelado' } : null));
+      setConfirmandoCancelamento(false);
+      sucesso('Ingresso cancelado com sucesso', 'O status do ingresso foi alterado para cancelado.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erro ao cancelar o ingresso.';
+      notificarErro('Erro ao cancelar', msg);
+    } finally {
+      setProcessandoCancelamento(false);
+    }
+  }
 
   useEffect(() => {
     if (params.id) {
@@ -499,7 +540,10 @@ export default function PaginaVendas() {
                           variante="contorno"
                           tamanho="sm"
                           icone={<Eye size={14} />}
-                          onClick={() => setIngressoSelecionado(ing)}
+                          onClick={() => {
+                            setIngressoSelecionado(ing);
+                            setConfirmandoCancelamento(false);
+                          }}
                         >
                           Ver Detalhes
                         </Botao>
@@ -547,7 +591,10 @@ export default function PaginaVendas() {
                 Detalhes do Comprador
               </h3>
               <button
-                onClick={() => setIngressoSelecionado(null)}
+                onClick={() => {
+                  setIngressoSelecionado(null);
+                  setConfirmandoCancelamento(false);
+                }}
                 className="p-1 rounded-lg text-texto-terciario hover:text-texto-principal hover:bg-fundo-hover transition-colors"
               >
                 <X size={20} />
@@ -609,9 +656,56 @@ export default function PaginaVendas() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pb-2 border-b border-borda-sutil">
-                  <span className="text-xs text-texto-terciario uppercase font-semibold">Status do Ingresso</span>
-                  <Distintivo status={ingressoSelecionado.status} />
+                <div className="pb-2 border-b border-borda-sutil space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-texto-terciario uppercase font-semibold">Status do Ingresso</span>
+                    <Distintivo status={ingressoSelecionado.status} />
+                  </div>
+
+                  {/* Botão Cancelar Ingresso (para ingressos válidos) */}
+                  {ingressoSelecionado.status === 'valido' && !confirmandoCancelamento && (
+                    <div className="pt-1 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setConfirmandoCancelamento(true)}
+                        className="py-1.5 px-3 rounded-xl bg-erro/10 hover:bg-erro/20 text-erro border border-erro/20 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                      >
+                        <Ban size={14} />
+                        <span>Cancelar</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Confirmação de Cancelamento */}
+                  {confirmandoCancelamento && (
+                    <div className="p-3.5 rounded-xl bg-erro/10 border border-erro/25 space-y-2.5 animate-in fade-in duration-150">
+                      <div className="flex items-start gap-2 text-erro text-xs font-medium leading-relaxed">
+                        <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+                        <span>
+                          Tem certeza que deseja cancelar este ingresso? O comprador não poderá mais utilizá-lo para acessar o evento.
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-end gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setConfirmandoCancelamento(false)}
+                          disabled={processandoCancelamento}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold text-texto-secundario hover:text-texto-principal hover:bg-fundo-hover transition-colors disabled:opacity-50"
+                        >
+                          Voltar
+                        </button>
+                        <Botao
+                          tamanho="sm"
+                          variante="perigo"
+                          onClick={aoCancelarIngresso}
+                          carregando={processandoCancelamento}
+                          icone={<Ban size={14} />}
+                        >
+                          Confirmar Cancelamento
+                        </Botao>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -631,7 +725,13 @@ export default function PaginaVendas() {
             </div>
 
             <div className="pt-4 border-t border-borda-sutil flex justify-end">
-              <Botao variante="contorno" onClick={() => setIngressoSelecionado(null)}>
+              <Botao
+                variante="contorno"
+                onClick={() => {
+                  setIngressoSelecionado(null);
+                  setConfirmandoCancelamento(false);
+                }}
+              >
                 Fechar
               </Botao>
             </div>
