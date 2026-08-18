@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { criarClienteAdmin } from '@/lib/supabase/admin';
 import { logger } from '@/lib/logger';
+import { TEMPO_EXPIRACAO_PIX_MINUTOS } from '@/lib/constantes';
 
 /**
  * Endpoint de expiração de pedidos abandonados.
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest) {
 
     // 1. Buscar ingressos "válidos" que possuem pagamentos com status "pendente"
     //    há mais de 30 minutos (indica pedido abandonado/expirado)
-    const limiteExpiracao = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const limiteExpiracao = new Date(Date.now() - TEMPO_EXPIRACAO_PIX_MINUTOS * 60 * 1000).toISOString();
 
     const { data: pagamentosPendentes, error: erroPagamentos } = await supabase
       .from('pagamentos')

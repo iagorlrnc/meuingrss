@@ -5,7 +5,7 @@ import { criarClienteServidor } from '@/lib/supabase/servidor';
 import { logger } from '@/lib/logger';
 import { verificarRateLimit } from '@/lib/rateLimit';
 import { gerarHashIngresso } from '@/lib/gerarQrCode';
-import { TAXA_SERVICO_PERCENTUAL, TAXA_SERVICO_LABEL } from '@/lib/constantes';
+import { TAXA_SERVICO_PERCENTUAL, TAXA_SERVICO_LABEL, TEMPO_EXPIRACAO_PIX_MINUTOS } from '@/lib/constantes';
 import crypto from 'crypto';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -177,7 +177,8 @@ export async function POST(request: NextRequest) {
     }
 
     // 8. CRIAÇÃO PRÉVIA DO PEDIDO NO BANCO (STATUS = 'pendente')
-    const dataExpiracao = new Date(Date.now() + 15 * 60 * 1000); // 15 minutos de validade
+    const dataInicio = new Date();
+    const dataExpiracao = new Date(Date.now() + TEMPO_EXPIRACAO_PIX_MINUTOS * 60 * 1000); // 30 minutos de validade
     let orderId = crypto.randomUUID();
 
     try {
@@ -347,7 +348,9 @@ export async function POST(request: NextRequest) {
       auto_return: 'approved',
       statement_descriptor: 'MEUINGRSS',
       expires: true,
+      expiration_date_from: dataInicio.toISOString(),
       expiration_date_to: dataExpiracao.toISOString(),
+      date_of_expiration: dataExpiracao.toISOString(),
       payment_methods: {
         excluded_payment_types: [{ id: 'ticket' }], // Oculta boleto bancário demorado
         installments: 12,

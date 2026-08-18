@@ -4,6 +4,7 @@ import { criarClienteAdmin } from '@/lib/supabase/admin';
 import { logger } from '@/lib/logger';
 import { gerarHashIngresso } from '@/lib/gerarQrCode';
 import { enviarNotificacaoIngressoLiberado } from '@/lib/notificacoes';
+import { TEMPO_EXPIRACAO_PIX_MINUTOS } from '@/lib/constantes';
 
 /**
  * Cron Job de Reconciliação Automática de Pedidos
@@ -88,7 +89,7 @@ export async function POST(request: NextRequest) {
 
         if (pagamentos.length === 0) {
           // Se o pedido já expirou há mais de 30 minutos sem nenhum pagamento gerado, marca como recusado
-          const expirou = new Date(pedido.criado_em).getTime() < Date.now() - 30 * 60 * 1000;
+          const expirou = new Date(pedido.criado_em).getTime() < Date.now() - TEMPO_EXPIRACAO_PIX_MINUTOS * 60 * 1000;
           if (expirou) {
             await supabase.from('pedidos').update({ status: 'recusado' }).eq('id', pedido.id);
             relatorio.cancelados++;
