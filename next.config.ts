@@ -46,18 +46,19 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV !== 'production' ? " 'unsafe-eval'" : ""} https://sdk.mercadopago.com https://challenges.cloudflare.com`,
+              `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV !== 'production' ? " 'unsafe-eval'" : ""} https://sdk.mercadopago.com https://http2.mlstatic.com https://*.mlstatic.com https://challenges.cloudflare.com`,
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-              "img-src 'self' data: blob: https: *.supabase.co",
+              "img-src 'self' data: blob: https: *.supabase.co https://http2.mlstatic.com https://*.mlstatic.com",
               "font-src 'self' data: https://fonts.gstatic.com",
-              "connect-src 'self' https: *.supabase.co https://api.mercadopago.com wss://*.supabase.co https://challenges.cloudflare.com",
-              "frame-src 'self' https://sdk.mercadopago.com https://challenges.cloudflare.com",
+              "connect-src 'self' https: *.supabase.co https://api.mercadopago.com https://*.mercadopago.com https://*.mercadopago.com.br https://*.mercadolibre.com https://events.mercadopago.com wss://*.supabase.co https://challenges.cloudflare.com",
+              "frame-src 'self' https://sdk.mercadopago.com https://*.mercadopago.com https://*.mercadopago.com.br https://*.mercadolibre.com https://*.mercadolibre.com.br https://challenges.cloudflare.com",
               "object-src 'none'",
               "base-uri 'self'",
               "form-action 'self'",
               "frame-ancestors 'none'",
             ].join('; '),
           },
+
         ],
       },
     ];

@@ -98,11 +98,21 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
         if (precisaCpf) payload.cpf = metaCpf;
         if (precisaTel) payload.telefone = metaTelefone;
 
-        await supabase.from('profiles').update(payload).eq('id', userId);
-        setPerfil((prev) => (prev ? { ...prev, ...payload } : prev));
+        try {
+          await fetch('/api/perfil/sincronizar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          setPerfil((prev) => (prev ? { ...prev, ...payload } : prev));
+        } catch {
+          // Ignora falhas transitórias de sincronização
+        }
       }
     }
   }, [supabase]);
+
+
 
   useEffect(() => {
     const inicializar = async () => {

@@ -512,3 +512,45 @@ describe('Fluxo de Eventos Gratuitos (Valor 0.00)', () => {
   });
 });
 
+function traduzirStatusRecusaCartaoLocal(statusDetail?: string): string {
+  if (!statusDetail) return 'O pagamento foi recusado. Tente novamente ou use outro cartão.';
+
+  const mapaMensagens: Record<string, string> = {
+    cc_rejected_bad_filled_card_number: 'Número do cartão inválido. Verifique os dados.',
+    cc_rejected_bad_filled_date: 'Data de expiração inválida. Verifique o mês e ano.',
+    cc_rejected_bad_filled_other: 'Dados do cartão incorretos. Verifique e tente novamente.',
+    cc_rejected_bad_filled_security_code: 'Código de segurança (CVV) inválido.',
+    cc_rejected_call_for_authorize: 'Autorização necessária. Entre em contato com a operadora do seu cartão.',
+    cc_rejected_card_disabled: 'Cartão desativado. Ligue para o seu banco para reativar ou tente outro cartão.',
+    cc_rejected_card_error: 'Não foi possível processar o pagamento com este cartão.',
+    cc_rejected_duplication_payment: 'Detectado pagamento duplicado em curto período. Aguarde alguns instantes.',
+    cc_rejected_high_risk: 'Pagamento recusado por políticas de segurança. Tente outro meio de pagamento.',
+    cc_rejected_insufficient_amount: 'Saldo ou limite insuficiente no cartão.',
+    cc_rejected_invalid_installments: 'Número de parcelas não suportado para este cartão.',
+    cc_rejected_max_attempts: 'Limite de tentativas excedido. Tente novamente mais tarde ou use outro cartão.',
+    cc_rejected_blacklist: 'O pagamento não pôde ser processado. Tente outro meio de pagamento.',
+    cc_rejected_other_reason: 'O cartão foi recusado pelo banco emissor. Tente outro cartão.',
+  };
+
+  return mapaMensagens[statusDetail] || 'O pagamento foi recusado pelo gateway. Tente outro cartão ou Pix.';
+}
+
+describe('Checkout Transparente — Tradução de Erros de Cartão', () => {
+  it('deve traduzir cc_rejected_insufficient_amount corretamente', () => {
+    const msg = traduzirStatusRecusaCartaoLocal('cc_rejected_insufficient_amount');
+    expect(msg).toContain('Saldo ou limite insuficiente');
+  });
+
+  it('deve traduzir cc_rejected_bad_filled_security_code corretamente', () => {
+    const msg = traduzirStatusRecusaCartaoLocal('cc_rejected_bad_filled_security_code');
+    expect(msg).toContain('CVV');
+  });
+
+  it('deve retornar mensagem padrão para código de erro não mapeado', () => {
+    const msg = traduzirStatusRecusaCartaoLocal('codigo_desconhecido');
+    expect(msg).toContain('recusado');
+  });
+});
+
+
+

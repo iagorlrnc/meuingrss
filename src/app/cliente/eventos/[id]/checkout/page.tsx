@@ -12,6 +12,7 @@ import { formatarMoeda, formatarDataHora } from '@/lib/utilitarios';
 import { TAXA_SERVICO_PERCENTUAL, TAXA_SERVICO_LABEL } from '@/lib/constantes';
 import { usarAutenticacao } from '@/contextos/ContextoAutenticacao';
 import type { Evento, LoteIngresso } from '@/tipos';
+import CheckoutTransparente from '@/componentes/checkout/CheckoutTransparente';
 import {
   ArrowLeft,
   CreditCard,
@@ -262,87 +263,72 @@ function ConteudoCheckout() {
             </Cartao>
           </div>
 
-          {/* Formas de Pagamento e Botão */}
+          {/* Formas de Pagamento: Checkout Transparente ou Gratuito */}
           <div className="lg:col-span-5 w-full">
-            <Cartao variante="elevado" className="w-full">
-              <h3 className="text-lg font-bold font-titulo mb-4 flex items-center gap-2">
-                {totalFinal === 0 ? (
-                  <>
-                    <Ticket size={20} className="text-primaria-400" />
-                    Reserva Gratuita
-                  </>
-                ) : (
-                  <>
-                    <CreditCard size={20} className="text-primaria-400" />
-                    Pagamento
-                  </>
-                )}
-              </h3>
+            {totalFinal === 0 ? (
+              <Cartao variante="elevado" className="w-full">
+                <h3 className="text-lg font-bold font-titulo mb-4 flex items-center gap-2">
+                  <Ticket size={20} className="text-primaria-400" />
+                  Reserva Gratuita
+                </h3>
 
-              <div className="space-y-3 mb-6">
-                {totalFinal === 0 ? (
-                  <>
-                    <div className="flex items-center gap-2 text-xs text-texto-terciario">
-                      <Shield size={14} className="text-sucesso shrink-0" />
-                      Evento 100% Gratuito
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-texto-terciario">
-                      <Lock size={14} className="text-sucesso shrink-0" />
-                      Não será realizado cobrança
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-texto-terciario">
-                      <Ticket size={14} className="text-sucesso shrink-0" />
-                      Ingresso liberado imediatamente após a confirmação
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex items-center gap-2 text-xs text-texto-terciario">
-                      <Shield size={14} className="text-sucesso shrink-0" />
-                      Pagamento seguro via Mercado Pago (PIX ou Cartão)
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-texto-terciario">
-                      <Lock size={14} className="text-sucesso shrink-0" />
-                      Pagamento criptografado via Mercado Pago
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-texto-terciario">
-                      <Ticket size={14} className="text-sucesso shrink-0" />
-                      Ingresso liberado após confirmação do pagamento
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {erro && (
-                <div className="p-3 rounded-xl bg-erro/10 border border-erro/20 text-sm text-erro mb-4">
-                  {erro}
+                <div className="space-y-3 mb-6">
+                  <div className="flex items-center gap-2 text-xs text-texto-terciario">
+                    <Shield size={14} className="text-sucesso shrink-0" />
+                    Evento 100% Gratuito
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-texto-terciario">
+                    <Lock size={14} className="text-sucesso shrink-0" />
+                    Não será realizada cobrança
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-texto-terciario">
+                    <Ticket size={14} className="text-sucesso shrink-0" />
+                    Ingresso liberado imediatamente após a confirmação
+                  </div>
                 </div>
-              )}
 
-              <Botao
-                larguraTotal
-                tamanho="xl"
-                carregando={processando}
-                disabled={processando}
-                onClick={processarPagamento}
-                icone={totalFinal === 0 ? <Ticket size={20} /> : <CreditCard size={20} />}
-              >
-                {totalFinal === 0 ? 'Gratuito' : `Pagar ${formatarMoeda(totalFinal)}`}
-              </Botao>
+                {erro && (
+                  <div className="p-3 rounded-xl bg-erro/10 border border-erro/20 text-sm text-erro mb-4">
+                    {erro}
+                  </div>
+                )}
 
-              <CaptchaCloudflare
-                onVerify={(token) => setTurnstileToken(token)}
-                onExpire={() => setTurnstileToken('')}
-                onError={() => setTurnstileToken('')}
+                <Botao
+                  larguraTotal
+                  tamanho="xl"
+                  carregando={processando}
+                  disabled={processando}
+                  onClick={processarPagamento}
+                  icone={<Ticket size={20} />}
+                >
+                  Garantir Ingresso Gratuito
+                </Botao>
+
+                <CaptchaCloudflare
+                  onVerify={(token) => setTurnstileToken(token)}
+                  onExpire={() => setTurnstileToken('')}
+                  onError={() => setTurnstileToken('')}
+                />
+
+                <p className="text-[10px] text-texto-terciario text-center mt-4">
+                  Ao clicar em "Garantir Ingresso Gratuito", seu ingresso será gerado imediatamente sem processamento financeiro.
+                </p>
+              </Cartao>
+            ) : (
+              <CheckoutTransparente
+                evento={evento}
+                lote={lote}
+                quantidade={qtd}
+                usuario={{
+                  id: usuario?.id || '',
+                  nome: usuario?.user_metadata?.nome || usuario?.email?.split('@')[0],
+                  email: usuario?.email || '',
+                }}
+                totalFinal={totalFinal}
               />
-
-              <p className="text-[10px] text-texto-terciario text-center mt-4">
-                {totalFinal === 0
-                  ? 'Ao clicar em "Garantir Ingresso Gratuito", seu ingresso será gerado imediatamente sem processamento financeiro.'
-                  : 'Ao clicar em "Pagar", você será redirecionado para o ambiente seguro do Mercado Pago.'}
-              </p>
-            </Cartao>
+            )}
           </div>
+
         </div>
       </div>
     </div>
