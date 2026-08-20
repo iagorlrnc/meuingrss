@@ -7,6 +7,7 @@ import Botao from '@/componentes/ui/Botao';
 import Carregando from '@/componentes/ui/Carregando';
 import { criarClienteNavegador } from '@/lib/supabase/cliente';
 import { formatarDataHora, formatarMoeda } from '@/lib/utilitarios';
+import { TAXA_SERVICO_PERCENTUAL, TAXA_SERVICO_LABEL } from '@/lib/constantes';
 import { usarAutenticacao } from '@/contextos/ContextoAutenticacao';
 import { obterEventoCache, salvarEventoCache, type EventoCompleto } from '@/lib/cacheEventos';
 import type { LoteIngresso } from '@/tipos';
@@ -209,6 +210,10 @@ function ComponenteDetalheEvento({ eventoInicial }: ConteudoDetalheEventoProps) 
 
   const lote = obterLoteSelecionado();
   const disponiveis = lotesDisponiveis();
+  const subtotal = lote ? lote.preco * quantidade : 0;
+  const taxaServico = (lote && lote.preco > 0) ? Math.round(subtotal * TAXA_SERVICO_PERCENTUAL * 100) / 100 : 0;
+  const totalFinal = subtotal + taxaServico;
+
   const statusEvento = evento?.status;
   const ehPublicado = statusEvento === 'publicado';
   const ehCancelado = statusEvento === 'cancelado';
@@ -689,11 +694,32 @@ function ComponenteDetalheEvento({ eventoInicial }: ConteudoDetalheEventoProps) 
                   )}
 
                   {lote && (
-                    <div className="pt-3 border-t border-white/10 flex items-center justify-between">
-                      <span className="text-xs font-black uppercase text-slate-400">Valor Total</span>
-                      <span className="text-2xl font-black text-white">
-                        {formatarMoeda(lote.preco * quantidade)}
-                      </span>
+                    <div className="pt-3 border-t border-white/10 space-y-2">
+                      <div className="flex items-center justify-between text-xs text-slate-400">
+                        <span>Subtotal ({quantidade}x)</span>
+                        <span className="font-medium text-slate-200">{formatarMoeda(subtotal)}</span>
+                      </div>
+
+                      {taxaServico > 0 && (
+                        <div className="flex items-center justify-between text-xs text-slate-400">
+                          <span className="flex items-center gap-1">
+                            Taxa da plataforma ({TAXA_SERVICO_LABEL})
+                          </span>
+                          <span className="font-semibold text-[#00e5ff]">+{formatarMoeda(taxaServico)}</span>
+                        </div>
+                      )}
+
+                      <div className="pt-2 border-t border-white/10 flex items-center justify-between">
+                        <div>
+                          <span className="text-xs font-black uppercase text-slate-400 block">Valor Total</span>
+                          {taxaServico > 0 && (
+                            <span className="text-[10px] text-slate-500">Taxas inclusas</span>
+                          )}
+                        </div>
+                        <span className="text-2xl font-black text-white">
+                          {formatarMoeda(totalFinal)}
+                        </span>
+                      </div>
                     </div>
                   )}
 
@@ -746,13 +772,18 @@ function ComponenteDetalheEvento({ eventoInicial }: ConteudoDetalheEventoProps) 
         <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#0b101d]/95 backdrop-blur-md px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] border-t border-white/20 shadow-2xl flex items-center justify-between gap-3">
           <div>
             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
-              {podeComprar ? `Total (${quantidade}x)` : 'Status'}
+              {podeComprar ? `Total com taxa (${quantidade}x)` : 'Status'}
             </span>
             <span className="text-lg font-black text-[#00e5ff]">
               {podeComprar
-                ? lote ? formatarMoeda(lote.preco * quantidade) : 'Selecione'
+                ? lote ? formatarMoeda(totalFinal) : 'Selecione'
                 : ehCancelado ? 'Cancelado' : ehEncerrado ? 'Encerrado' : 'Indisponível'}
             </span>
+            {podeComprar && taxaServico > 0 && (
+              <span className="text-[10px] text-slate-400 block -mt-0.5">
+                Taxa de {formatarMoeda(taxaServico)} inclusa
+              </span>
+            )}
           </div>
 
           <Botao
