@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
     try {
       const { data: pedidoCriado } = await supabase
         .from('pedidos')
-        .insert({
+        .upsert({
           id: orderId,
           comprador_id,
           evento_id,
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
           status: 'pendente',
           metodo_pagamento: 'pix',
           expira_em: dataExpiracao.toISOString(),
-        })
+        }, { onConflict: 'id' })
         .select('id')
         .maybeSingle();
 

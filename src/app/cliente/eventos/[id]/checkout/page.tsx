@@ -323,6 +323,8 @@ function ConteudoCheckout() {
                   id: usuario?.id || '',
                   nome: perfil?.nome || usuario?.user_metadata?.nome || usuario?.user_metadata?.full_name || usuario?.user_metadata?.name || 'Cliente',
                   email: usuario?.email || '',
+                  cpf: perfil?.cpf || usuario?.user_metadata?.cpf || '',
+                  telefone: perfil?.telefone || usuario?.user_metadata?.telefone || '',
                 }}
                 totalFinal={totalFinal}
               />

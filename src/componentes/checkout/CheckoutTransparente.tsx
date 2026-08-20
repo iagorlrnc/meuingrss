@@ -190,19 +190,26 @@ export default function CheckoutTransparente({
       });
 
       setGerandoPix(false);
-      iniciarPollingStatus(dados.pedido_id);
+      iniciarPollingStatus(dados.pedido_id, dados.payment_id);
     } catch {
       setErroPix('Erro de rede ao conectar com o banco para gerar o Pix.');
       setGerandoPix(false);
     }
   }
 
-  const iniciarPollingStatus = useCallback((pedidoId: string) => {
+  const iniciarPollingStatus = useCallback((pedidoId: string, paymentId?: string) => {
     if (timerPollingRef.current) clearInterval(timerPollingRef.current);
 
-    timerPollingRef.current = setInterval(async () => {
+    const verificar = async () => {
       try {
-        const res = await fetch(`/api/consultar-status-pedido?pedido_id=${pedidoId}`);
+        const params = new URLSearchParams();
+        if (pedidoId) params.set('pedido_id', pedidoId);
+        if (paymentId) params.set('payment_id', paymentId);
+        params.set('evento_id', evento.id);
+        params.set('lote_id', lote.id);
+        params.set('comprador_id', usuario.id);
+
+        const res = await fetch(`/api/consultar-status-pedido?${params.toString()}`);
         if (!res.ok) return;
 
         const data = await res.json();
@@ -211,14 +218,21 @@ export default function CheckoutTransparente({
           setPixAprovado(true);
 
           setTimeout(() => {
-            router.push(`/meus-ingressos?pedido_id=${pedidoId}&status_pedido=aprovado`);
-          }, 1800);
+            router.push(`/meus-ingressos?pedido_id=${pedidoId}&status_pedido=aprovado&payment_id=${paymentId || ''}&evento_id=${evento.id}`);
+          }, 1500);
+        } else if (data.status_pedido === 'cancelado' || data.status_pedido === 'estoque_esgotado') {
+          if (timerPollingRef.current) clearInterval(timerPollingRef.current);
+          setErroPix(data.mensagem || 'O pagamento Pix foi cancelado ou expirou.');
         }
       } catch {
         // Ignora erros transitórios
       }
-    }, 4000);
-  }, [router]);
+    };
+
+    // Executa verificação inicial e depois a cada 2.5s
+    verificar();
+    timerPollingRef.current = setInterval(verificar, 2500);
+  }, [evento.id, lote.id, usuario.id, router]);
 
   function copiarCodigoPix() {
     if (!dadosPix?.qr_code) return;
@@ -284,12 +298,19 @@ export default function CheckoutTransparente({
   }, [evento.id, lote.id, quantidade, usuario.id, router]);
 
   // Memoização das props do CardPayment para evitar recriação desnecessária do Brick
-  const cardInitialization = useMemo(() => ({
-    amount: Number(totalFinal.toFixed(2)),
-    payer: {
-      email: (usuario.email && usuario.email.includes('@')) ? usuario.email : 'comprador@meuingrss.com.br',
-    },
-  }), [totalFinal, usuario.email]);
+  const cardInitialization = useMemo(() => {
+    const docLimpo = (usuario.cpf || '').replace(/\D/g, '');
+    return {
+      amount: Number(totalFinal.toFixed(2)),
+      payer: {
+        email: (usuario.email && usuario.email.includes('@')) ? usuario.email : 'comprador@meuingrss.com.br',
+        identification: (docLimpo.length === 11 || docLimpo.length === 14) ? {
+          type: docLimpo.length === 14 ? 'CNPJ' : 'CPF',
+          number: docLimpo,
+        } : undefined,
+      },
+    };
+  }, [totalFinal, usuario.email, usuario.cpf]);
 
   const cardCustomization = useMemo(() => ({
     visual: {

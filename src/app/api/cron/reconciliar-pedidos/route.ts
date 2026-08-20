@@ -75,17 +75,30 @@ export async function POST(request: NextRequest) {
     for (const pedido of pedidosPendentes) {
       relatorio.verificados++;
       try {
-        // Consulta o Mercado Pago pelo external_reference (ID do pedido)
-        const searchRes = await paymentClient.search({
-          options: {
-            external_reference: pedido.id,
-            sort: 'date_created',
-            criteria: 'desc',
-            limit: 5,
-          },
-        });
+        let pagamentos: Record<string, any>[] = [];
 
-        const pagamentos = searchRes.results || [];
+        // 1. Tenta consulta direta por gateway_payment_id se disponível
+        if (pedido.gateway_payment_id) {
+          try {
+            const pDirect = await paymentClient.get({ id: String(pedido.gateway_payment_id) });
+            if (pDirect) pagamentos = [pDirect as unknown as Record<string, any>];
+          } catch {
+            // Segue para busca por external_reference
+          }
+        }
+
+        // 2. Se não encontrou, busca por external_reference (ID do pedido)
+        if (pagamentos.length === 0) {
+          const searchRes = await paymentClient.search({
+            options: {
+              external_reference: pedido.id,
+              sort: 'date_created',
+              criteria: 'desc',
+              limit: 5,
+            },
+          });
+          pagamentos = (searchRes.results || []) as Record<string, any>[];
+        }
 
         if (pagamentos.length === 0) {
           // Se o pedido já expirou há mais de 30 minutos sem nenhum pagamento gerado, marca como recusado
