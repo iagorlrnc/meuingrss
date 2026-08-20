@@ -165,7 +165,7 @@ function ConteudoMeusIngressos() {
           pollingRef.current = null;
         }
         window.history.replaceState({}, '', '/meus-ingressos');
-        setStatusPedido(null);
+        setStatusPedido('cancelado');
       }
     }
   }, [pedidoIdParam, paymentIdParam, statusGatewayParam, preferenceIdParam, externalReferenceParam, compradorIdParam, eventoIdParam, loteIdParam]);
@@ -457,7 +457,7 @@ function ConteudoMeusIngressos() {
                   <div className="flex items-center gap-2">
                     <Loader2 className={`w-3 h-3 text-amber-400 ${pollingAtivo ? 'animate-spin' : ''}`} />
                     <span className="text-[11px] text-amber-300/70">
-                      {pollingAtivo ? `Verificando... (tentativa ${tentativasPollingRef.current}/25)` : 'Verificação pausada'}
+                      {pollingAtivo ? `Verificando...` : 'Verificação pausada'}
                     </span>
                   </div>
                   <button

@@ -272,10 +272,10 @@ export default function CheckoutTransparente({
       if (dados.status === 'approved') {
         setCardAprovado(true);
         setTimeout(() => {
-          router.push(`/meus-ingressos?pedido_id=${dados.pedido_id}&status_pedido=aprovado`);
+          router.push(`/meus-ingressos?pedido_id=${dados.pedido_id}&status_pedido=aprovado&evento_id=${evento.id}`);
         }, 1800);
       } else {
-        router.push(`/meus-ingressos?pedido_id=${dados.pedido_id}&status_pedido=aguardando`);
+        router.push(`/meus-ingressos?pedido_id=${dados.pedido_id}&status_pedido=aguardando&payment_id=${dados.payment_id || ''}&evento_id=${evento.id}`);
       }
     } catch {
       setErroCard('Erro de comunicação ao enviar dados do pagamento.');

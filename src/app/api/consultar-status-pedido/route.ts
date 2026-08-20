@@ -154,12 +154,25 @@ export async function GET(request: NextRequest) {
           mensagem: 'Pagamento confirmado! Seus ingressos foram liberados.',
           quantidade_ingressos: ingressos.length,
           pedido_id: pedido.id,
+          evento_id: pedido.evento_id,
         });
       }
       // Se o pedido estava aprovado mas os ingressos não foram gerados, continua para a reconciliação emitir os ingressos
     }
 
-    // 2.1 Verifica se já existem pagamentos aprovados no banco para o payment_id informado
+    // 2.1 Se o pedido já foi marcado como recusado, cancelado ou estoque esgotado no banco
+    if (pedido && ['recusado', 'cancelado', 'estornado', 'estoque_esgotado'].includes(pedido.status)) {
+      return NextResponse.json({
+        status_pedido: pedido.status === 'estoque_esgotado' ? 'estoque_esgotado' : 'cancelado',
+        mensagem: pedido.status === 'estoque_esgotado'
+          ? 'Estoque esgotado durante o processamento. O valor será estornado.'
+          : 'O pagamento foi cancelado ou recusado pelo banco emissor do cartão.',
+        pedido_id: pedido.id,
+        evento_id: pedido.evento_id,
+      });
+    }
+
+    // 2.2 Verifica se já existem pagamentos aprovados no banco para o payment_id informado
     if (paymentIdParam) {
       const { data: pagsExistentes } = await supabase
         .from('pagamentos')
@@ -185,6 +198,7 @@ export async function GET(request: NextRequest) {
           mensagem: 'Pagamento confirmado e ingressos liberados!',
           quantidade_ingressos: pagsExistentes.length,
           pedido_id: pedido?.id || pedidoId,
+          evento_id: pedido?.evento_id,
         });
       }
     }
@@ -209,8 +223,9 @@ export async function GET(request: NextRequest) {
                 }
                 return NextResponse.json({
                   status_pedido: 'cancelado',
-                  mensagem: 'O pagamento foi cancelado ou recusado pelo gateway.',
+                  mensagem: 'O pagamento foi cancelado ou recusado pelo banco emissor.',
                   pedido_id: pedido?.id,
+                  evento_id: pedido?.evento_id,
                 });
               }
             }
@@ -235,6 +250,21 @@ export async function GET(request: NextRequest) {
             });
             const pags = (searchRes.results || []) as Record<string, any>[];
             pagamentoAprovado = pags.find((p) => p.status === 'approved') || null;
+
+            if (!pagamentoAprovado) {
+              const pagamentoCancelado = pags.find((p) => ['rejected', 'cancelled', 'refunded', 'charged_back'].includes(p.status || ''));
+              if (pagamentoCancelado) {
+                if (pedido?.id) {
+                  await supabase.from('pedidos').update({ status: 'recusado' }).eq('id', pedido.id);
+                }
+                return NextResponse.json({
+                  status_pedido: 'cancelado',
+                  mensagem: 'O pagamento foi recusado pelo banco emissor.',
+                  pedido_id: pedido.id,
+                  evento_id: pedido.evento_id,
+                });
+              }
+            }
           } catch (searchErr) {
             logger.warn('Busca por external_reference falhou', { pedidoId: pedido.id, erro: searchErr });
           }
@@ -254,6 +284,21 @@ export async function GET(request: NextRequest) {
             });
             const pags = (searchRes.results || []) as Record<string, any>[];
             pagamentoAprovado = pags.find((p) => p.status === 'approved') || null;
+
+            if (!pagamentoAprovado) {
+              const pagamentoCancelado = pags.find((p) => ['rejected', 'cancelled', 'refunded', 'charged_back'].includes(p.status || ''));
+              if (pagamentoCancelado) {
+                if (pedido?.id) {
+                  await supabase.from('pedidos').update({ status: 'recusado' }).eq('id', pedido.id);
+                }
+                return NextResponse.json({
+                  status_pedido: 'cancelado',
+                  mensagem: 'O pagamento foi recusado pelo banco emissor.',
+                  pedido_id: pedido?.id,
+                  evento_id: pedido?.evento_id,
+                });
+              }
+            }
           } catch (searchErr) {
             logger.warn('Busca por external_reference alternativo falhou', { ref, erro: searchErr });
           }
