@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { initMercadoPago, CardPayment } from '@mercadopago/sdk-react';
 import Botao from '@/componentes/ui/Botao';
@@ -41,7 +41,7 @@ interface DadosPix {
   date_of_expiration: string;
 }
 
-// Inicializa o Mercado Pago SDK no lado do cliente
+// Inicializa o Mercado Pago SDK no lado do cliente uma única vez
 if (typeof window !== 'undefined') {
   const pk = process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY;
   if (pk) {
@@ -51,6 +51,63 @@ if (typeof window !== 'undefined') {
       // Ignora re-inicialização
     }
   }
+}
+
+/**
+ * Subcomponente isolado para o temporizador do Pix.
+ * Isolar o estado do contador garante que a atualização a cada 1 segundo (1000ms)
+ * re-renderize EXCLUSIVAMENTE este bloco, sem propagar re-renders para o componente
+ * pai ou para o formulário de Cartão de Crédito do Mercado Pago.
+ */
+function ContadorPix({
+  dataExpiracaoIso,
+  onExpirar,
+}: {
+  dataExpiracaoIso: string;
+  onExpirar?: () => void;
+}) {
+  const [segundosRestantes, setSegundosRestantes] = useState<number | null>(null);
+
+  useEffect(() => {
+    const calcularDiferenca = () => {
+      const expiraEm = new Date(dataExpiracaoIso).getTime();
+      const agora = Date.now();
+      const diff = Math.max(0, Math.floor((expiraEm - agora) / 1000));
+      setSegundosRestantes(diff);
+
+      if (diff <= 0 && onExpirar) {
+        onExpirar();
+      }
+    };
+
+    calcularDiferenca();
+    const interval = setInterval(calcularDiferenca, 1000);
+    return () => clearInterval(interval);
+  }, [dataExpiracaoIso, onExpirar]);
+
+  function formatarTempo(segundos: number): string {
+    const min = Math.floor(segundos / 60);
+    const seg = segundos % 60;
+    return `${String(min).padStart(2, '0')}:${String(seg).padStart(2, '0')}`;
+  }
+
+  return (
+    <div className="flex items-center justify-between p-3 sm:p-3.5 rounded-xl bg-fundo-input border border-borda-sutil">
+      <div className="flex items-center gap-2 text-xs text-texto-secundario">
+        <Clock size={16} className="text-secundaria-400 shrink-0" />
+        Expira em:
+      </div>
+      {segundosRestantes !== null && segundosRestantes > 0 ? (
+        <span className="font-mono text-xs sm:text-sm font-bold text-secundaria-400">
+          {formatarTempo(segundosRestantes)}
+        </span>
+      ) : (
+        <span className="text-xs font-bold text-erro flex items-center gap-1">
+          QR Code Expirado
+        </span>
+      )}
+    </div>
+  );
 }
 
 export default function CheckoutTransparente({
@@ -66,17 +123,17 @@ export default function CheckoutTransparente({
   // Estados Pix
   const [gerandoPix, setGerandoPix] = useState(false);
   const [dadosPix, setDadosPix] = useState<DadosPix | null>(null);
-  const [segundosRestantes, setSegundosRestantes] = useState<number | null>(null);
+  const [pixExpirado, setPixExpirado] = useState(false);
   const [copiado, setCopiado] = useState(false);
   const [pixAprovado, setPixAprovado] = useState(false);
   const [erroPix, setErroPix] = useState('');
 
-  // Estados Cartão (Payment Brick Padronizado)
+  // Estados Cartão (Payment Brick)
   const [processandoCard, setProcessandoCard] = useState(false);
+  const [brickCarregando, setBrickCarregando] = useState(true);
   const [erroCard, setErroCard] = useState('');
   const [cardAprovado, setCardAprovado] = useState(false);
 
-  const timerCountdownRef = useRef<NodeJS.Timeout | null>(null);
   const timerPollingRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -90,19 +147,19 @@ export default function CheckoutTransparente({
     }
   }, []);
 
-  // Limpeza de timers ao desmontar componente
+  // Limpeza do polling ao desmontar
   useEffect(() => {
     return () => {
-      if (timerCountdownRef.current) clearInterval(timerCountdownRef.current);
       if (timerPollingRef.current) clearInterval(timerPollingRef.current);
     };
   }, []);
 
-  // --- LÓGICA DO FLUXO PIX ---
+  // --- FLUXO PIX ---
   async function gerarPagamentoPix() {
     setGerandoPix(true);
     setErroPix('');
     setPixAprovado(false);
+    setPixExpirado(false);
 
     try {
       const res = await fetch('/api/payments/pix', {
@@ -133,34 +190,14 @@ export default function CheckoutTransparente({
       });
 
       setGerandoPix(false);
-      iniciarTimerExpiracao(dados.date_of_expiration);
       iniciarPollingStatus(dados.pedido_id);
     } catch {
-      setErroPix('Erro de rede ao conectar com o gateway Pix.');
+      setErroPix('Erro de rede ao conectar com o banco para gerar o Pix.');
       setGerandoPix(false);
     }
   }
 
-  function iniciarTimerExpiracao(dataExpiracaoIso: string) {
-    if (timerCountdownRef.current) clearInterval(timerCountdownRef.current);
-
-    const calcularDiferenca = () => {
-      const expiraEm = new Date(dataExpiracaoIso).getTime();
-      const agora = Date.now();
-      const diffSegundos = Math.max(0, Math.floor((expiraEm - agora) / 1000));
-      setSegundosRestantes(diffSegundos);
-
-      if (diffSegundos <= 0) {
-        if (timerCountdownRef.current) clearInterval(timerCountdownRef.current);
-        if (timerPollingRef.current) clearInterval(timerPollingRef.current);
-      }
-    };
-
-    calcularDiferenca();
-    timerCountdownRef.current = setInterval(calcularDiferenca, 1000);
-  }
-
-  function iniciarPollingStatus(pedidoId: string) {
+  const iniciarPollingStatus = useCallback((pedidoId: string) => {
     if (timerPollingRef.current) clearInterval(timerPollingRef.current);
 
     timerPollingRef.current = setInterval(async () => {
@@ -171,7 +208,6 @@ export default function CheckoutTransparente({
         const data = await res.json();
         if (data.status_pedido === 'aprovado') {
           if (timerPollingRef.current) clearInterval(timerPollingRef.current);
-          if (timerCountdownRef.current) clearInterval(timerCountdownRef.current);
           setPixAprovado(true);
 
           setTimeout(() => {
@@ -182,7 +218,7 @@ export default function CheckoutTransparente({
         // Ignora erros transitórios
       }
     }, 4000);
-  }
+  }, [router]);
 
   function copiarCodigoPix() {
     if (!dadosPix?.qr_code) return;
@@ -191,20 +227,19 @@ export default function CheckoutTransparente({
     setTimeout(() => setCopiado(false), 3000);
   }
 
-  function formatarTempo(segundos: number): string {
-    const min = Math.floor(segundos / 60);
-    const seg = segundos % 60;
-    return `${String(min).padStart(2, '0')}:${String(seg).padStart(2, '0')}`;
-  }
-
-  // --- LÓGICA DO FLUXO CARTÃO (PAYMENT BRICK OFICIAL) ---
-  async function processarSubmissaoCard(param: any) {
+  // --- FLUXO CARTÃO ---
+  const processarSubmissaoCard = useCallback(async (param: any) => {
     setProcessandoCard(true);
     setErroCard('');
 
     const nestedData = (param?.formData || param) as Record<string, any>;
     const token = param?.token || nestedData?.token;
-    const payment_method_id = param?.payment_method_id || param?.paymentMethodId || nestedData?.payment_method_id || nestedData?.paymentMethodId || 'visa';
+    const payment_method_id =
+      param?.payment_method_id ||
+      param?.paymentMethodId ||
+      nestedData?.payment_method_id ||
+      nestedData?.paymentMethodId ||
+      'visa';
     const installments = param?.installments || nestedData?.installments || 1;
     const issuer_id = param?.issuer_id || param?.issuerId || nestedData?.issuer_id || nestedData?.issuerId;
     const payer = param?.payer || nestedData?.payer;
@@ -246,11 +281,45 @@ export default function CheckoutTransparente({
       setErroCard('Erro de comunicação ao enviar dados do pagamento.');
       setProcessandoCard(false);
     }
-  }
+  }, [evento.id, lote.id, quantidade, usuario.id, router]);
+
+  // Memoização das props do CardPayment para evitar recriação desnecessária do Brick
+  const cardInitialization = useMemo(() => ({
+    amount: Number(totalFinal.toFixed(2)),
+    payer: {
+      email: (usuario.email && usuario.email.includes('@')) ? usuario.email : 'comprador@meuingrss.com.br',
+    },
+  }), [totalFinal, usuario.email]);
+
+  const cardCustomization = useMemo(() => ({
+    visual: {
+      style: {
+        theme: 'dark' as const,
+        customVariables: {
+          formBackgroundColor: 'transparent',
+          baseColor: '#7C3AED',
+        },
+      },
+    },
+    paymentMethods: {
+      minInstallments: 1,
+      maxInstallments: 12,
+    },
+  }), []);
+
+  const handleCardReady = useCallback(async () => {
+    setBrickCarregando(false);
+  }, []);
+
+  const handleCardError = useCallback(async (error: any) => {
+    console.error('Erro na inicialização do Payment Brick:', error);
+    setBrickCarregando(false);
+    setErroCard('Não foi possível carregar os campos do cartão. Verifique sua conexão e tente novamente.');
+  }, []);
 
   return (
     <div className="w-full space-y-4 sm:space-y-6">
-      {/* Seletor de Métodos de Pagamento (Responsivo para Celular, Tablet e Desktop) */}
+      {/* Seletor de Métodos de Pagamento (Responsivo) */}
       <div className="grid grid-cols-2 gap-2 sm:gap-3 p-1 sm:p-1.5 rounded-xl sm:rounded-2xl bg-fundo-card/80 border border-borda-sutil backdrop-blur-md">
         <button
           type="button"
@@ -280,16 +349,13 @@ export default function CheckoutTransparente({
       </div>
 
       {/* PAINEL PIX */}
-      {metodo === 'pix' && (
+      <div className={metodo === 'pix' ? 'block' : 'hidden'}>
         <div className="p-4 sm:p-6 rounded-2xl bg-fundo-card border border-borda-sutil space-y-4 sm:space-y-6 transition-all">
           <div className="flex items-center justify-between gap-2">
             <h4 className="text-sm sm:text-base font-bold font-titulo text-texto-principal flex items-center gap-2">
               <QrCode className="text-primaria-400 shrink-0" size={18} />
               Pagamento via Pix
             </h4>
-            <span className="text-[10px] sm:text-xs font-semibold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-sucesso/15 text-sucesso border border-sucesso/20 whitespace-nowrap">
-              Aprovação Imediata
-            </span>
           </div>
 
           {erroPix && (
@@ -302,7 +368,7 @@ export default function CheckoutTransparente({
           {!dadosPix && !gerandoPix && (
             <div className="text-center py-3 sm:py-4 space-y-4">
               <p className="text-xs sm:text-sm text-texto-secundario leading-relaxed">
-                Clique no botão abaixo para gerar o código Pix e o QR Code de pagamento para valor de{' '}
+                Clique no botão abaixo para gerar o código Pix e o QR Code de pagamento para o valor de{' '}
                 <strong className="text-texto-principal">{formatarMoeda(totalFinal)}</strong>.
               </p>
 
@@ -335,23 +401,12 @@ export default function CheckoutTransparente({
                 </div>
               ) : (
                 <>
-                  <div className="flex items-center justify-between p-3 sm:p-3.5 rounded-xl bg-fundo-input border border-borda-sutil">
-                    <div className="flex items-center gap-2 text-xs text-texto-secundario">
-                      <Clock size={16} className="text-secundaria-400 shrink-0" />
-                      Expira em:
-                    </div>
-                    {segundosRestantes !== null && segundosRestantes > 0 ? (
-                      <span className="font-mono text-xs sm:text-sm font-bold text-secundaria-400">
-                        {formatarTempo(segundosRestantes)}
-                      </span>
-                    ) : (
-                      <span className="text-xs font-bold text-erro flex items-center gap-1">
-                        QR Code Expirado
-                      </span>
-                    )}
-                  </div>
+                  <ContadorPix
+                    dataExpiracaoIso={dadosPix.date_of_expiration}
+                    onExpirar={() => setPixExpirado(true)}
+                  />
 
-                  {segundosRestantes !== null && segundosRestantes <= 0 ? (
+                  {pixExpirado ? (
                     <div className="text-center py-4 space-y-3">
                       <p className="text-xs text-erro">
                         O tempo de validade do QR Code expirou. Por favor, gere um novo código.
@@ -407,7 +462,7 @@ export default function CheckoutTransparente({
 
                       <div className="p-3 rounded-xl bg-primaria-500/10 border border-primaria-500/20 text-xs text-primaria-300 flex items-start sm:items-center gap-2 leading-relaxed">
                         <ShieldCheck size={16} className="shrink-0 mt-0.5 sm:mt-0" />
-                        <span>Aguardando a confirmação do pagamento... Não feche esta tela.</span>
+                        <span>Aguardando a confirmação do pagamento... <br/>Não feche esta tela.</span>
                       </div>
                     </>
                   )}
@@ -416,19 +471,16 @@ export default function CheckoutTransparente({
             </div>
           )}
         </div>
-      )}
+      </div>
 
-      {/* PAINEL CARTÃO DE CRÉDITO (PAYMENT BRICK PADRONIZADO E RESPONSIVO) */}
-      {metodo === 'cartao' && (
+      {/* PAINEL CARTÃO DE CRÉDITO */}
+      <div className={metodo === 'cartao' ? 'block' : 'hidden'}>
         <div className="p-4 sm:p-6 rounded-2xl bg-fundo-card border border-borda-sutil space-y-4 sm:space-y-6">
           <div className="flex items-center justify-between gap-2">
             <h4 className="text-sm sm:text-base font-bold font-titulo text-texto-principal flex items-center gap-2">
               <CreditCard className="text-primaria-400 shrink-0" size={18} />
-              Dados do Cartão de Crédito
-            </h4>
-            <span className="text-[10px] sm:text-xs font-semibold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-primaria-500/15 text-primaria-400 border border-primaria-500/20 whitespace-nowrap">
               Criptografado via Mercado Pago
-            </span>
+            </h4>
           </div>
 
           {!process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY ? (
@@ -454,44 +506,28 @@ export default function CheckoutTransparente({
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="mercado-pago-card-container w-full min-h-[340px] overflow-x-hidden [&_.mp-payment-form]:!w-full [&_iframe]:!max-w-full [&_iframe]:!w-full">
+                  <div className="mercado-pago-card-container relative w-full min-h-[320px] overflow-x-hidden [&_.mp-payment-form]:!w-full [&_iframe]:!max-w-full [&_iframe]:!w-full">
                     {processandoCard && (
                       <div className="py-6 flex flex-col items-center justify-center gap-2">
                         <Carregando tamanho="md" texto="Processando autorização do cartão..." />
                       </div>
                     )}
 
-                    <CardPayment
-                      key="mp-card-payment-brick"
-                      initialization={{
-                        amount: Number(totalFinal.toFixed(2)),
-                        payer: {
-                          email: (usuario.email && usuario.email.includes('@')) ? usuario.email : 'comprador@meuingrss.com.br',
-                        },
-                      }}
-                      customization={{
-                        visual: {
-                          style: {
-                            theme: 'dark',
-                            customVariables: {
-                              formBackgroundColor: 'transparent',
-                              baseColor: '#7C3AED',
-                            },
-                          },
-                        },
-                        paymentMethods: {
-                          minInstallments: 1,
-                          maxInstallments: 12,
-                        },
-                      }}
-                      onSubmit={async (param) => {
-                        await processarSubmissaoCard(param);
-                      }}
-                      onError={(error) => {
-                        console.error('Erro na inicialização do Payment Brick:', error);
-                        setErroCard('Não foi possível carregar os campos do cartão. Verifique sua conexão e tente novamente.');
-                      }}
-                    />
+                    {brickCarregando && !processandoCard && (
+                      <div className="py-12 flex flex-col items-center justify-center gap-3 text-center">
+                        <Carregando tamanho="md" texto="Carregando formulário de pagamento seguro..." />
+                      </div>
+                    )}
+
+                    <div className={brickCarregando ? 'opacity-0 h-0 overflow-hidden' : 'opacity-100 transition-opacity duration-300'}>
+                      <CardPayment
+                        initialization={cardInitialization}
+                        customization={cardCustomization}
+                        onSubmit={processarSubmissaoCard}
+                        onReady={handleCardReady}
+                        onError={handleCardError}
+                      />
+                    </div>
                   </div>
                 </div>
               )}
@@ -499,10 +535,10 @@ export default function CheckoutTransparente({
           )}
 
           <p className="text-[10px] sm:text-[11px] text-texto-terciario text-center leading-relaxed">
-            Seus dados financeiros são criptografados com segurança de ponta a ponta pelo Mercado Pago. O meuingrss não tem acesso às informações do seu cartão.
+            Seus dados financeiros são criptografados com segurança de ponta a ponta pelo Mercado Pago. O Meuingrss não tem acesso às informações do seu cartão.
           </p>
         </div>
-      )}
+      </div>
     </div>
   );
 }

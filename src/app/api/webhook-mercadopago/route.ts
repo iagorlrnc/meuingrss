@@ -395,7 +395,7 @@ export async function POST(request: NextRequest) {
         ip,
         duracao_ms: duracao,
       });
-      return NextResponse.json({ erro: 'Falha ao consultar gateway' }, { status: 502 });
+      return NextResponse.json({ erro: 'Falha ao consultar o banco' }, { status: 502 });
     }
 
     if (!payment) {

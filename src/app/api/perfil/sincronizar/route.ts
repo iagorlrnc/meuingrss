@@ -11,9 +11,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ erro: 'Não autorizado' }, { status: 401 });
     }
 
-    const { cpf, telefone } = await request.json();
+    const { nome, cpf, telefone } = await request.json();
     const payload: Record<string, any> = {};
 
+    if (nome && typeof nome === 'string' && nome.trim()) payload.nome = nome.trim();
     if (cpf && typeof cpf === 'string') payload.cpf = cpf;
     if (telefone && typeof telefone === 'string') payload.telefone = telefone;
 

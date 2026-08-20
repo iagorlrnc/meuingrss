@@ -83,6 +83,9 @@ function ConteudoCabecalhoCliente() {
   const ehAtleticas = pathname.startsWith('/atleticas') || pathname.startsWith('/cliente/atleticas');
   const ehMeusIngressos = pathname.startsWith('/meus-ingressos') || pathname.startsWith('/cliente/meus-ingressos');
 
+  const nomeUsuario = perfil?.nome || usuario?.user_metadata?.nome || usuario?.user_metadata?.full_name || usuario?.user_metadata?.name || '';
+  const emailUsuario = perfil?.email || usuario?.email || '';
+
   return (
     <>
       {/* Drawer Overlay Backdrop */}
@@ -177,10 +180,10 @@ function ConteudoCabecalhoCliente() {
                         className="flex items-center gap-2 p-1.5 sm:pr-3 rounded-md bg-[#162036] border border-white/10 hover:border-[#ff007a] transition-all min-h-[40px]"
                       >
                         <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-sm bg-gradient-to-br from-[#ff007a] to-[#026cdf] flex items-center justify-center text-xs font-black text-white shrink-0">
-                          {perfil?.nome?.[0]?.toUpperCase() || 'U'}
+                          {nomeUsuario?.[0]?.toUpperCase() || 'U'}
                         </div>
-                        <span className="text-xs font-bold text-white uppercase tracking-wider hidden sm:block">
-                          {perfil?.nome?.split(' ')[0] || 'Minha Conta'}
+                        <span className="text-xs font-bold text-white uppercase tracking-wider hidden sm:block max-w-[150px] truncate">
+                          {nomeUsuario || 'Minha Conta'}
                         </span>
                       </button>
 
@@ -192,11 +195,11 @@ function ConteudoCabecalhoCliente() {
                           />
                           <div className="absolute right-0 top-12 w-60 bg-[#0f172a] rounded-md border border-white/15 shadow-2xl z-50 overflow-hidden">
                             <div className="p-4 border-b border-white/10 bg-[#162036]">
-                              <p className="text-sm font-bold text-white">
-                                {perfil?.nome || 'Usuário'}
+                              <p className="text-sm font-bold text-white truncate">
+                                {nomeUsuario || 'Usuário'}
                               </p>
                               <p className="text-xs text-slate-400 truncate">
-                                {perfil?.email}
+                                {emailUsuario}
                               </p>
                             </div>
                             <div className="p-2 space-y-1">
@@ -391,8 +394,8 @@ function ConteudoCabecalhoCliente() {
 
                 <div className="pt-2 border-t border-white/10 mt-2 space-y-2">
                   <div className="px-3 py-2 bg-[#162036] rounded-md">
-                    <p className="text-xs font-bold text-white">{perfil?.nome || 'Usuário'}</p>
-                    <p className="text-[11px] text-slate-400 truncate">{perfil?.email}</p>
+                    <p className="text-xs font-bold text-white truncate">{nomeUsuario || 'Usuário'}</p>
+                    <p className="text-[11px] text-slate-400 truncate">{emailUsuario}</p>
                   </div>
                   <button
                     onClick={() => {

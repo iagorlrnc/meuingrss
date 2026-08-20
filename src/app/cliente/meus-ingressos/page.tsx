@@ -78,7 +78,7 @@ function ConteudoMeusIngressos() {
 
   const supabase = criarClienteNavegador();
 
-  const nomeUsuario = perfil?.nome || usuario?.user_metadata?.nome;
+  const nomeUsuario = perfil?.nome || usuario?.user_metadata?.nome || usuario?.user_metadata?.full_name || usuario?.user_metadata?.name;
   const emailUsuario = perfil?.email || usuario?.email;
   const cpfUsuario = perfil?.cpf || usuario?.user_metadata?.cpf;
 
@@ -450,7 +450,7 @@ function ConteudoMeusIngressos() {
                   Aguardando confirmação do pagamento...
                 </h3>
                 <p className="text-xs text-amber-200/80 leading-relaxed">
-                  Estamos verificando a confirmação do seu pagamento junto ao gateway. 
+                  Estamos verificando a confirmação do seu pagamento junto ao banco. 
                   Isso pode levar alguns instantes. Seu ingresso será liberado automaticamente.
                 </p>
                 <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -531,7 +531,7 @@ function ConteudoMeusIngressos() {
                 <div className="p-3 rounded-xl bg-black/40 border border-amber-500/20 text-xs text-amber-200/90 space-y-1">
                   <p className="font-semibold text-amber-300">O que acontece agora?</p>
                   <p>• A emissão do ingresso foi bloqueada para evitar vendas além do limite do lote.</p>
-                  <p>• O valor total pago será <strong>estornado automaticamente</strong> na sua conta pelo gateway de pagamento.</p>
+                  <p>• O valor total pago será <strong>estornado automaticamente</strong> na sua conta.</p>
                 </div>
                 {eventoIdParam && (
                   <div className="pt-1 flex flex-wrap items-center gap-2">
@@ -567,7 +567,7 @@ function ConteudoMeusIngressos() {
                   Pagamento não foi concluído
                 </h3>
                 <p className="text-xs text-red-200/80 leading-relaxed">
-                  O pagamento foi cancelado ou recusado pelo gateway. Seu ingresso não foi gerado. 
+                  O pagamento foi cancelado ou recusado pelo banco. Seu ingresso não foi gerado. 
                   Você pode tentar novamente acessando a página do evento.
                 </p>
                 {eventoIdParam && (

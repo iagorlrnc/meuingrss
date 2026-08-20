@@ -570,7 +570,7 @@ describe('Checkout Transparente — Tradução de Erros de Cartão', () => {
   });
 });
 
-describe('Checkout Transparente — Sanitização de Dados de Cartão', () => {
+describe('Checkout Transparente — Sanitização e Identificação do Pagador', () => {
   function sanitizarIssuer(issuer: unknown): string | undefined {
     if (!issuer || issuer === 'undefined' || issuer === 'null' || String(issuer).trim() === '') {
       return undefined;
@@ -582,6 +582,15 @@ describe('Checkout Transparente — Sanitização de Dados de Cartão', () => {
     const limpo = (pm || '').toLowerCase().trim();
     if (limpo === 'mastercard') return 'master';
     return limpo || 'visa';
+  }
+
+  function formatarIdentificacao(doc: string, tipo?: string) {
+    const docLimpo = (doc || '').replace(/\D/g, '');
+    const tipoFinal = (tipo || (docLimpo.length === 14 ? 'CNPJ' : 'CPF')).toUpperCase();
+    if (docLimpo.length === 11 || docLimpo.length === 14) {
+      return { type: tipoFinal, number: docLimpo };
+    }
+    return undefined;
   }
 
   it('deve sanitizar issuer_id "undefined" ou "null" para undefined', () => {
@@ -597,6 +606,21 @@ describe('Checkout Transparente — Sanitização de Dados de Cartão', () => {
     expect(normalizarMetodoPagamento('mastercard')).toBe('master');
     expect(normalizarMetodoPagamento('visa')).toBe('visa');
     expect(normalizarMetodoPagamento('elo')).toBe('elo');
+  });
+
+  it('deve formatar CPF com 11 dígitos', () => {
+    const ident = formatarIdentificacao('123.456.789-01');
+    expect(ident).toEqual({ type: 'CPF', number: '12345678901' });
+  });
+
+  it('deve formatar CNPJ com 14 dígitos', () => {
+    const ident = formatarIdentificacao('12.345.678/0001-90');
+    expect(ident).toEqual({ type: 'CNPJ', number: '12345678000190' });
+  });
+
+  it('deve retornar undefined para identificação com dígitos inválidos', () => {
+    expect(formatarIdentificacao('123')).toBeUndefined();
+    expect(formatarIdentificacao('')).toBeUndefined();
   });
 });
 

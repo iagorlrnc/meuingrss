@@ -84,17 +84,25 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
       .eq('id', userId)
       .single();
 
-    if (data) {
-      setPerfil(data as Perfil);
+    const metaNome = userMeta?.nome || userMeta?.full_name || userMeta?.name;
+    const metaCpf = userMeta?.cpf;
+    const metaTelefone = userMeta?.telefone;
 
-      // Auto-sincronização: se a conta possui CPF/Telefone no auth metadata e está ausente em profiles, salva no banco
-      const metaCpf = userMeta?.cpf;
-      const metaTelefone = userMeta?.telefone;
+    if (data) {
+      const precisaNome = metaNome && (!data.nome || data.nome.includes('@') || data.nome.trim() === '');
       const precisaCpf = metaCpf && !data.cpf;
       const precisaTel = metaTelefone && !data.telefone;
 
-      if (precisaCpf || precisaTel) {
+      const perfilAtualizado = {
+        ...data,
+        nome: data.nome || metaNome || '',
+      } as Perfil;
+
+      setPerfil(perfilAtualizado);
+
+      if (precisaNome || precisaCpf || precisaTel) {
         const payload: Record<string, any> = {};
+        if (precisaNome) payload.nome = metaNome;
         if (precisaCpf) payload.cpf = metaCpf;
         if (precisaTel) payload.telefone = metaTelefone;
 
@@ -109,6 +117,18 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
           // Ignora falhas transitórias de sincronização
         }
       }
+    } else if (metaNome) {
+      setPerfil({
+        id: userId,
+        nome: metaNome,
+        email: userMeta?.email || '',
+        role: userMeta?.role || 'cliente',
+        status: 'ativo',
+        criado_em: new Date().toISOString(),
+        atualizado_em: new Date().toISOString(),
+        cpf: metaCpf || null,
+        telefone: metaTelefone || null,
+      } as Perfil);
     }
   }, [supabase]);
 
@@ -338,6 +358,21 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
         if (errProfile) {
           console.error('Erro ao atualizar perfil no cadastro:', errProfile);
         }
+
+        // Sincroniza via API com service role para garantir persistência no banco
+        try {
+          await fetch('/api/perfil/sincronizar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              nome,
+              cpf: metadadosAdicionais.cpf || null,
+              telefone: metadadosAdicionais.telefone || null,
+            }),
+          });
+        } catch {
+          // Ignora
+        }
       } catch (errCad) {
         console.error('Exceção ao concluir cadastro:', errCad);
       }
@@ -347,6 +382,14 @@ export function ProvedorAutenticacao({ children }: { children: React.ReactNode }
         await supabase.auth.signOut();
         setUsuario(null);
         setPerfil(null);
+      } else {
+        await buscarPerfil(userObj.id, {
+          nome,
+          full_name: nome,
+          name: nome,
+          cpf: metadadosAdicionais.cpf,
+          telefone: metadadosAdicionais.telefone,
+        });
       }
     }
 

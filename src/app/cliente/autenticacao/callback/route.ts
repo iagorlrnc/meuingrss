@@ -112,7 +112,7 @@ export async function GET(request: Request) {
           // Se for o primeiro cadastro/login via Google, cria o perfil do cliente automaticamente
           await supabase.from('profiles').upsert({
             id: user.id,
-            nome: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Usuário',
+            nome: user.user_metadata?.nome || user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Usuário',
             email: user.email || '',
             role: 'cliente',
             avatar_url: user.user_metadata?.avatar_url || user.user_metadata?.picture || null,

@@ -55,6 +55,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const rawToken = token || body.token || (body.formData as any)?.token;
+    const rawInstallments = installments || body.installments || (body.formData as any)?.installments;
+    const rawPayer = payer || body.payer || (body.formData as any)?.payer;
+
     const rawPm = payment_method_id || body.paymentMethodId || (body.formData as any)?.payment_method_id || (body.formData as any)?.paymentMethodId;
     let paymentMethodIdValido = (rawPm && rawPm !== 'undefined' && rawPm !== 'null') ? String(rawPm).toLowerCase().trim() : 'visa';
     if (paymentMethodIdValido === 'mastercard') paymentMethodIdValido = 'master';
@@ -66,7 +70,7 @@ export async function POST(request: NextRequest) {
       : undefined;
 
     // 3. Validação dos Parâmetros do Cartão
-    if (!token || typeof token !== 'string') {
+    if (!rawToken || typeof rawToken !== 'string') {
       return NextResponse.json({ erro: 'Token de cartão ausente ou inválido.' }, { status: 400 });
     }
 
@@ -84,7 +88,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!ehMercadoPagoConfigurado()) {
-      return NextResponse.json({ erro: 'O gateway do Mercado Pago não está configurado no servidor.' }, { status: 500 });
+      return NextResponse.json({ erro: 'O Mercado Pago não está configurado no servidor.' }, { status: 500 });
     }
 
     const supabase = criarClienteAdmin();
@@ -134,7 +138,7 @@ export async function POST(request: NextRequest) {
     try {
       const { data: pedidoCriado } = await supabase
         .from('pedidos')
-        .insert({
+        .upsert({
           id: orderId,
           comprador_id,
           evento_id,
@@ -145,7 +149,7 @@ export async function POST(request: NextRequest) {
           valor_total: totalFinal,
           status: 'pendente',
           metodo_pagamento: paymentMethodIdValido,
-        })
+        }, { onConflict: 'id' })
         .select('id')
         .maybeSingle();
 
@@ -164,12 +168,12 @@ export async function POST(request: NextRequest) {
       webhookUrl = `https://${dominioPrincipal}/api/webhook-mercadopago`;
     }
 
-    // 7. Dados do Payer
+    // 7. Dados do Payer e Identificação (Suporte a CPF e CNPJ)
     const nomePartes = (comprador?.nome || user.email || 'Comprador').trim().split(' ');
-    const primeiroNome = payer?.first_name || nomePartes[0] || 'Comprador';
-    const sobrenome = payer?.last_name || nomePartes.slice(1).join(' ') || 'Cliente';
-    let emailPayer = (payer?.email && payer.email.includes('@'))
-      ? payer.email
+    const primeiroNome = rawPayer?.first_name || nomePartes[0] || 'Comprador';
+    const sobrenome = rawPayer?.last_name || nomePartes.slice(1).join(' ') || 'Cliente';
+    let emailPayer = (rawPayer?.email && rawPayer.email.includes('@'))
+      ? rawPayer.email
       : (comprador?.email && comprador.email.includes('@'))
       ? comprador.email
       : (user?.email && user.email.includes('@'))
@@ -180,14 +184,18 @@ export async function POST(request: NextRequest) {
       emailPayer = 'comprador.meuingrss@gmail.com';
     }
 
-    const cpfLimpo = (payer?.identification?.number || comprador?.cpf || '').replace(/\D/g, '');
+    const rawDocNumero = (rawPayer?.identification?.number || comprador?.cpf || '').replace(/\D/g, '');
+    const rawDocTipo = (rawPayer?.identification?.type || (rawDocNumero.length === 14 ? 'CNPJ' : 'CPF')).toUpperCase();
+    const docIdentificacao = (rawDocNumero.length === 11 || rawDocNumero.length === 14)
+      ? { type: rawDocTipo, number: rawDocNumero }
+      : undefined;
 
     // 8. Chamada Transparente ao Mercado Pago com Token (PCI Compliant & Idempotência)
     const payloadPagamento = {
       transaction_amount: Number(totalFinal.toFixed(2)),
-      token,
+      token: rawToken,
       description: `${evento.titulo} — ${lote.nome_lote} (${qtd}x)`,
-      installments: Number(installments || 1),
+      installments: Number(rawInstallments || 1),
       payment_method_id: paymentMethodIdValido,
       issuer_id: issuerIdValido as any,
       statement_descriptor: 'MEUINGRSS',
@@ -195,7 +203,7 @@ export async function POST(request: NextRequest) {
         email: emailPayer,
         first_name: primeiroNome,
         last_name: sobrenome,
-        identification: cpfLimpo.length === 11 ? { type: 'CPF', number: cpfLimpo } : undefined,
+        identification: docIdentificacao,
       },
       external_reference: orderId,
       notification_url: webhookUrl,
@@ -219,7 +227,9 @@ export async function POST(request: NextRequest) {
     });
 
     if (!mpRes || !mpRes.id) {
-      logger.error('Mercado Pago não retornou resposta válida para pagamento com cartão', null, { payloadPagamento });
+      // Mascara token nos logs para garantir conformidade de segurança e PCI
+      const payloadSeguro = { ...payloadPagamento, token: '[REDACTED_TOKEN]' };
+      logger.error('Mercado Pago não retornou resposta válida para pagamento com cartão', null, { payloadSeguro });
       return NextResponse.json({ erro: 'Não foi possível processar a cobrança do cartão.' }, { status: 500 });
     }
 

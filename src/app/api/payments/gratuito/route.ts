@@ -90,67 +90,129 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ erro: 'Evento não encontrado.' }, { status: 404 });
     }
 
-    const { data: comprador } = await supabase
+    // Garante que o perfil do comprador existe na tabela profiles (evita erro de chave estrangeira)
+    let { data: comprador } = await supabase
       .from('profiles')
-      .select('nome, email')
+      .select('id, nome, email')
       .eq('id', comprador_id)
       .maybeSingle();
 
-    // 5. Criação do Pedido Aprovado e Geração Atômica dos Ingressos
+    if (!comprador) {
+      const nomePadrao = user.user_metadata?.nome || user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Cliente';
+      const { data: perfilNovo } = await supabase
+        .from('profiles')
+        .upsert({
+          id: comprador_id,
+          nome: nomePadrao,
+          email: user.email || '',
+          role: 'cliente',
+          status: 'ativo',
+          criado_em: new Date().toISOString(),
+          atualizado_em: new Date().toISOString(),
+        })
+        .select('id, nome, email')
+        .maybeSingle();
+      
+      comprador = perfilNovo || { id: comprador_id, nome: nomePadrao, email: user.email || '' };
+    }
+
+    // 5. Criação do Pedido Aprovado e Geração dos Ingressos
     const orderId = crypto.randomUUID();
     const freeGatewayId = `FREE-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
 
-    const { data: pedidoCriado, error: erroPedido } = await supabase
-      .from('pedidos')
-      .insert({
-        id: orderId,
-        comprador_id,
-        evento_id,
-        lote_id,
-        quantidade: qtd,
-        valor_unitario: 0,
-        taxa_servico: 0,
-        valor_total: 0,
-        status: 'aprovado',
-        gateway_payment_id: freeGatewayId,
-        gateway_transaction_id: freeGatewayId,
-        metodo_pagamento: 'gratuito',
-        pago_em: new Date().toISOString(),
-      })
-      .select('id')
-      .single();
+    // Tenta registrar o pedido de forma segura e flexível
+    let pedidoRegistrado = false;
+    try {
+      const { data: pedidoCriado, error: erroPedido } = await supabase
+        .from('pedidos')
+        .insert({
+          id: orderId,
+          comprador_id,
+          evento_id,
+          lote_id,
+          quantidade: qtd,
+          valor_unitario: 0,
+          taxa_servico: 0,
+          valor_total: 0,
+          status: 'aprovado',
+          gateway_payment_id: freeGatewayId,
+          metodo_pagamento: 'gratuito',
+          pago_em: new Date().toISOString(),
+        })
+        .select('id')
+        .maybeSingle();
 
-    if (erroPedido || !pedidoCriado) {
-      logger.error('Erro ao criar pedido gratuito', erroPedido);
-      return NextResponse.json({ erro: 'Falha ao processar reserva do ingresso gratuito.' }, { status: 500 });
+      if (!erroPedido && pedidoCriado) {
+        pedidoRegistrado = true;
+      } else if (erroPedido) {
+        logger.warn('Tentando inserção simplificada do pedido gratuito...', { erro: erroPedido.message });
+        const { error: erroSimplificado } = await supabase
+          .from('pedidos')
+          .insert({
+            id: orderId,
+            comprador_id,
+            evento_id,
+            lote_id,
+            quantidade: qtd,
+            valor_unitario: 0,
+            taxa_servico: 0,
+            valor_total: 0,
+            status: 'aprovado',
+          });
+        if (!erroSimplificado) pedidoRegistrado = true;
+      }
+    } catch (errPed) {
+      logger.warn('Exceção ao inserir pedido gratuito no banco, prosseguindo com emissão dos ingressos', { erro: String(errPed) });
     }
 
     const qrHashes: string[] = [];
     for (let i = 0; i < qtd; i++) {
-      qrHashes.push(gerarHashIngresso(`FREE-${evento_id}-${orderId}-${i}`, evento_id));
+      qrHashes.push(gerarHashIngresso(`FREE-${evento_id}-${orderId}-${i}-${Date.now()}`, evento_id));
     }
 
-    // Tenta executar via RPC Atômica
-    const { data: resRpc, error: errRpc } = await supabase.rpc('processar_pagamento_aprovado', {
-      p_pedido_id: orderId,
-      p_gateway_payment_id: freeGatewayId,
-      p_metodo_pagamento: 'gratuito',
-      p_qr_hashes: qrHashes,
-    });
+    let ingressosGerados = false;
 
-    if (errRpc || !resRpc?.sucesso) {
-      // Fallback JS
+    // 6. Tenta emissão via RPC Atômica se o pedido foi registrado
+    if (pedidoRegistrado) {
+      try {
+        const { data: resRpc, error: errRpc } = await supabase.rpc('processar_pagamento_aprovado', {
+          p_pedido_id: orderId,
+          p_gateway_payment_id: freeGatewayId,
+          p_metodo_pagamento: 'gratuito',
+          p_qr_hashes: qrHashes,
+        });
+
+        if (!errRpc && resRpc?.sucesso) {
+          ingressosGerados = true;
+        }
+      } catch {
+        // Prossegue para fallback direto
+      }
+    }
+
+    // 7. Fallback: Emissão direta dos ingressos no banco
+    if (!ingressosGerados) {
       for (let i = 0; i < qtd; i++) {
         const hash = qrHashes[i];
-        const { data: ing } = await supabase.from('ingressos').insert({
-          evento_id,
-          lote_id,
-          comprador_id,
-          qr_code_hash: hash,
-          status: 'valido',
-        }).select('id').single();
+        const { data: ing, error: errIng } = await supabase
+          .from('ingressos')
+          .insert({
+            evento_id,
+            lote_id,
+            comprador_id,
+            qr_code_hash: hash,
+            status: 'valido',
+          })
+          .select('id')
+          .single();
 
-        if (ing) {
+        if (errIng || !ing) {
+          logger.error('Erro ao emitir ingresso gratuito diretamente', errIng as any);
+          return NextResponse.json({ erro: errIng?.message || 'Falha ao emitir ingresso no banco de dados.' }, { status: 500 });
+        }
+
+        // Registro opcional na tabela pagamentos
+        try {
           await supabase.from('pagamentos').insert({
             ingresso_id: ing.id,
             valor: 0,
@@ -158,10 +220,23 @@ export async function POST(request: NextRequest) {
             gateway_transaction_id: freeGatewayId,
             metodo_pagamento: 'gratuito',
           });
+        } catch {
+          // Não bloqueante
         }
+      }
+
+      // Atualiza quantidade vendida no lote
+      try {
+        await supabase
+          .from('lotes_ingresso')
+          .update({ quantidade_vendida: (lote.quantidade_vendida || 0) + qtd })
+          .eq('id', lote_id);
+      } catch (errLoteUp) {
+        logger.warn('Erro ao atualizar quantidade_vendida do lote gratuito', { erro: String(errLoteUp) });
       }
     }
 
+    // 8. Disparo assíncrono de notificação
     enviarNotificacaoIngressoLiberado({
       comprador_id,
       quantidade: qtd,

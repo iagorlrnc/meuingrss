@@ -26,7 +26,7 @@ import {
 function ConteudoCheckout() {
   const params = useParams();
   const searchParams = useSearchParams();
-  const { usuario } = usarAutenticacao();
+  const { usuario, perfil } = usarAutenticacao();
   const loteId = searchParams.get('lote');
   const qtd = parseInt(searchParams.get('qtd') || '1');
 
@@ -321,7 +321,7 @@ function ConteudoCheckout() {
                 quantidade={qtd}
                 usuario={{
                   id: usuario?.id || '',
-                  nome: usuario?.user_metadata?.nome || usuario?.email?.split('@')[0],
+                  nome: perfil?.nome || usuario?.user_metadata?.nome || usuario?.user_metadata?.full_name || usuario?.user_metadata?.name || 'Cliente',
                   email: usuario?.email || '',
                 }}
                 totalFinal={totalFinal}

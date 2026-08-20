@@ -1,4 +1,4 @@
-import { MercadoPagoConfig, Preference, Payment } from 'mercadopago';
+import { MercadoPagoConfig, Payment } from 'mercadopago';
 import crypto from 'crypto';
 import { logger } from './logger';
 
@@ -12,7 +12,6 @@ export const mercadopagoClient = new MercadoPagoConfig({
   },
 });
 
-export const preferenceClient = new Preference(mercadopagoClient);
 export const paymentClient = new Payment(mercadopagoClient);
 
 /**
@@ -116,16 +115,21 @@ export function traduzirStatusRecusaCartao(statusDetail?: string): string {
     cc_rejected_bad_filled_date: 'Data de expiração inválida. Verifique o mês e ano.',
     cc_rejected_bad_filled_other: 'Dados do cartão incorretos. Verifique e tente novamente.',
     cc_rejected_bad_filled_security_code: 'Código de segurança (CVV) inválido.',
-    cc_rejected_call_for_authorize: 'Autorização necessária. Entre em contato com a operadora do seu cartão.',
-    cc_rejected_card_disabled: 'Cartão desativado. Ligue para o seu banco para reativar ou tente outro cartão.',
-    cc_rejected_card_error: 'Não foi possível processar o pagamento com este cartão.',
-    cc_rejected_duplication_payment: 'Detectado pagamento duplicado em curto período. Aguarde alguns instantes.',
-    cc_rejected_high_risk: 'Pagamento recusado por políticas de segurança. Tente outro meio de pagamento.',
+    cc_rejected_call_for_authorize: 'Autorização necessária. Ligue para a operadora do seu cartão para autorizar o pagamento.',
+    cc_rejected_card_disabled: 'Cartão desativado ou bloqueado. Ligue para o seu banco para reativar ou tente outro cartão.',
+    cc_rejected_card_error: 'Não foi possível processar o pagamento com este cartão. Tente outro cartão.',
+    cc_rejected_card_type_not_allowed: 'O tipo de cartão informado não é aceito. Por favor, utilize um cartão de crédito válido.',
+    cc_rejected_duplication_payment: 'Detectado pagamento duplicado em curto período. Aguarde alguns instantes antes de tentar novamente.',
+    cc_rejected_duplicated_payment: 'Detectado pagamento duplicado em curto período. Aguarde alguns instantes antes de tentar novamente.',
+    cc_rejected_high_risk: 'Pagamento recusado por políticas de prevenção a fraudes. Tente outro meio de pagamento.',
+    cc_rejected_2_step_high_risk: 'Pagamento recusado por políticas de segurança. Tente outro meio de pagamento ou Pix.',
     cc_rejected_insufficient_amount: 'Saldo ou limite insuficiente no cartão.',
     cc_rejected_invalid_installments: 'Número de parcelas não suportado para este cartão.',
-    cc_rejected_max_attempts: 'Limite de tentativas excedido. Tente novamente mais tarde ou use outro cartão.',
+    cc_rejected_max_attempts: 'Limite de tentativas excedido para este cartão. Tente novamente mais tarde ou use outro cartão.',
     cc_rejected_blacklist: 'O pagamento não pôde ser processado. Tente outro meio de pagamento.',
-    cc_rejected_other_reason: 'O cartão foi recusado pelo banco emissor. Tente outro cartão.',
+    cc_rejected_other_reason: 'O cartão foi recusado pelo banco emissor. Tente outro cartão ou entre em contato com seu banco.',
+    pending_contingency: 'Seu pagamento está sendo processado pela operadora do cartão. Avisaremos assim que for concluído.',
+    pending_review_manual: 'Seu pagamento está em análise de segurança. Avisaremos assim que for liberado.',
   };
 
   return mapaMensagens[statusDetail] || 'O pagamento foi recusado pelo gateway. Tente outro cartão ou Pix.';

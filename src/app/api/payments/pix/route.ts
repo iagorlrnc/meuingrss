@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!ehMercadoPagoConfigurado()) {
-      return NextResponse.json({ erro: 'O gateway do Mercado Pago não está configurado no servidor.' }, { status: 500 });
+      return NextResponse.json({ erro: 'O Mercado Pago não está configurado no servidor.' }, { status: 500 });
     }
 
     const supabase = criarClienteAdmin();
@@ -145,6 +145,9 @@ export async function POST(request: NextRequest) {
     const primeiroNome = nomePartes[0] || 'Comprador';
     const sobrenome = nomePartes.slice(1).join(' ') || 'Cliente';
     const cpfLimpo = (comprador?.cpf || '').replace(/\D/g, '');
+    const docIdentificacao = (cpfLimpo.length === 11 || cpfLimpo.length === 14)
+      ? { type: cpfLimpo.length === 14 ? 'CNPJ' : 'CPF', number: cpfLimpo }
+      : undefined;
 
     let emailPayer = (comprador?.email && comprador.email.includes('@'))
       ? comprador.email
@@ -166,7 +169,7 @@ export async function POST(request: NextRequest) {
         email: emailPayer,
         first_name: primeiroNome,
         last_name: sobrenome,
-        identification: cpfLimpo.length === 11 ? { type: 'CPF', number: cpfLimpo } : undefined,
+        identification: docIdentificacao,
       },
       external_reference: orderId,
       notification_url: webhookUrl,

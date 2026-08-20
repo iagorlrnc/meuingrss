@@ -71,11 +71,19 @@ export default function PaginaCadastro() {
 
     setEnviandoCodigo(true);
     try {
-      // Tenta enviar o OTP via Supabase Auth
+      // Tenta enviar o OTP via Supabase Auth com metadados do usuário (nome completo, CPF, telefone)
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
           shouldCreateUser: true,
+          data: {
+            nome: nome.trim() || undefined,
+            full_name: nome.trim() || undefined,
+            name: nome.trim() || undefined,
+            cpf: cpf || undefined,
+            telefone: telefone || undefined,
+            role: 'cliente',
+          },
         },
       });
 
