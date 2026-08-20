@@ -23,7 +23,8 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { evento_id, lote_id, quantidade, comprador_id } = await request.json();
+    const body = await request.json();
+    const { evento_id, lote_id, quantidade, comprador_id } = body;
 
     // 2. Autenticação e proteção IDOR
     const supabaseServidor = await criarClienteServidor();
@@ -102,7 +103,8 @@ export async function POST(request: NextRequest) {
 
     // 5. Criação prévia do Pedido com Status 'pendente'
     const dataExpiracao = new Date(Date.now() + TEMPO_EXPIRACAO_PIX_MINUTOS * 60 * 1000);
-    let orderId = crypto.randomUUID();
+    const clienteOrderId = body.pedido_id || body.idempotency_key;
+    let orderId = (clienteOrderId && UUID_REGEX.test(clienteOrderId)) ? clienteOrderId : crypto.randomUUID();
 
     try {
       const { data: pedidoCriado } = await supabase
@@ -138,7 +140,6 @@ export async function POST(request: NextRequest) {
       webhookUrl = `https://${dominioPrincipal}/api/webhook-mercadopago`;
     }
 
-
     // 7. Montagem dos dados do comprador
     const nomePartes = (comprador?.nome || user.email || 'Comprador').trim().split(' ');
     const primeiroNome = nomePartes[0] || 'Comprador';
@@ -155,19 +156,18 @@ export async function POST(request: NextRequest) {
       emailPayer = 'comprador.meuingrss@gmail.com';
     }
 
-
     // 8. Chamada transparente à API de Pagamentos do Mercado Pago (com Idempotência)
     const payloadPagamento = {
       transaction_amount: Number(totalFinal.toFixed(2)),
       description: `${evento.titulo} — ${lote.nome_lote} (${qtd}x)`,
       payment_method_id: 'pix',
+      statement_descriptor: 'MEUINGRSS',
       payer: {
         email: emailPayer,
         first_name: primeiroNome,
         last_name: sobrenome,
         identification: cpfLimpo.length === 11 ? { type: 'CPF', number: cpfLimpo } : undefined,
       },
-
       external_reference: orderId,
       notification_url: webhookUrl,
       date_of_expiration: dataExpiracao.toISOString(),

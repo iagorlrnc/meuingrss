@@ -56,7 +56,14 @@ export async function POST(request: NextRequest) {
     }
 
     const rawPm = payment_method_id || body.paymentMethodId || (body.formData as any)?.payment_method_id || (body.formData as any)?.paymentMethodId;
-    const paymentMethodIdValido = (rawPm && rawPm !== 'undefined' && rawPm !== 'null') ? String(rawPm).toLowerCase() : 'visa';
+    let paymentMethodIdValido = (rawPm && rawPm !== 'undefined' && rawPm !== 'null') ? String(rawPm).toLowerCase().trim() : 'visa';
+    if (paymentMethodIdValido === 'mastercard') paymentMethodIdValido = 'master';
+
+    // Sanitização estrita do issuer_id: só envia se for string/número válido não nulo/undefined
+    const rawIssuer = issuer_id || body.issuerId || (body.formData as any)?.issuer_id || (body.formData as any)?.issuerId;
+    const issuerIdValido = (rawIssuer && rawIssuer !== 'undefined' && rawIssuer !== 'null' && String(rawIssuer).trim() !== '')
+      ? String(rawIssuer).trim()
+      : undefined;
 
     // 3. Validação dos Parâmetros do Cartão
     if (!token || typeof token !== 'string') {
@@ -66,7 +73,6 @@ export async function POST(request: NextRequest) {
     if (!evento_id || !lote_id || !quantidade || !comprador_id) {
       return NextResponse.json({ erro: 'Dados de pagamento incompletos.' }, { status: 400 });
     }
-
 
     if (!UUID_REGEX.test(evento_id) || !UUID_REGEX.test(lote_id) || !UUID_REGEX.test(comprador_id)) {
       return NextResponse.json({ erro: 'Identificadores inválidos fornecidos.' }, { status: 400 });
@@ -122,7 +128,8 @@ export async function POST(request: NextRequest) {
     const totalFinal = subtotal + taxaServicoTotal;
 
     // 5. Criação Prévia do Pedido com Status 'pendente'
-    let orderId = crypto.randomUUID();
+    const clienteOrderId = body.pedido_id || body.idempotency_key;
+    let orderId = (clienteOrderId && UUID_REGEX.test(clienteOrderId)) ? clienteOrderId : crypto.randomUUID();
 
     try {
       const { data: pedidoCriado } = await supabase
@@ -138,7 +145,6 @@ export async function POST(request: NextRequest) {
           valor_total: totalFinal,
           status: 'pendente',
           metodo_pagamento: paymentMethodIdValido,
-
         })
         .select('id')
         .maybeSingle();
@@ -158,7 +164,6 @@ export async function POST(request: NextRequest) {
       webhookUrl = `https://${dominioPrincipal}/api/webhook-mercadopago`;
     }
 
-
     // 7. Dados do Payer
     const nomePartes = (comprador?.nome || user.email || 'Comprador').trim().split(' ');
     const primeiroNome = payer?.first_name || nomePartes[0] || 'Comprador';
@@ -177,8 +182,6 @@ export async function POST(request: NextRequest) {
 
     const cpfLimpo = (payer?.identification?.number || comprador?.cpf || '').replace(/\D/g, '');
 
-
-
     // 8. Chamada Transparente ao Mercado Pago com Token (PCI Compliant & Idempotência)
     const payloadPagamento = {
       transaction_amount: Number(totalFinal.toFixed(2)),
@@ -186,9 +189,8 @@ export async function POST(request: NextRequest) {
       description: `${evento.titulo} — ${lote.nome_lote} (${qtd}x)`,
       installments: Number(installments || 1),
       payment_method_id: paymentMethodIdValido,
-
-      issuer_id: (issuer_id ? String(issuer_id) : undefined) as any,
-
+      issuer_id: issuerIdValido as any,
+      statement_descriptor: 'MEUINGRSS',
       payer: {
         email: emailPayer,
         first_name: primeiroNome,
@@ -245,12 +247,11 @@ export async function POST(request: NextRequest) {
         p_pedido_id: orderId,
         p_gateway_payment_id: gatewayPaymentId,
         p_metodo_pagamento: paymentMethodIdValido,
-
         p_qr_hashes: qrHashes,
       });
 
       if (errRpc || !resRpc?.sucesso) {
-        // Fallback JS
+        // Fallback JS com proteção anti-duplicação
         await supabase.from('pedidos').update({
           status: 'aprovado',
           gateway_payment_id: gatewayPaymentId,
@@ -259,23 +260,37 @@ export async function POST(request: NextRequest) {
         }).eq('id', orderId);
 
         for (let i = 0; i < qtd; i++) {
-          const { data: ing } = await supabase.from('ingressos').insert({
-            evento_id,
-            lote_id,
-            comprador_id,
-            qr_code_hash: qrHashes[i],
-            status: 'valido',
-          }).select('id').single();
+          const hash = qrHashes[i];
+          const { data: ingExist } = await supabase.from('ingressos').select('id').eq('qr_code_hash', hash).maybeSingle();
+          let ingressoId = ingExist?.id;
 
-          if (ing) {
-            await supabase.from('pagamentos').insert({
-              ingresso_id: ing.id,
-              valor: precoUnitario,
-              status: 'aprovado',
-              gateway_transaction_id: gatewayPaymentId,
-              metodo_pagamento: paymentMethodIdValido,
+          if (!ingressoId) {
+            const { data: ing } = await supabase.from('ingressos').insert({
+              evento_id,
+              lote_id,
+              comprador_id,
+              qr_code_hash: hash,
+              status: 'valido',
+            }).select('id').single();
+            ingressoId = ing?.id;
+          }
 
-            });
+          if (ingressoId) {
+            const { data: pagExist } = await supabase.from('pagamentos')
+              .select('id')
+              .eq('ingresso_id', ingressoId)
+              .eq('gateway_transaction_id', gatewayPaymentId)
+              .maybeSingle();
+
+            if (!pagExist) {
+              await supabase.from('pagamentos').insert({
+                ingresso_id: ingressoId,
+                valor: precoUnitario,
+                status: 'aprovado',
+                gateway_transaction_id: gatewayPaymentId,
+                metodo_pagamento: paymentMethodIdValido,
+              });
+            }
           }
         }
       }

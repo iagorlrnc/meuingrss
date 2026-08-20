@@ -339,15 +339,39 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ recebido: true, mensagem: 'Notificação processada ou ignorada' }, { status: 200 });
   }
 
-  // 2. Validação da Assinatura HMAC de Segurança (se enviada)
+  // 2. Validação da Assinatura HMAC de Segurança (Fail-Closed)
   const xSignature = request.headers.get('x-signature');
   const xRequestId = request.headers.get('x-request-id');
   const secretConfigurado = obterSecretWebhook();
 
-  if (secretConfigurado && xSignature && xRequestId) {
+  if (secretConfigurado) {
+    if (!xSignature || !xRequestId) {
+      logger.security('REJEITADO: Webhook recebido sem cabeçalhos de assinatura x-signature/x-request-id', { ip, paymentId });
+      const duracao = Date.now() - inicioTimestamp;
+      await registrarLogWebhook(supabase, {
+        tipo_evento: notificationType || 'payment',
+        data_id: String(paymentId || ''),
+        status_resposta: 401,
+        erro: 'Cabeçalhos x-signature e x-request-id obrigatórios quando secret está configurado',
+        ip,
+        duracao_ms: duracao,
+      });
+      return NextResponse.json({ erro: 'Não autorizado: assinatura ausente' }, { status: 401 });
+    }
+
     const assinaturaValida = validarAssinaturaWebhook(xSignature, xRequestId, String(paymentId));
     if (!assinaturaValida) {
-      logger.warn('Assinatura HMAC divergente no webhook Mercado Pago. Procedendo com verificação direta na API.', { ip, paymentId });
+      logger.security('REJEITADO: Assinatura HMAC inválida no webhook Mercado Pago', { ip, paymentId });
+      const duracao = Date.now() - inicioTimestamp;
+      await registrarLogWebhook(supabase, {
+        tipo_evento: notificationType || 'payment',
+        data_id: String(paymentId || ''),
+        status_resposta: 401,
+        erro: 'Assinatura HMAC x-signature inválida',
+        ip,
+        duracao_ms: duracao,
+      });
+      return NextResponse.json({ erro: 'Não autorizado: assinatura inválida' }, { status: 401 });
     }
   }
 
@@ -415,7 +439,36 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ recebido: true, status: statusPagamento, status_detail: statusDetail }, { status: 200 });
     }
 
-    // Se o pagamento ainda está pendente / em análise
+    // Se o pagamento está em análise (in_process, pending, authorized, in_mediation)
+    if (['in_process', 'pending', 'authorized', 'in_mediation'].includes(statusPagamento)) {
+      // Atualiza pedido para em_analise se existir
+      if (payment.external_reference && UUID_REGEX.test(payment.external_reference)) {
+        await supabase
+          .from('pedidos')
+          .update({
+            status: 'em_analise',
+            gateway_payment_id: gatewayPaymentId,
+            gateway_transaction_id: gatewayPaymentId,
+            metodo_pagamento: metodoPagamento,
+          })
+          .eq('id', payment.external_reference)
+          .eq('status', 'pendente');
+      }
+
+      const duracao = Date.now() - inicioTimestamp;
+      await registrarLogWebhook(supabase, {
+        tipo_evento: 'payment',
+        data_id: gatewayPaymentId,
+        status_resposta: 200,
+        resultado: `Pagamento em análise (${statusPagamento})`,
+        ip,
+        duracao_ms: duracao,
+        payload: { status: statusPagamento, status_detail: statusDetail, gateway_id: gatewayPaymentId },
+      });
+      return NextResponse.json({ recebido: true, status: statusPagamento, mensagem: 'Aguardando aprovação / em análise' }, { status: 200 });
+    }
+
+    // Se qualquer outro status diferente de approved
     if (statusPagamento !== 'approved') {
       const duracao = Date.now() - inicioTimestamp;
       await registrarLogWebhook(supabase, {

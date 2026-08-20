@@ -76,6 +76,15 @@ export function validarAssinaturaWebhook(
 
     if (!ts || !hashV1) return false;
 
+    // Proteção contra Replay Attack: Rejeita mensagens com timestamp com diferença maior que 10 minutos (600s)
+    const tsNumber = parseInt(ts, 10);
+    if (isNaN(tsNumber)) return false;
+    const agoraSegundos = Math.floor(Date.now() / 1000);
+    if (Math.abs(agoraSegundos - tsNumber) > 600) {
+      logger.security('Replay attack prevenido no webhook Mercado Pago (timestamp expirado)', { ts, agoraSegundos });
+      return false;
+    }
+
     const manifest = `id:${dataId};request-id:${xRequestIdHeader};ts:${ts};`;
     const computedHmac = crypto
       .createHmac('sha256', secret)

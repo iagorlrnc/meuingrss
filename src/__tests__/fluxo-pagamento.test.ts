@@ -40,6 +40,13 @@ function validarAssinaturaLocal(
 
     if (!ts || !hashV1) return false;
 
+    const tsNumber = parseInt(ts, 10);
+    if (isNaN(tsNumber)) return false;
+    const agoraSegundos = Math.floor(Date.now() / 1000);
+    if (Math.abs(agoraSegundos - tsNumber) > 600) {
+      return false;
+    }
+
     const manifest = `id:${dataId};request-id:${xRequestIdHeader};ts:${ts};`;
     const computedHmac = crypto
       .createHmac('sha256', secret)
@@ -175,6 +182,17 @@ describe('Validação de Assinatura HMAC do Webhook', () => {
 
   it('deve REJEITAR assinatura com formato inválido (sem v1)', () => {
     expect(validarAssinaturaLocal('ts=123', 'req-123', 'pay-123', chaveSecretaWebhook)).toBe(false);
+  });
+
+  it('deve REJEITAR assinatura expirada com mais de 10 minutos (Replay Attack)', () => {
+    const dataId = 'pay-old-123';
+    const requestId = 'req-old-456';
+    const tsAntigo = String(Math.floor(Date.now() / 1000) - 700); // 700 segundos atrás
+    const manifest = `id:${dataId};request-id:${requestId};ts:${tsAntigo};`;
+    const hash = crypto.createHmac('sha256', chaveSecretaWebhook).update(manifest).digest('hex');
+    const xSignatureAntiga = `ts=${tsAntigo},v1=${hash}`;
+
+    expect(validarAssinaturaLocal(xSignatureAntiga, requestId, dataId, chaveSecretaWebhook)).toBe(false);
   });
 });
 
@@ -551,6 +569,37 @@ describe('Checkout Transparente — Tradução de Erros de Cartão', () => {
     expect(msg).toContain('recusado');
   });
 });
+
+describe('Checkout Transparente — Sanitização de Dados de Cartão', () => {
+  function sanitizarIssuer(issuer: unknown): string | undefined {
+    if (!issuer || issuer === 'undefined' || issuer === 'null' || String(issuer).trim() === '') {
+      return undefined;
+    }
+    return String(issuer).trim();
+  }
+
+  function normalizarMetodoPagamento(pm: string): string {
+    const limpo = (pm || '').toLowerCase().trim();
+    if (limpo === 'mastercard') return 'master';
+    return limpo || 'visa';
+  }
+
+  it('deve sanitizar issuer_id "undefined" ou "null" para undefined', () => {
+    expect(sanitizarIssuer('undefined')).toBeUndefined();
+    expect(sanitizarIssuer('null')).toBeUndefined();
+    expect(sanitizarIssuer('')).toBeUndefined();
+    expect(sanitizarIssuer(null)).toBeUndefined();
+    expect(sanitizarIssuer(undefined)).toBeUndefined();
+    expect(sanitizarIssuer('25')).toBe('25');
+  });
+
+  it('deve normalizar "mastercard" para "master"', () => {
+    expect(normalizarMetodoPagamento('mastercard')).toBe('master');
+    expect(normalizarMetodoPagamento('visa')).toBe('visa');
+    expect(normalizarMetodoPagamento('elo')).toBe('elo');
+  });
+});
+
 
 
 

@@ -84,7 +84,7 @@ function ConteudoCheckout() {
     setErro('');
 
     try {
-      const resposta = await fetch('/api/criar-sessao-pagamento', {
+      const resposta = await fetch('/api/payments/gratuito', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -100,7 +100,7 @@ function ConteudoCheckout() {
       if (dados.url) {
         window.location.href = dados.url;
       } else {
-        setErro(dados.erro || 'Erro ao criar sessão de pagamento');
+        setErro(dados.erro || 'Erro ao reservar ingresso gratuito');
         setProcessando(false);
       }
     } catch {
@@ -136,54 +136,54 @@ function ConteudoCheckout() {
   const totalFinal = subtotal + taxaServico;
 
   return (
-    <div className="min-h-screen pt-16 sm:pt-20 md:pt-24 pb-12 px-4 sm:px-6">
+    <div className="min-h-screen pt-14 sm:pt-20 md:pt-24 pb-12 px-3 sm:px-6">
       <div className="max-w-5xl mx-auto">
         <Link
           href={`/eventos/${params.id}`}
-          className="inline-flex items-center gap-2 text-sm text-texto-secundario hover:text-texto-principal transition-colors mb-8"
+          className="inline-flex items-center gap-2 text-xs sm:text-sm text-texto-secundario hover:text-texto-principal transition-colors mb-6 sm:mb-8"
         >
           <ArrowLeft size={16} />
           Voltar ao evento
         </Link>
 
-        <h1 className="text-2xl sm:text-3xl font-black font-titulo mb-8">
+        <h1 className="text-xl sm:text-3xl font-black font-titulo mb-6 sm:mb-8">
           Finalizar <span className="gradiente-texto">Compra</span>
         </h1>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 lg:gap-8 items-start">
           {/* Resumo do Evento e Ingressos */}
           <div className="lg:col-span-7">
             <Cartao variante="vidro" className="overflow-hidden !p-0">
               {/* Banner do Evento acima do título */}
               {evento.imagem_url ? (
-                <div className="relative w-full h-44 sm:h-52 overflow-hidden border-b border-borda-sutil">
+                <div className="relative w-full h-36 sm:h-52 overflow-hidden border-b border-borda-sutil">
                   <img
                     src={evento.imagem_url}
                     alt={evento.titulo}
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-fundo-card via-fundo-card/30 to-transparent" />
-                  <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primaria-500/90 text-white backdrop-blur-md shadow-lg">
-                      <Ticket size={13} />
-                      {lote.nome_lote}
+                  <div className="absolute bottom-2.5 left-3 right-3 sm:bottom-3 sm:left-4 sm:right-4 flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[11px] sm:text-xs font-semibold bg-primaria-500/90 text-white backdrop-blur-md shadow-lg truncate max-w-[60%]">
+                      <Ticket size={12} className="shrink-0" />
+                      <span className="truncate">{lote.nome_lote}</span>
                     </span>
                     {evento.cidade && (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-black/60 text-texto-principal backdrop-blur-md border border-white/10">
-                        <MapPin size={13} className="text-secundaria-400" />
+                      <span className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[11px] sm:text-xs font-medium bg-black/60 text-texto-principal backdrop-blur-md border border-white/10 shrink-0">
+                        <MapPin size={12} className="text-secundaria-400" />
                         {evento.cidade}
                       </span>
                     )}
                   </div>
                 </div>
               ) : (
-                <div className="w-full h-32 bg-gradient-to-r from-primaria-600/20 to-secundaria-600/20 border-b border-borda-sutil flex items-center justify-center">
-                  <Ticket size={40} className="text-primaria-400 opacity-60" />
+                <div className="w-full h-28 sm:h-32 bg-gradient-to-r from-primaria-600/20 to-secundaria-600/20 border-b border-borda-sutil flex items-center justify-center">
+                  <Ticket size={36} className="text-primaria-400 opacity-60" />
                 </div>
               )}
 
-              <div className="p-5 sm:p-6">
-                <h3 className="text-xl sm:text-2xl font-bold font-titulo text-texto-principal mb-2">
+              <div className="p-4 sm:p-6">
+                <h3 className="text-lg sm:text-2xl font-bold font-titulo text-texto-principal mb-2">
                   {evento.titulo}
                 </h3>
 
@@ -194,69 +194,69 @@ function ConteudoCheckout() {
                 )}
 
                 {/* Informações detalhadas do Evento */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-xl bg-fundo-input border border-borda-sutil mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 p-3 sm:p-3.5 rounded-xl bg-fundo-input border border-borda-sutil mb-5 sm:mb-6">
                   <div className="flex items-start gap-2.5">
-                    <div className="p-2 rounded-lg bg-primaria-500/10 text-primaria-400 shrink-0">
-                      <Calendar size={16} />
+                    <div className="p-1.5 sm:p-2 rounded-lg bg-primaria-500/10 text-primaria-400 shrink-0">
+                      <Calendar size={15} />
                     </div>
-                    <div>
-                      <span className="block text-[11px] font-semibold text-texto-terciario uppercase tracking-wider">Data e Horário</span>
-                      <span className="text-xs sm:text-sm font-medium text-texto-principal">
+                    <div className="min-w-0">
+                      <span className="block text-[10px] sm:text-[11px] font-semibold text-texto-terciario uppercase tracking-wider">Data e Horário</span>
+                      <span className="text-xs sm:text-sm font-medium text-texto-principal block truncate">
                         {formatarDataHora(evento.data_evento)}
                       </span>
                     </div>
                   </div>
 
                   <div className="flex items-start gap-2.5">
-                    <div className="p-2 rounded-lg bg-secundaria-500/10 text-secundaria-400 shrink-0">
-                      <MapPin size={16} />
+                    <div className="p-1.5 sm:p-2 rounded-lg bg-secundaria-500/10 text-secundaria-400 shrink-0">
+                      <MapPin size={15} />
                     </div>
-                    <div>
-                      <span className="block text-[11px] font-semibold text-texto-terciario uppercase tracking-wider">Local</span>
-                      <span className="text-xs sm:text-sm font-medium text-texto-principal truncate block max-w-[180px]" title={evento.local}>
+                    <div className="min-w-0">
+                      <span className="block text-[10px] sm:text-[11px] font-semibold text-texto-terciario uppercase tracking-wider">Local</span>
+                      <span className="text-xs sm:text-sm font-medium text-texto-principal truncate block" title={evento.local}>
                         {evento.local}
                       </span>
                     </div>
                   </div>
                 </div>
 
-                <div className="border-t border-borda-sutil pt-4 space-y-2.5">
-                  <div className="flex items-center justify-between text-sm">
+                <div className="border-t border-borda-sutil pt-3.5 sm:pt-4 space-y-2 sm:space-y-2.5">
+                  <div className="flex items-center justify-between text-xs sm:text-sm">
                     <span className="text-texto-secundario">Lote</span>
                     <span className="text-texto-principal font-medium">{lote.nome_lote}</span>
                   </div>
-                  <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center justify-between text-xs sm:text-sm">
                     <span className="text-texto-secundario">Preço unitário</span>
                     <span className="text-texto-principal font-medium">{formatarMoeda(lote.preco)}</span>
                   </div>
-                  <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center justify-between text-xs sm:text-sm">
                     <span className="text-texto-secundario">Quantidade</span>
                     <span className="text-texto-principal font-medium">{qtd}x</span>
                   </div>
 
                   {subtotal > 0 && (
                     <>
-                      <div className="flex items-center justify-between text-sm pt-1 border-t border-borda-sutil/50">
+                      <div className="flex items-center justify-between text-xs sm:text-sm pt-1 border-t border-borda-sutil/50">
                         <span className="text-texto-secundario">Subtotal</span>
                         <span className="text-texto-principal font-medium">{formatarMoeda(subtotal)}</span>
                       </div>
-                      <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center justify-between text-xs sm:text-sm">
                         <span className="text-texto-secundario flex items-center gap-1">
-                          Taxa da plataforma e banco ({TAXA_SERVICO_LABEL})
+                          Taxa da plataforma ({TAXA_SERVICO_LABEL})
                         </span>
                         <span className="text-primaria-400 font-semibold">+{formatarMoeda(taxaServico)}</span>
                       </div>
                     </>
                   )}
 
-                  <div className="border-t border-borda-sutil pt-3 flex items-center justify-between">
+                  <div className="border-t border-borda-sutil pt-3 flex items-center justify-between gap-2">
                     <div>
-                      <span className="text-base sm:text-lg font-bold text-texto-principal block">Valor Final a Pagar</span>
+                      <span className="text-sm sm:text-lg font-bold text-texto-principal block">Valor Final</span>
                       {taxaServico > 0 && (
-                        <span className="text-[11px] text-texto-terciario">Inclui ingressos e taxas da plataforma</span>
+                        <span className="text-[10px] sm:text-[11px] text-texto-terciario">Com taxas inclusas</span>
                       )}
                     </div>
-                    <span className="text-2xl sm:text-3xl font-black gradiente-texto">{formatarMoeda(totalFinal)}</span>
+                    <span className="text-xl sm:text-3xl font-black gradiente-texto shrink-0">{formatarMoeda(totalFinal)}</span>
                   </div>
                 </div>
               </div>
