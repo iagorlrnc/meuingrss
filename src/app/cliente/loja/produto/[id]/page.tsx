@@ -190,15 +190,6 @@ function ConteudoDetalhesProduto({
             <ChevronRight size={12} className="shrink-0 text-slate-600" />
             <span className="text-slate-300 truncate font-semibold">{produto.name}</span>
           </div>
-
-          <Link
-            href="/loja/carrinho"
-            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-all flex items-center gap-1.5 shrink-0"
-            title="Abrir carrinho"
-          >
-            <ShoppingCart size={16} className="text-[#00e5ff]" />
-            <span className="hidden sm:inline text-xs font-bold uppercase tracking-wider">Carrinho</span>
-          </Link>
         </div>
 
         {/* Layout Principal em Grid */}
@@ -328,10 +319,10 @@ function ConteudoDetalhesProduto({
                 <div className="flex items-baseline justify-between gap-2">
                   <div className="flex items-baseline gap-2">
                     <span className={`text-2xl sm:text-4xl font-black font-titulo ${precoReais === 0 ? 'text-emerald-400' : 'text-[#00e5ff]'}`}>
-                      {precoReais === 0 ? 'Grátis' : formatarMoeda(precoReais)}
+                      {precoReais === 0 ? 'Gratuito' : formatarMoeda(precoReais)}
                     </span>
                     <span className="text-xs text-emerald-400 font-bold uppercase tracking-wider bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
-                      {precoReais === 0 ? 'Sem custo' : 'À vista no Pix'}
+                      {precoReais === 0 ? ' ' : 'À vista no Pix'}
                     </span>
                   </div>
                 </div>
@@ -339,8 +330,7 @@ function ConteudoDetalhesProduto({
                 <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400 pt-1 border-t border-white/5">
                   {precoReais === 0 ? (
                     <span className="flex items-center gap-1 text-emerald-400 font-medium">
-                      <Sparkles size={14} className="text-emerald-400" />
-                      Resgate 100% gratuito sem taxa de emissão
+                      Resgate agora
                     </span>
                   ) : (
                     <>
@@ -461,7 +451,7 @@ function ConteudoDetalhesProduto({
                 <div className="text-right">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Subtotal</span>
                   <span className={`text-base sm:text-lg font-black font-titulo ${precoReais === 0 ? 'text-emerald-400' : 'text-[#00e5ff]'}`}>
-                    {precoReais === 0 ? 'Grátis' : formatarMoeda(subtotalReais)}
+                    {precoReais === 0 ? 'Gratuito' : formatarMoeda(subtotalReais)}
                   </span>
                 </div>
               </div>
@@ -469,44 +459,20 @@ function ConteudoDetalhesProduto({
 
             {/* Botões de Ação no Desktop */}
             <div className="pt-2 space-y-3 hidden sm:block">
-              <div className="grid grid-cols-2 gap-3">
-                {estaNoCarrinho || adicionadoRecente ? (
-                  <Link href="/loja/carrinho" className="w-full">
-                    <Botao
-                      larguraTotal
-                      tamanho="lg"
-                      variante="primario"
-                      icone={<ShoppingCart size={18} />}
-                      className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black shadow-lg shadow-emerald-500/20"
-                    >
-                      Ver Carrinho
-                    </Botao>
-                  </Link>
-                ) : (
-                  <Botao
-                    larguraTotal
-                    tamanho="lg"
-                    variante="primario"
-                    onClick={() => handleAdicionar(false)}
-                    disabled={esgotado || adicionando}
-                    icone={<ShoppingCart size={18} />}
-                    className="bg-[#162036] hover:bg-[#1c2944] text-white border-white/15"
-                  >
-                    {adicionando ? 'Adicionando...' : 'Adicionar ao Carrinho'}
-                  </Botao>
-                )}
-
-                <Botao
-                  larguraTotal
-                  tamanho="lg"
-                  variante="festiva"
-                  onClick={() => handleAdicionar(true)}
-                  disabled={esgotado || adicionando}
-                  className="font-black shadow-lg shadow-[#00e5ff]/20"
-                >
-                  {esgotado ? 'Produto Esgotado' : 'Comprar Agora'}
-                </Botao>
-              </div>
+              <Botao
+                larguraTotal
+                tamanho="lg"
+                variante="festiva"
+                onClick={() => handleAdicionar(true)}
+                disabled={esgotado || adicionando}
+                className="font-black shadow-lg shadow-[#00e5ff]/20"
+              >
+                {esgotado
+                  ? 'Produto Esgotado'
+                  : precoReais === 0
+                  ? 'Resgatar Agora'
+                  : 'Comprar Agora'}
+              </Botao>
             </div>
 
             {/* Selos de Confiança e Benefícios */}
@@ -527,47 +493,25 @@ function ConteudoDetalhesProduto({
 
       {/* BARRA FIXA INFERIOR NO MOBILE (Mobile Sticky CTA) */}
       <div className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#080c14]/95 backdrop-blur-lg border-t border-white/10 p-3 shadow-2xl">
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-3">
           {/* Preço e Qtd */}
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0">
             <span className="text-[10px] text-slate-400 block truncate">
-              {quantidade}x {formatarMoeda(precoReais)}
+              {quantidade}x {precoReais === 0 ? 'Gratuito' : formatarMoeda(precoReais)}
             </span>
             <span className="text-base font-black text-[#00e5ff] font-titulo leading-none">
-              {formatarMoeda(subtotalReais)}
+              {precoReais === 0 ? 'Gratuito' : formatarMoeda(subtotalReais)}
             </span>
           </div>
-
-          {/* Botão Adicionar / Ver Carrinho Mobile */}
-          {estaNoCarrinho || adicionadoRecente ? (
-            <Link
-              href="/loja/carrinho"
-              className="px-4 py-3 rounded-xl border border-emerald-400 bg-emerald-500 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shrink-0 shadow-lg shadow-emerald-500/20"
-              title="Ver Carrinho"
-            >
-              <ShoppingCart size={16} className="stroke-[2.5]" />
-              <span>Ver Carrinho</span>
-            </Link>
-          ) : (
-            <button
-              type="button"
-              onClick={() => handleAdicionar(false)}
-              disabled={esgotado || adicionando}
-              className="p-3 rounded-xl border bg-[#162036] text-white border-white/15 hover:bg-[#1c2944] flex items-center justify-center transition-all cursor-pointer shrink-0"
-              title="Adicionar ao Carrinho"
-            >
-              <ShoppingCart size={18} />
-            </button>
-          )}
 
           {/* Botão Comprar Agora */}
           <button
             type="button"
             onClick={() => handleAdicionar(true)}
             disabled={esgotado || adicionando}
-            className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-[#00e5ff] to-[#026cdf] text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-[#00e5ff]/20 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#00e5ff] to-[#026cdf] text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-[#00e5ff]/20 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <span>{esgotado ? 'Esgotado' : 'Comprar'}</span>
+            <span>{esgotado ? 'Esgotado' : precoReais === 0 ? 'Resgatar Agora' : 'Comprar Agora'}</span>
             {!esgotado && <ChevronRight size={14} />}
           </button>
         </div>

@@ -234,7 +234,7 @@ export default function PaginaCarrinho() {
               icone={<ArrowRight size={18} />}
               className="font-black text-xs uppercase tracking-wider py-4 shadow-xl"
             >
-              Avançar para Checkout
+              Ir para o pagamento
             </Botao>
 
             <div className="pt-2 border-t border-white/10 space-y-2 text-[11px] text-slate-400 text-center">

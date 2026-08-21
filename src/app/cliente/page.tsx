@@ -227,7 +227,7 @@ function ConteudoPaginaInicial() {
                     }`}
                   >
                     <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-sm text-white text-xs font-black uppercase tracking-wider shadow-lg ${esgotadoHero ? 'bg-red-600' : 'bg-gradient-to-r from-[#ff007a] to-[#8b5cf6]'}`}>
-                      <Flame size={14} className="animate-bounce" />
+                      <Flame size={14} />
                       {esgotadoHero ? 'Ingressos Esgotados' : 'Garanta Já'}
                     </div>
 

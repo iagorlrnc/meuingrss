@@ -346,7 +346,7 @@ function ComponenteDetalheEvento({ eventoInicial }: ConteudoDetalheEventoProps) 
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="px-3 py-1 rounded-sm bg-gradient-to-r from-[#ff007a] to-[#8b5cf6] text-white text-xs font-black uppercase tracking-wider shadow-lg flex items-center gap-1">
-                      <Flame size={14} className="animate-bounce" />
+                      <Flame size={14} />
                       VENDA EXCLUSIVA
                     </span>
                     {evento.atletica?.nome && (
