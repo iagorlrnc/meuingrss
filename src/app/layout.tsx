@@ -3,6 +3,7 @@ import "./globals.css";
 import { ProvedorNotificacao } from "@/componentes/ui/Notificacao";
 import { ProvedorAutenticacao } from "@/contextos/ContextoAutenticacao";
 import { ProvedorCookies } from "@/contextos/ContextoCookies";
+import { ProvedorCarrinho } from "@/contextos/ContextoCarrinho";
 import dynamic from "next/dynamic";
 
 const BannerCookies = dynamic(() => import("@/componentes/ui/BannerCookies"));
@@ -49,8 +50,10 @@ export default function LayoutRaiz({
         <ProvedorAutenticacao>
           <ProvedorCookies>
             <ProvedorNotificacao>
-              {children}
-              <BannerCookies />
+              <ProvedorCarrinho>
+                {children}
+                <BannerCookies />
+              </ProvedorCarrinho>
             </ProvedorNotificacao>
           </ProvedorCookies>
         </ProvedorAutenticacao>
@@ -58,3 +61,4 @@ export default function LayoutRaiz({
     </html>
   );
 }
+

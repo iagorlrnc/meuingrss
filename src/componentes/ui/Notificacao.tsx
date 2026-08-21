@@ -16,6 +16,7 @@ interface Notificacao {
 
 interface ContextoNotificacaoType {
   notificar: (notificacao: Omit<Notificacao, 'id'>) => void;
+  mostrarNotificacao: (notificacao: Omit<Notificacao, 'id'>) => void;
   sucesso: (titulo: string, mensagem?: string) => void;
   erro: (titulo: string, mensagem?: string) => void;
   alerta: (titulo: string, mensagem?: string) => void;
@@ -31,6 +32,9 @@ export function useNotificacao() {
   }
   return ctx;
 }
+
+export const usarNotificacao = useNotificacao;
+
 
 const icones: Record<TipoNotificacao, React.ReactNode> = {
   sucesso: <CheckCircle className="w-5 h-5 text-sucesso" />,
@@ -80,8 +84,9 @@ export function ProvedorNotificacao({ children }: { children: React.ReactNode })
   }, [notificar]);
 
   return (
-    <ContextoNotificacao.Provider value={{ notificar, sucesso, erro, alerta, info }}>
+    <ContextoNotificacao.Provider value={{ notificar, mostrarNotificacao: notificar, sucesso, erro, alerta, info }}>
       {children}
+
 
       {}
       <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 max-w-sm w-full pointer-events-none">

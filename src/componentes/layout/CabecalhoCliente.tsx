@@ -7,7 +7,6 @@ import { usarAutenticacao } from '@/contextos/ContextoAutenticacao';
 import Botao from '@/componentes/ui/Botao';
 import { cn, normalizarListaCidades } from '@/lib/utilitarios';
 import { criarClienteNavegador } from '@/lib/supabase/cliente';
-import Modal from '@/componentes/ui/Modal';
 import Logo from '@/componentes/ui/Logo';
 import {
   Menu,
@@ -17,35 +16,27 @@ import {
   LogIn,
   Search,
   MapPin,
-  HelpCircle,
   Home,
   Calendar,
   Trophy,
-  Mail,
-  Copy,
-  Check,
+  ShoppingCart,
 } from 'lucide-react';
+import { usarCarrinho } from '@/contextos/ContextoCarrinho';
+
 
 import { obterCidadesCache, obterOuBuscarCidades } from '@/lib/cacheEventos';
 
 function ConteudoCabecalhoCliente() {
   const { usuario, perfil, sair, carregando } = usarAutenticacao();
+  const { totalItens } = usarCarrinho();
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
 
   const [menuAberto, setMenuAberto] = useState(false);
   const [perfilAberto, setPerfilAberto] = useState(false);
-  const [modalAjudaAberto, setModalAjudaAberto] = useState(false);
-  const [copiado, setCopiado] = useState(false);
   const [termoBusca, setTermoBusca] = useState(searchParams.get('busca') || '');
   const [cidadeSelecionada, setCidadeSelecionada] = useState(searchParams.get('cidade') || '');
-
-  function copiarEmail() {
-    navigator.clipboard.writeText('suporte.meuingrss@gmail.com');
-    setCopiado(true);
-    setTimeout(() => setCopiado(false), 2500);
-  }
   const [cidades, setCidades] = useState<string[]>(() => normalizarListaCidades(obterCidadesCache() || []));
   const supabase = criarClienteNavegador();
 
@@ -74,14 +65,20 @@ function ConteudoCabecalhoCliente() {
     if (buscaVal.trim()) params.set('busca', buscaVal.trim());
     if (cidadeVal) params.set('cidade', cidadeVal);
     const queryString = params.toString();
-    const rotaBase = pathname.includes('/atleticas') ? '/atleticas' : '/eventos';
+    const rotaBase = pathname.includes('/atleticas')
+      ? '/atleticas'
+      : pathname.includes('/loja')
+      ? '/loja'
+      : '/eventos';
     router.push(`${rotaBase}${queryString ? `?${queryString}` : ''}`);
   }
 
   const ehInicio = pathname === '/' || pathname === '/cliente';
   const ehEventos = pathname.startsWith('/eventos') || pathname.startsWith('/cliente/eventos');
   const ehAtleticas = pathname.startsWith('/atleticas') || pathname.startsWith('/cliente/atleticas');
+  const ehLoja = pathname.startsWith('/loja') || pathname.startsWith('/cliente/loja');
   const ehMeusIngressos = pathname.startsWith('/meus-ingressos') || pathname.startsWith('/cliente/meus-ingressos');
+
 
   const nomeUsuario = perfil?.nome || usuario?.user_metadata?.nome || usuario?.user_metadata?.full_name || usuario?.user_metadata?.name || '';
   const emailUsuario = perfil?.email || usuario?.email || '';
@@ -162,14 +159,19 @@ function ConteudoCabecalhoCliente() {
                 <Search size={20} />
               </Link>
 
-              <button
-                type="button"
-                onClick={() => setModalAjudaAberto(true)}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-300 hover:text-white rounded-md hover:bg-[#162036] transition-all cursor-pointer"
+              {/* Botão / Badge do Carrinho da Loja */}
+              <Link
+                href="/loja/carrinho"
+                className="relative p-2 text-slate-300 hover:text-white rounded-md hover:bg-[#162036] transition-all min-h-[40px] min-w-[40px] flex items-center justify-center border border-white/5 hover:border-[#00e5ff]/40"
+                aria-label="Carrinho de Compras"
               >
-                <HelpCircle size={15} />
-                <span>Ajuda</span>
-              </button>
+                <ShoppingCart size={20} className={totalItens > 0 ? "text-[#00e5ff]" : ""} />
+                {totalItens > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-gradient-to-r from-[#ff007a] to-[#8b5cf6] text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-lg animate-pulse">
+                    {totalItens > 99 ? '99+' : totalItens}
+                  </span>
+                )}
+              </Link>
 
               {!carregando && (
                 <>
@@ -193,7 +195,7 @@ function ConteudoCabecalhoCliente() {
                             className="fixed inset-0 z-40"
                             onClick={() => setPerfilAberto(false)}
                           />
-                          <div className="absolute right-0 top-12 w-60 bg-[#0f172a] rounded-md border border-white/15 shadow-2xl z-50 overflow-hidden">
+                          <div className="absolute right-0 top-12 w-64 bg-[#0f172a] rounded-md border border-white/15 shadow-2xl z-50 overflow-hidden">
                             <div className="p-4 border-b border-white/10 bg-[#162036]">
                               <p className="text-sm font-bold text-white truncate">
                                 {nomeUsuario || 'Usuário'}
@@ -210,6 +212,29 @@ function ConteudoCabecalhoCliente() {
                               >
                                 <Ticket size={16} />
                                 Meus Ingressos
+                              </Link>
+                              <Link
+                                href="/loja/meus-pedidos"
+                                onClick={() => setPerfilAberto(false)}
+                                className="flex items-center gap-2.5 px-3 py-2.5 text-xs font-bold uppercase tracking-wider text-slate-200 hover:bg-[#00e5ff] hover:text-slate-950 rounded-sm transition-all"
+                              >
+                                <ShoppingCart size={16} />
+                                Pedidos da Loja
+                              </Link>
+                              <Link
+                                href="/loja/carrinho"
+                                onClick={() => setPerfilAberto(false)}
+                                className="flex items-center justify-between px-3 py-2.5 text-xs font-bold uppercase tracking-wider text-slate-200 hover:bg-white/10 rounded-sm transition-all"
+                              >
+                                <span className="flex items-center gap-2.5">
+                                  <ShoppingCart size={16} />
+                                  Meu Carrinho
+                                </span>
+                                {totalItens > 0 && (
+                                  <span className="px-2 py-0.5 rounded-full bg-[#00e5ff] text-slate-950 text-[10px] font-black">
+                                    {totalItens}
+                                  </span>
+                                )}
                               </Link>
                               <button
                                 onClick={sair}
@@ -296,6 +321,19 @@ function ConteudoCabecalhoCliente() {
                 Atléticas
               </Link>
 
+              <Link
+                href="/loja"
+                className={cn(
+                  'py-2.5 transition-colors whitespace-nowrap flex items-center gap-1.5',
+                  ehLoja
+                    ? 'text-[#00e5ff] border-b-2 border-[#00e5ff]'
+                    : 'text-slate-300 hover:text-white'
+                )}
+              >
+                <ShoppingCart size={14} className="text-[#00e5ff]" />
+                Loja Oficial
+              </Link>
+
               {usuario && (
                 <Link
                   href="/meus-ingressos"
@@ -318,7 +356,7 @@ function ConteudoCabecalhoCliente() {
         <div
           className={cn(
             'md:hidden overflow-hidden transition-all duration-300 border-t border-white/10 bg-[#060910] relative z-50',
-            menuAberto ? 'max-h-[36rem]' : 'max-h-0 border-t-0'
+            menuAberto ? 'max-h-[42rem]' : 'max-h-0 border-t-0'
           )}
         >
           <nav className="px-4 py-4 space-y-2">
@@ -364,17 +402,26 @@ function ConteudoCabecalhoCliente() {
               Atléticas
             </Link>
 
-            <button
-              type="button"
-              onClick={() => {
-                setMenuAberto(false);
-                setModalAjudaAberto(true);
-              }}
-              className="w-full px-3 py-2.5 text-xs font-black uppercase tracking-wider rounded-md transition-all flex items-center gap-2 min-h-[44px] text-slate-300 hover:bg-[#162036] hover:text-white text-left cursor-pointer"
+            <Link
+              href="/loja"
+              onClick={() => setMenuAberto(false)}
+              className={cn(
+                'block px-3 py-2.5 text-xs font-black uppercase tracking-wider rounded-md transition-all flex items-center justify-between min-h-[44px]',
+                ehLoja
+                  ? 'bg-[#00e5ff] text-slate-950 font-black'
+                  : 'text-slate-300 hover:bg-[#162036] hover:text-white'
+              )}
             >
-              <HelpCircle size={16} />
-              Ajuda & Suporte
-            </button>
+              <span className="flex items-center gap-2">
+                <ShoppingCart size={16} />
+                Loja Oficial
+              </span>
+              {totalItens > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-[#ff007a] text-white text-[10px] font-black">
+                  {totalItens} no carrinho
+                </span>
+              )}
+            </Link>
 
             {usuario ? (
               <>
@@ -426,73 +473,8 @@ function ConteudoCabecalhoCliente() {
             )}
           </nav>
         </div>
+
       </header>
-
-      {/* Modal de Central de Ajuda & Suporte */}
-      <Modal
-        aberto={modalAjudaAberto}
-        aoFechar={() => setModalAjudaAberto(false)}
-        titulo="Central de Ajuda & Suporte"
-        descricao="Precisa de ajuda com suas compras ou dúvidas sobre o MeuIngrss?"
-        tamanho="md"
-      >
-        <div className="space-y-5 text-slate-200">
-          <div className="flex items-center gap-3.5 p-4 rounded-xl bg-[#162036] border border-white/10">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#38bdf8] to-[#00e5ff] flex items-center justify-center text-slate-950 shrink-0 shadow-lg font-bold">
-              <Mail size={22} />
-            </div>
-            <div>
-              <h4 className="text-sm font-bold text-white uppercase tracking-wider">E-mail Oficial de Atendimento</h4>
-              <p className="text-xs text-slate-400 mt-0.5">Entre em contato diretamente com a nossa equipe de suporte.</p>
-            </div>
-          </div>
-
-          <div className="p-4 rounded-xl bg-[#080c14] border border-[#00e5ff]/30 space-y-3 shadow-inner">
-            <div className="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
-              <div className="flex items-center gap-2 text-sm sm:text-base font-black text-white font-titulo select-all break-all">
-                <span>suporte.meuingrss@gmail.com</span>
-              </div>
-
-              <button
-                type="button"
-                onClick={copiarEmail}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#162036] hover:bg-[#00e5ff] text-white hover:text-slate-950 text-xs font-bold uppercase tracking-wider transition-all border border-white/10 shrink-0 cursor-pointer"
-              >
-                {copiado ? (
-                  <>
-                    <Check size={14} className="text-emerald-400" />
-                    <span>Copiado</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy size={14} />
-                    <span>Copiar</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-
-          <div className="space-y-2 text-xs text-slate-400 bg-[#162036]/60 p-4 rounded-xl border border-white/5">
-            <p className="flex items-center gap-2 text-[#00e5ff] font-bold">
-              Atendimento Rápido
-            </p>
-            <p>
-              Respondemos em até 24 horas úteis. Para agilizar o atendimento, informe o e-mail cadastrado ou o código do seu pedido.
-            </p>
-          </div>
-
-          <div className="pt-2 flex justify-end gap-2 border-t border-white/10">
-            <a
-              href="mailto:suporte.meuingrss@gmail.com"
-              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#38bdf8] to-[#00e5ff] text-slate-950 font-black text-xs uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-1.5 shadow-md"
-            >
-              <Mail size={15} />
-              Enviar E-mail Agora
-            </a>
-          </div>
-        </div>
-      </Modal>
     </>
   );
 }

@@ -11,7 +11,9 @@ import {
   Ticket,
   Search,
   MapPin,
+  ShoppingCart,
 } from 'lucide-react';
+import { usarCarrinho } from '@/contextos/ContextoCarrinho';
 
 import { obterCidadesCache, obterOuBuscarCidades } from '@/lib/cacheEventos';
 import { normalizarListaCidades } from '@/lib/utilitarios';
@@ -20,6 +22,7 @@ function ConteudoBarraNavegacaoMobile() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { totalItens } = usarCarrinho();
 
   const [termoBusca, setTermoBusca] = useState(searchParams.get('busca') || '');
   const [cidadeSelecionada, setCidadeSelecionada] = useState(searchParams.get('cidade') || '');
@@ -51,75 +54,64 @@ function ConteudoBarraNavegacaoMobile() {
     if (buscaVal.trim()) params.set('busca', buscaVal.trim());
     if (cidadeVal) params.set('cidade', cidadeVal);
     const queryString = params.toString();
-    const rotaBase = pathname.includes('/atleticas') ? '/atleticas' : '/eventos';
+    const rotaBase = pathname.includes('/atleticas')
+      ? '/atleticas'
+      : pathname.includes('/loja')
+      ? '/loja'
+      : '/eventos';
     router.push(`${rotaBase}${queryString ? `?${queryString}` : ''}`);
   }
 
   const ehInicio = pathname === '/' || pathname === '/cliente';
   const ehEventos = pathname.startsWith('/eventos') || pathname.startsWith('/cliente/eventos');
   const ehAtleticas = pathname.startsWith('/atleticas') || pathname.startsWith('/cliente/atleticas');
-
-  // Define os 3 botões dinamicamente com base na página atual
-  const botoes = ehInicio
-    ? [
-        { rotulo: 'Eventos', rotuloCurto: 'Eventos', href: '/eventos', icone: Calendar },
-        { rotulo: 'Atléticas', rotuloCurto: 'Atléticas', href: '/atleticas', icone: Trophy },
-        { rotulo: 'Meus Ingressos', rotuloCurto: 'Ingressos', href: '/meus-ingressos', icone: Ticket },
-      ]
-    : ehEventos
-    ? [
-        { rotulo: 'Início', rotuloCurto: 'Início', href: '/', icone: Home },
-        { rotulo: 'Atléticas', rotuloCurto: 'Atléticas', href: '/atleticas', icone: Trophy },
-        { rotulo: 'Meus Ingressos', rotuloCurto: 'Ingressos', href: '/meus-ingressos', icone: Ticket },
-      ]
-    : ehAtleticas
-    ? [
-        { rotulo: 'Início', rotuloCurto: 'Início', href: '/', icone: Home },
-        { rotulo: 'Eventos', rotuloCurto: 'Eventos', href: '/eventos', icone: Calendar },
-        { rotulo: 'Meus Ingressos', rotuloCurto: 'Ingressos', href: '/meus-ingressos', icone: Ticket },
-      ]
-    : [
-        { rotulo: 'Início', rotuloCurto: 'Início', href: '/', icone: Home },
-        { rotulo: 'Eventos', rotuloCurto: 'Eventos', href: '/eventos', icone: Calendar },
-        { rotulo: 'Atléticas', rotuloCurto: 'Atléticas', href: '/atleticas', icone: Trophy },
-      ];
-
+  const ehLoja = pathname.startsWith('/loja') || pathname.startsWith('/cliente/loja');
   const ehMeusIngressos = pathname.startsWith('/meus-ingressos') || pathname.startsWith('/cliente/meus-ingressos');
 
+  const ocultarBarraPesquisa = ehMeusIngressos || ehLoja;
+
+  const botoes = [
+    { rotulo: 'Eventos', rotuloCurto: 'Eventos', href: '/eventos', icone: Calendar, ativo: ehEventos },
+    { rotulo: 'Atléticas', rotuloCurto: 'Atléticas', href: '/atleticas', icone: Trophy, ativo: ehAtleticas },
+    { rotulo: 'Loja', rotuloCurto: 'Loja', href: '/loja', icone: ShoppingCart, ativo: ehLoja, badge: totalItens },
+    { rotulo: 'Ingressos', rotuloCurto: 'Ingressos', href: '/meus-ingressos', icone: Ticket, ativo: ehMeusIngressos },
+  ];
+
   return (
-    <nav className="lg:hidden bg-[#0b101d] border-b border-white/10 p-3 shadow-2xl sticky top-14 z-30">
-      <div className="max-w-7xl mx-auto space-y-2.5">
-        {/* Links Principais de Navegação Móbile (Divididos em 3 Colunas na Tela) */}
-        <div className={`grid grid-cols-3 gap-1.5 w-full ${!ehMeusIngressos ? 'border-b border-white/10 pb-2' : ''}`}>
+    <nav className="lg:hidden bg-[#0b101d] border-b border-white/10 p-2.5 shadow-2xl sticky top-14 z-30">
+      <div className="max-w-7xl mx-auto space-y-2">
+        {/* Links Principais de Navegação Móbile (4 Colunas) */}
+        <div className={`grid grid-cols-4 gap-1 w-full ${!ocultarBarraPesquisa ? 'border-b border-white/10 pb-2' : ''}`}>
           {botoes.map((item) => {
             const Icone = item.icone;
-            const estaAtivo =
-              item.href === '/'
-                ? ehInicio
-                : pathname.startsWith(item.href);
 
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`py-2 px-1 rounded-md text-[10px] sm:text-[11px] font-black uppercase tracking-tight flex items-center justify-center gap-1 transition-all min-h-[38px] text-center ${
-                  estaAtivo
+                className={`relative py-2 px-1 rounded-md text-[10px] sm:text-[11px] font-black uppercase tracking-tight flex items-center justify-center gap-1 transition-all min-h-[38px] text-center ${
+                  item.ativo
                     ? 'bg-gradient-to-r from-[#38bdf8] to-[#00e5ff] text-slate-950 font-black shadow-md'
                     : 'bg-[#162036] text-slate-300 hover:text-white border border-white/5'
                 }`}
               >
                 <Icone size={13} className="shrink-0" />
                 <span className="truncate">
-                  <span className="sm:hidden">{item.rotuloCurto}</span>
-                  <span className="hidden sm:inline">{item.rotulo}</span>
+                  <span>{item.rotuloCurto}</span>
                 </span>
+                {item.badge !== undefined && item.badge > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-[#ff007a] text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center">
+                    {item.badge}
+                  </span>
+                )}
               </Link>
             );
           })}
         </div>
 
-        {/* Barra de Pesquisa e Filtro de Cidade (Oculta na aba Meus Ingressos) */}
-        {!ehMeusIngressos && (
+
+        {/* Barra de Pesquisa e Filtro de Cidade (Oculta na Loja Oficial e Meus Ingressos) */}
+        {!ocultarBarraPesquisa && (
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -132,12 +124,12 @@ function ConteudoBarraNavegacaoMobile() {
             </div>
             <input
               type="text"
-              placeholder="Buscar eventos, atléticas..."
+              placeholder={pathname.includes('/loja') ? "Buscar produtos, atléticas..." : "Buscar eventos, atléticas..."}
               value={termoBusca}
               onChange={(e) => {
                 const val = e.target.value;
                 setTermoBusca(val);
-                if (pathname.includes('/eventos') || pathname.includes('/atleticas')) {
+                if (pathname.includes('/eventos') || pathname.includes('/atleticas') || pathname.includes('/loja')) {
                   navegarComFiltros(val, cidadeSelecionada);
                 }
               }}

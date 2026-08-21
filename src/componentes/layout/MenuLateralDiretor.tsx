@@ -15,6 +15,8 @@ import {
   ChevronRight,
   Menu as MenuIcon,
   X,
+  ShoppingCart,
+  BarChart3,
 } from 'lucide-react';
 import { useState } from 'react';
 import Logo from '@/componentes/ui/Logo';
@@ -24,8 +26,11 @@ const itensMenu = [
   { href: '/', icone: LayoutDashboard, rotulo: 'Dashboard' },
   { href: '/atletica', icone: Trophy, rotulo: 'Atlética' },
   { href: '/eventos', icone: CalendarDays, rotulo: 'Meus Eventos' },
+  { href: '/produtos', icone: ShoppingCart, rotulo: 'Produtos' },
+  { href: '/metricas-loja', icone: BarChart3, rotulo: 'Métricas da Loja' },
   { href: '/validar-entrada', icone: ScanLine, rotulo: 'Validar Entrada' },
 ];
+
 
 export default function MenuLateralDiretor() {
   const pathname = usePathname();

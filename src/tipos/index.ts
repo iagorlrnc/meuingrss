@@ -168,4 +168,6 @@ export interface EstatisticasAdmin {
   usuariosAtivos: number;
 }
 
+export * from './loja';
+
 

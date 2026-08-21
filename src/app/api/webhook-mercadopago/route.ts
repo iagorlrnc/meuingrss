@@ -253,12 +253,19 @@ async function executarEstorno(
   gatewayPaymentId: string,
   novoStatus: string
 ) {
+  // 1. Tenta estornar pedido de ingressos via RPC
   const { data: resRpc, error: errRpc } = await supabase.rpc('processar_estorno_pagamento', {
     p_gateway_payment_id: gatewayPaymentId,
     p_novo_status: novoStatus,
   });
 
   if (!errRpc && resRpc) {
+    // Também atualiza pedidos de loja se houver
+    await supabase
+      .from('store_orders')
+      .update({ status: 'refunded', updated_at: new Date().toISOString() })
+      .eq('mercado_pago_payment_id', gatewayPaymentId);
+
     return resRpc;
   }
 
@@ -266,6 +273,11 @@ async function executarEstorno(
     .from('pedidos')
     .update({ status: 'estornado' })
     .or(`gateway_payment_id.eq.${gatewayPaymentId},gateway_transaction_id.eq.${gatewayPaymentId}`);
+
+  await supabase
+    .from('store_orders')
+    .update({ status: 'refunded', updated_at: new Date().toISOString() })
+    .eq('mercado_pago_payment_id', gatewayPaymentId);
 
   await supabase
     .from('pagamentos')
@@ -287,6 +299,7 @@ async function executarEstorno(
 
   return { sucesso: true, gateway_transaction_id: gatewayPaymentId };
 }
+
 
 export async function POST(request: NextRequest) {
   const inicioTimestamp = Date.now();
@@ -497,6 +510,73 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 5.0 VERIFICAÇÃO SE É UM PEDIDO DA LOJA VIRTUAL (STORE)
+    const ehPedidoLoja = metadata?.tipo === 'loja' || metadata?.order_type === 'loja';
+    let storeOrderEncontrado = null;
+
+    if (ehPedidoLoja || (orderId && UUID_REGEX.test(orderId))) {
+      const { data: so } = await supabase
+        .from('store_orders')
+        .select('*')
+        .or(`id.eq.${orderId || '00000000-0000-0000-0000-000000000000'},mercado_pago_payment_id.eq.${gatewayPaymentId}`)
+        .maybeSingle();
+
+      storeOrderEncontrado = so;
+    }
+
+    if (storeOrderEncontrado || ehPedidoLoja) {
+      const targetOrderId = storeOrderEncontrado?.id || orderId;
+
+      if (targetOrderId && UUID_REGEX.test(targetOrderId)) {
+        logger.info('Processando pedido de Loja aprovado via Webhook', {
+          orderId: targetOrderId,
+          gatewayPaymentId,
+        });
+
+        const { data: rpcLoja, error: errRpcLoja } = await supabase.rpc('processar_pedido_loja_aprovado', {
+          p_order_id: targetOrderId,
+          p_gateway_payment_id: gatewayPaymentId,
+          p_payment_method: metodoPagamento,
+        });
+
+        if (errRpcLoja || (rpcLoja && !rpcLoja.sucesso)) {
+          logger.warn('RPC processar_pedido_loja_aprovado falhou, executando fallback', {
+            erroRpc: errRpcLoja?.message,
+            erroRetorno: rpcLoja?.erro,
+          });
+
+          await supabase.from('store_orders').update({
+            status: 'paid',
+            mercado_pago_payment_id: gatewayPaymentId,
+            payment_method: metodoPagamento,
+            paid_at: new Date().toISOString(),
+          }).eq('id', targetOrderId);
+
+          if (storeOrderEncontrado?.user_id) {
+            await supabase.from('store_carts').update({ status: 'converted' }).eq('user_id', storeOrderEncontrado.user_id).eq('status', 'active');
+          }
+        }
+
+        const duracao = Date.now() - inicioTimestamp;
+        await registrarLogWebhook(supabase, {
+          tipo_evento: 'payment',
+          data_id: gatewayPaymentId,
+          status_resposta: 200,
+          resultado: 'Pedido da Loja Virtual processado e aprovado com sucesso',
+          ip,
+          duracao_ms: duracao,
+          payload: { order_id: targetOrderId, gateway_payment_id: gatewayPaymentId, tipo: 'loja' },
+        });
+
+        return NextResponse.json({
+          sucesso: true,
+          tipo: 'loja',
+          mensagem: 'Pedido da loja confirmado com sucesso',
+          order_id: targetOrderId,
+        });
+      }
+    }
+
     let pedidoEncontrado = null;
 
     // 5.1 Busca por ID direto (se for UUID)
@@ -504,6 +584,7 @@ export async function POST(request: NextRequest) {
       const { data: p } = await supabase.from('pedidos').select('*').eq('id', orderId).maybeSingle();
       pedidoEncontrado = p;
     }
+
 
     // 5.2 Busca por external_reference (string literal)
     if (!pedidoEncontrado && payment.external_reference) {
