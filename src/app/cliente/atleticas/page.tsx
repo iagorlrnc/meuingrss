@@ -8,7 +8,7 @@ import Modal from '@/componentes/ui/Modal';
 import { SkeletonCard } from '@/componentes/ui/Carregando';
 import EstadoVazio from '@/componentes/ui/EstadoVazio';
 import { criarClienteNavegador } from '@/lib/supabase/cliente';
-import { matchFiltroCidade } from '@/lib/utilitarios';
+import { matchFiltroCidade, gerarSlug } from '@/lib/utilitarios';
 import type { Atletica } from '@/tipos';
 import BarraNavegacaoMobile from '@/componentes/layout/BarraNavegacaoMobile';
 import {
@@ -127,9 +127,10 @@ function ConteudoAtleticas() {
               const inicial = atletica.nome[0] || 'A';
 
               return (
-                <div
+                <Link
                   key={atletica.id}
-                  className="group flex flex-col bg-[#0f172a] border border-white/10 rounded-lg sm:rounded-xl overflow-hidden hover:border-[#00e5ff]/50 transition-all hover:shadow-2xl duration-300"
+                  href={`/atleticas/${gerarSlug(atletica.nome)}`}
+                  className="group flex flex-col bg-[#0f172a] border border-white/10 rounded-xl sm:rounded-2xl overflow-hidden hover:border-[#00e5ff]/50 transition-all duration-300 shadow-lg hover:shadow-2xl hover:-translate-y-1 cursor-pointer"
                 >
                   {/* Top Gradient/Cover Header Banner */}
                   <div
@@ -139,13 +140,12 @@ function ConteudoAtleticas() {
                         ? `linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(15,23,42,0.85)), url('${atletica.capa_url}') center/cover no-repeat`
                         : `linear-gradient(135deg, ${corPrimaria}, ${corSecundaria})`,
                     }}
-                  >
-                  </div>
+                  />
 
                   {/* Body Content */}
-                  <div className="p-3 sm:p-5 pt-0 relative flex-1 flex flex-col justify-between space-y-2.5 sm:space-y-4">
+                  <div className="p-3 sm:p-5 pt-0 relative flex-1 flex flex-col justify-between space-y-3">
                     {/* Logo Emblem Avatar overlap */}
-                    <div className="-mt-6 sm:-mt-8 mb-1.5 sm:mb-2 flex items-end justify-between gap-1">
+                    <div className="-mt-6 sm:-mt-8 mb-1 flex items-end justify-between gap-1">
                       <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg sm:rounded-xl bg-[#0f172a] p-1 border-2 border-white/20 shadow-xl overflow-hidden shrink-0">
                         {atletica.logo_url ? (
                           <img
@@ -164,47 +164,40 @@ function ConteudoAtleticas() {
                           </div>
                         )}
                       </div>
+
+                      {atletica.eventos_count !== undefined && (
+                        <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-wider bg-[#00e5ff]/10 text-[#00e5ff] border border-[#00e5ff]/30 shadow-sm">
+                          {atletica.eventos_count} {atletica.eventos_count === 1 ? 'Evento' : 'Eventos'}
+                        </span>
+                      )}
                     </div>
 
-                    <div className="space-y-1 sm:space-y-2">
-                      <h3 className="text-xs sm:text-lg font-black font-titulo text-white group-hover:text-[#00e5ff] transition-colors leading-snug line-clamp-2">
+                    {/* Dados da Atlética */}
+                    <div className="space-y-1">
+                      <h3 className="text-xs sm:text-base font-black font-titulo text-white group-hover:text-[#00e5ff] transition-colors line-clamp-1">
                         {atletica.nome}
                       </h3>
 
-                      <div className="space-y-0.5 text-[10px] sm:text-xs text-slate-300">
-                        <p className="flex items-center gap-1 truncate">
-                          <Building2 size={12} className="text-[#ff007a] shrink-0" />
-                          <span className="truncate">{atletica.faculdade}</span>
+                      {(atletica.faculdade || atletica.cidade) && (
+                        <p className="text-[10px] sm:text-xs text-slate-400 truncate">
+                          {atletica.faculdade ? atletica.faculdade : ''}
+                          {atletica.faculdade && atletica.cidade ? ' • ' : ''}
+                          {atletica.cidade ? atletica.cidade : ''}
                         </p>
-                        <p className="flex items-center gap-1 truncate">
-                          <MapPin size={12} className="text-[#00e5ff] shrink-0" />
-                          <span className="truncate">{atletica.cidade}</span>
-                        </p>
+                      )}
+                    </div>
+
+                    {/* Botão Detalhes */}
+                    <div className="pt-2 border-t border-white/10">
+                      <div
+                        className="w-full py-1.5 rounded-lg sm:rounded-xl bg-[#162036] group-hover:bg-[#00e5ff] text-white group-hover:text-slate-950 text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
+                      >
+                        <Info size={13} />
+                        <span>Detalhes</span>
                       </div>
                     </div>
-
-                    {/* Botões de Ação: DETALHES acima de VER EVENTOS */}
-                    <div className="pt-2 sm:pt-3 border-t border-white/10 space-y-1.5 sm:space-y-2">
-                      <Botao
-                        tamanho="sm"
-                        style={{ color: '#080c14' }}
-                        className="w-full justify-center text-[9px] sm:text-xs font-black py-1 min-h-[30px] sm:min-h-[38px] px-1 bg-gradient-to-r from-[#38bdf8] to-[#00e5ff] hover:brightness-110 shadow-md transition-all border-none"
-                        onClick={() => setAtleticaModal(atletica)}
-                        icone={<Info size={13} style={{ color: '#080c14' }} />}
-                      >
-                        <span style={{ color: '#080c14' }} className="sm:hidden">DETALHES</span>
-                        <span style={{ color: '#080c14' }} className="hidden sm:inline">DETALHES DA ATLÉTICA</span>
-                      </Botao>
-
-                      <Link href={`/eventos?busca=${encodeURIComponent(atletica.nome)}`} className="block">
-                        <Botao variante="festiva" tamanho="sm" className="w-full justify-center text-[9px] sm:text-xs font-bold py-1 min-h-[30px] sm:min-h-[38px] px-1">
-                          VER EVENTOS
-                          <ChevronRight size={14} className="ml-0.5" />
-                        </Botao>
-                      </Link>
-                    </div>
                   </div>
-                </div>
+                </Link>
               );
             })}
           </div>

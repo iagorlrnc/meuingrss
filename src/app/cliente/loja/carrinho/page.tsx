@@ -154,14 +154,14 @@ export default function PaginaCarrinho() {
                       <Minus size={14} />
                     </button>
                     <span className="w-9 text-center text-xs font-bold text-white font-mono">
-                      {item.quantidade}
+                      {precoItemReais === 0 ? 1 : item.quantidade}
                     </span>
                     <button
                       type="button"
                       onClick={() => atualizarQuantidade(item.id, item.quantidade + 1)}
-                      disabled={item.quantidade >= maxEstoque}
+                      disabled={precoItemReais === 0 || item.quantidade >= maxEstoque}
                       className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
-                      title="Aumentar quantidade"
+                      title={precoItemReais === 0 ? 'Limite de 1 unidade por usuário' : 'Aumentar quantidade'}
                     >
                       <Plus size={14} />
                     </button>
@@ -170,8 +170,8 @@ export default function PaginaCarrinho() {
                   {/* Subtotal do Item */}
                   <div className="text-right min-w-[90px]">
                     <span className="text-xs text-slate-400 block font-bold">Subtotal</span>
-                    <span className="text-base font-black text-[#00e5ff] font-titulo">
-                      {formatarMoeda(subtotalItemReais)}
+                    <span className={`text-base font-black font-titulo ${precoItemReais === 0 ? 'text-emerald-400' : 'text-[#00e5ff]'}`}>
+                      {precoItemReais === 0 ? 'Grátis' : formatarMoeda(subtotalItemReais)}
                     </span>
                   </div>
 

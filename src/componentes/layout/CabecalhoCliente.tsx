@@ -167,8 +167,8 @@ function ConteudoCabecalhoCliente() {
               >
                 <ShoppingCart size={20} className={totalItens > 0 ? "text-[#00e5ff]" : ""} />
                 {totalItens > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-gradient-to-r from-[#ff007a] to-[#8b5cf6] text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-lg animate-pulse">
-                    {totalItens > 99 ? '99+' : totalItens}
+                  <span className="absolute -top-1 -right-1 bg-[#ff007a] text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-md">
+                    {totalItens}
                   </span>
                 )}
               </Link>
@@ -406,21 +406,14 @@ function ConteudoCabecalhoCliente() {
               href="/loja"
               onClick={() => setMenuAberto(false)}
               className={cn(
-                'block px-3 py-2.5 text-xs font-black uppercase tracking-wider rounded-md transition-all flex items-center justify-between min-h-[44px]',
+                'block px-3 py-2.5 text-xs font-black uppercase tracking-wider rounded-md transition-all flex items-center gap-2 min-h-[44px]',
                 ehLoja
                   ? 'bg-[#00e5ff] text-slate-950 font-black'
                   : 'text-slate-300 hover:bg-[#162036] hover:text-white'
               )}
             >
-              <span className="flex items-center gap-2">
-                <ShoppingCart size={16} />
-                Loja Oficial
-              </span>
-              {totalItens > 0 && (
-                <span className="px-2 py-0.5 rounded-full bg-[#ff007a] text-white text-[10px] font-black">
-                  {totalItens} no carrinho
-                </span>
-              )}
+              <ShoppingCart size={16} />
+              Loja Oficial
             </Link>
 
             {usuario ? (

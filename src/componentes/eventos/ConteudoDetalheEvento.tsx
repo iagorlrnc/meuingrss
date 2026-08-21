@@ -666,22 +666,29 @@ function ComponenteDetalheEvento({ eventoInicial }: ConteudoDetalheEventoProps) 
 
                   {lote && (
                     <div className="flex items-center justify-between p-3.5 rounded-md bg-[#162036] border border-white/10">
-                      <span className="text-xs font-black uppercase text-slate-300">Quantidade</span>
+                      <div>
+                        <span className="text-xs font-black uppercase text-slate-300 block">Quantidade</span>
+                        {lote.preco === 0 && (
+                          <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">
+                            Limite: 1 por usuário
+                          </span>
+                        )}
+                      </div>
                       <div className="flex items-center gap-3">
                         <button
-                          disabled={!podeComprar || quantidade <= 1}
-                          onClick={() => podeComprar && setQuantidade(Math.max(1, quantidade - 1))}
+                          disabled={!podeComprar || quantidade <= 1 || lote.preco === 0}
+                          onClick={() => podeComprar && lote.preco > 0 && setQuantidade(Math.max(1, quantidade - 1))}
                           className="w-8 h-8 rounded-md bg-[#080c14] flex items-center justify-center text-white hover:bg-[#ff007a] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#080c14]"
                         >
                           <Minus size={14} />
                         </button>
                         <span className="text-base font-black text-white w-6 text-center">
-                          {quantidade}
+                          {lote.preco === 0 ? 1 : quantidade}
                         </span>
                         <button
-                          disabled={!podeComprar || (lote && quantidade >= Math.min(5, lote.quantidade_total - lote.quantidade_vendida))}
+                          disabled={!podeComprar || lote.preco === 0 || (lote && quantidade >= Math.min(5, lote.quantidade_total - lote.quantidade_vendida))}
                           onClick={() => {
-                            if (!podeComprar || !lote) return;
+                            if (!podeComprar || !lote || lote.preco === 0) return;
                             const max = lote.quantidade_total - lote.quantidade_vendida;
                             setQuantidade(Math.min(5, max, quantidade + 1));
                           }}

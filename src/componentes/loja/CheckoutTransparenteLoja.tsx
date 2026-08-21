@@ -17,6 +17,9 @@ import {
   ShieldCheck,
   AlertCircle,
   CheckCircle2,
+  Sparkles,
+  Gift,
+  PackageCheck,
 } from 'lucide-react';
 
 interface PropsCheckoutLoja {
@@ -115,6 +118,11 @@ export default function CheckoutTransparenteLoja({
   const { limparCarrinho } = usarCarrinho();
   const [metodo, setMetodo] = useState<'pix' | 'cartao'>('pix');
 
+  // Estados Pedido Gratuito
+  const [processandoGratuito, setProcessandoGratuito] = useState(false);
+  const [erroGratuito, setErroGratuito] = useState('');
+  const [gratuitoAprovado, setGratuitoAprovado] = useState(false);
+
   // Estados Pix
   const [gerandoPix, setGerandoPix] = useState(false);
   const [dadosPix, setDadosPix] = useState<DadosPixLoja | null>(null);
@@ -131,6 +139,7 @@ export default function CheckoutTransparenteLoja({
 
   const timerPollingRef = useRef<NodeJS.Timeout | null>(null);
   const totalReais = totalCentavos / 100;
+  const ehGratuito = totalCentavos === 0;
 
   useEffect(() => {
     const publicKey = process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY;
@@ -148,6 +157,41 @@ export default function CheckoutTransparenteLoja({
       if (timerPollingRef.current) clearInterval(timerPollingRef.current);
     };
   }, []);
+
+  // --- FLUXO PEDIDO GRATUITO (R$ 0,00) ---
+  async function confirmarPedidoGratuito() {
+    setProcessandoGratuito(true);
+    setErroGratuito('');
+
+    try {
+      const res = await fetch('/api/loja/pagamentos/gratuito', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          itens,
+          comprador_id: usuario.id,
+        }),
+      });
+
+      const dados = await res.json();
+
+      if (!res.ok || !dados.sucesso) {
+        setErroGratuito(dados.erro || 'Falha ao confirmar o pedido gratuito.');
+        setProcessandoGratuito(false);
+        return;
+      }
+
+      setGratuitoAprovado(true);
+      await limparCarrinho();
+
+      setTimeout(() => {
+        router.push('/loja/meus-pedidos');
+      }, 2000);
+    } catch {
+      setErroGratuito('Erro de rede ao confirmar seu pedido gratuito. Tente novamente.');
+      setProcessandoGratuito(false);
+    }
+  }
 
   // --- FLUXO PIX ---
   async function gerarPagamentoPix() {
@@ -202,27 +246,26 @@ export default function CheckoutTransparenteLoja({
         const res = await fetch(`/api/loja/consultar-status-pedido?${params.toString()}`);
         if (!res.ok) return;
 
-        const data = await res.json();
-        if (data.status_pedido === 'paid') {
+        const dados = await res.json();
+        if (dados.status === 'paid') {
           if (timerPollingRef.current) clearInterval(timerPollingRef.current);
           setPixAprovado(true);
           await limparCarrinho();
 
           setTimeout(() => {
-            router.push(`/loja/meus-pedidos?order_id=${orderId}&status=aprovado`);
-          }, 1800);
-        } else if (['cancelled', 'failed', 'stock_unavailable'].includes(data.status_pedido)) {
+            router.push('/loja/meus-pedidos');
+          }, 2000);
+        } else if (dados.status === 'cancelled' || dados.status === 'expired') {
           if (timerPollingRef.current) clearInterval(timerPollingRef.current);
-          setErroPix(data.mensagem || 'O pagamento Pix foi cancelado ou expirou.');
+          setPixExpirado(true);
         }
-      } catch {
-        // Ignora erros transitórios
+      } catch (e) {
+        console.error('Erro no polling do pedido da loja:', e);
       }
     };
 
-    verificar();
-    timerPollingRef.current = setInterval(verificar, 2500);
-  }, [router, limparCarrinho]);
+    timerPollingRef.current = setInterval(verificar, 3000);
+  }, [limparCarrinho, router]);
 
   function copiarCodigoPix() {
     if (!dadosPix?.qr_code) return;
@@ -231,90 +274,85 @@ export default function CheckoutTransparenteLoja({
     setTimeout(() => setCopiado(false), 3000);
   }
 
-  // --- FLUXO CARTÃO ---
-  const processarSubmissaoCard = useCallback(async (param: any) => {
+  // --- FLUXO CARTÃO DE CRÉDITO ---
+  const cardInitialization = useMemo(() => {
+    return {
+      amount: totalReais,
+      payer: {
+        email: usuario.email || 'comprador@meuingrss.com.br',
+      },
+    };
+  }, [totalReais, usuario.email]);
+
+  const cardCustomization = useMemo(() => {
+    return {
+      visual: {
+        style: {
+          theme: 'dark' as const,
+          customVariables: {
+            formBackgroundColor: '#0e1626',
+            baseColor: '#00e5ff',
+            inputBackgroundColor: '#162036',
+            inputFocusedBorderColor: '#00e5ff',
+            cardholderNameColor: '#ffffff',
+            textColor: '#ffffff',
+            labelColor: '#94a3b8',
+            placeholderColor: '#64748b',
+            borderRadius: '12px',
+          },
+        },
+      },
+      paymentMethods: {
+        maxInstallments: 12,
+      },
+    };
+  }, []);
+
+  const processarSubmissaoCard = useCallback(async (cardFormData: any) => {
     setProcessandoCard(true);
     setErroCard('');
-
-    const nestedData = (param?.formData || param) as Record<string, any>;
-    const token = param?.token || nestedData?.token;
-    const payment_method_id =
-      param?.payment_method_id ||
-      param?.paymentMethodId ||
-      nestedData?.payment_method_id ||
-      nestedData?.paymentMethodId ||
-      'visa';
-    const installments = param?.installments || nestedData?.installments || 1;
-    const issuer_id = param?.issuer_id || param?.issuerId || nestedData?.issuer_id || nestedData?.issuerId;
-    const payer = param?.payer || nestedData?.payer;
 
     try {
       const res = await fetch('/api/loja/pagamentos/card', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          token,
-          payment_method_id,
-          installments,
-          issuer_id,
-          payer,
           itens,
           comprador_id: usuario.id,
+          card_form_data: cardFormData,
         }),
       });
 
       const dados = await res.json();
 
       if (!res.ok || !dados.sucesso) {
-        setErroCard(dados.erro || 'Não foi possível autorizar o cartão de crédito.');
+        setErroCard(dados.erro || 'Não foi possível processar o pagamento com cartão.');
         setProcessandoCard(false);
         return;
       }
 
-      if (dados.status === 'approved') {
+      if (dados.status === 'approved' || dados.status === 'paid') {
+        setCardAprovado(true);
+        await limparCarrinho();
+
+        setTimeout(() => {
+          router.push('/loja/meus-pedidos');
+        }, 2000);
+      } else if (dados.status === 'in_process') {
         setCardAprovado(true);
         await limparCarrinho();
         setTimeout(() => {
-          router.push(`/loja/meus-pedidos?order_id=${dados.order_id}&status=aprovado`);
-        }, 1800);
+          router.push('/loja/meus-pedidos');
+        }, 2500);
       } else {
-        router.push(`/loja/meus-pedidos?order_id=${dados.order_id}&status=analise`);
+        setErroCard(dados.mensagem_status || 'O pagamento foi recusado pela operadora do cartão.');
+        setProcessandoCard(false);
       }
     } catch {
-      setErroCard('Erro de comunicação ao enviar dados do pagamento.');
+      setErroCard('Erro de conexão ao processar transação no cartão.');
       setProcessandoCard(false);
     }
-  }, [itens, usuario.id, router, limparCarrinho]);
-
-  const cardInitialization = useMemo(() => {
-    const docLimpo = (usuario.cpf || '').replace(/\D/g, '');
-    return {
-      amount: Number(totalReais.toFixed(2)),
-      payer: {
-        email: (usuario.email && usuario.email.includes('@')) ? usuario.email : 'comprador@meuingrss.com.br',
-        identification: (docLimpo.length === 11 || docLimpo.length === 14) ? {
-          type: docLimpo.length === 14 ? 'CNPJ' : 'CPF',
-          number: docLimpo,
-        } : undefined,
-      },
-    };
-  }, [totalReais, usuario.email, usuario.cpf]);
-
-  const cardCustomization = useMemo(() => ({
-    visual: {
-      style: {
-        theme: 'dark' as const,
-        customVariables: {
-          formBackgroundColor: 'transparent',
-          baseColor: '#00e5ff',
-        },
-      },
-    },
-    paymentMethods: {
-      minInstallments: 1,
-      maxInstallments: 12,
-    },
-  }), []);
+  }, [itens, limparCarrinho, router, usuario.id]);
 
   const handleCardReady = useCallback(async () => {
     setBrickCarregando(false);
@@ -326,6 +364,73 @@ export default function CheckoutTransparenteLoja({
     setErroCard('Não foi possível carregar os campos do cartão. Verifique sua conexão e tente novamente.');
   }, []);
 
+  // SE O PEDIDO FOR TOTALMENTE GRATUITO (R$ 0,00)
+  if (ehGratuito) {
+    return (
+      <div className="w-full space-y-4 sm:space-y-6">
+        <div className="p-6 sm:p-8 rounded-3xl bg-[#0e1626] border border-white/10 shadow-2xl space-y-6 text-center">
+          {gratuitoAprovado ? (
+            <div className="py-6 flex flex-col items-center justify-center gap-3 bg-emerald-500/10 rounded-2xl border border-emerald-500/30 p-6">
+              <CheckCircle2 size={48} className="text-emerald-400 animate-bounce" />
+              <h3 className="text-xl sm:text-2xl font-bold font-titulo text-white">
+                Pedido Confirmado com Sucesso!
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-300">
+                Seu produto gratuito foi reservado e vinculado à sua conta. Redirecionando para seus pedidos...
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-500/20 to-[#00e5ff]/20 border border-emerald-500/30 mx-auto flex items-center justify-center text-emerald-400 shadow-xl">
+                <Gift size={32} />
+              </div>
+
+              <div className="space-y-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                  <Sparkles size={14} />
+                  <span>Produto Gratuito</span>
+                </span>
+                <h3 className="text-xl sm:text-2xl font-black font-titulo text-white">
+                  Resgate Sem Custo
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-300 max-w-md mx-auto leading-relaxed">
+                  Este produto possui valor <strong>R$ 0,00</strong> e não requer nenhum pagamento ou cartão de crédito. Clique abaixo para confirmar e vincular aos seus pedidos.
+                </p>
+              </div>
+
+              {erroGratuito && (
+                <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-xs sm:text-sm text-red-400 flex items-start gap-2.5 text-left">
+                  <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                  <span>{erroGratuito}</span>
+                </div>
+              )}
+
+              <div className="pt-2 max-w-md mx-auto">
+                <Botao
+                  larguraTotal
+                  tamanho="lg"
+                  variante="festiva"
+                  onClick={confirmarPedidoGratuito}
+                  disabled={processandoGratuito}
+                  icone={processandoGratuito ? undefined : <PackageCheck size={18} />}
+                  className="font-black py-4 shadow-xl shadow-[#00e5ff]/20"
+                >
+                  {processandoGratuito ? 'Confirmando Resgate...' : 'Confirmar Pedido Gratuito'}
+                </Botao>
+              </div>
+
+              <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-[11px] text-slate-400 flex items-center justify-center gap-2">
+                <ShieldCheck size={15} className="text-[#00e5ff] shrink-0" />
+                <span>Resgate 100% seguro com registro oficial no meuingrss</span>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // FLUXO NORMAL PAGO (PIX E CARTÃO)
   return (
     <div className="w-full space-y-4 sm:space-y-6">
       {/* Seletor de Métodos de Pagamento */}

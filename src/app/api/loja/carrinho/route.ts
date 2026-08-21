@@ -14,12 +14,11 @@ export async function GET() {
 
     const admin = criarClienteAdmin();
 
-    // 1. Busca ou cria carrinho ativo
+    // 1. Busca carrinho existente do usuário (qualquer status, já que user_id é único)
     let { data: cart } = await admin
       .from('store_carts')
       .select('id, user_id, status, created_at, updated_at')
       .eq('user_id', user.id)
-      .eq('status', 'active')
       .maybeSingle();
 
     if (!cart) {
@@ -30,10 +29,17 @@ export async function GET() {
         .single();
 
       if (errCreate || !novoCart) {
-        logger.error('Erro ao criar carrinho ativo', errCreate);
+        logger.error('Erro ao criar carrinho ativo', { erro: errCreate?.message });
         return NextResponse.json({ erro: 'Falha ao inicializar carrinho' }, { status: 500 });
       }
       cart = novoCart;
+    } else if (cart.status !== 'active') {
+      // Reativa o carrinho existente se foi convertido anteriormente
+      await admin
+        .from('store_carts')
+        .update({ status: 'active', updated_at: new Date().toISOString() })
+        .eq('id', cart.id);
+      cart.status = 'active';
     }
 
     if (!cart) {
@@ -42,7 +48,6 @@ export async function GET() {
 
     // 2. Busca itens com dados do produto
     const { data: items, error: itemsErr } = await admin
-
       .from('store_cart_items')
       .select(`
         id,
@@ -70,7 +75,7 @@ export async function GET() {
       .order('created_at', { ascending: true });
 
     if (itemsErr) {
-      logger.error('Erro ao buscar itens do carrinho', itemsErr);
+      logger.error('Erro ao buscar itens do carrinho', { erro: itemsErr?.message });
       return NextResponse.json({ erro: 'Falha ao buscar itens' }, { status: 500 });
     }
 
@@ -79,7 +84,7 @@ export async function GET() {
       items: items || [],
     });
   } catch (error) {
-    logger.error('Erro no GET /api/loja/carrinho', error);
+    logger.error('Erro no GET /api/loja/carrinho', { erro: error instanceof Error ? error.message : String(error) });
     return NextResponse.json({ erro: 'Erro interno ao consultar carrinho' }, { status: 500 });
   }
 }
@@ -97,25 +102,35 @@ export async function POST(request: NextRequest) {
     const { product_id, size, quantity = 1, sync_items } = body;
     const admin = criarClienteAdmin();
 
-    // 1. Obter ou criar carrinho
+    // 1. Obter ou criar / reativar carrinho do usuário
     let { data: cart } = await admin
       .from('store_carts')
-      .select('id')
+      .select('id, status')
       .eq('user_id', user.id)
-      .eq('status', 'active')
       .maybeSingle();
 
     if (!cart) {
       const { data: novoCart, error: errCart } = await admin
         .from('store_carts')
         .insert({ user_id: user.id, status: 'active' })
-        .select('id')
+        .select('id, status')
         .single();
 
       if (errCart || !novoCart) {
+        logger.error('Erro ao criar carrinho', { erro: errCart?.message });
         return NextResponse.json({ erro: 'Falha ao criar carrinho' }, { status: 500 });
       }
       cart = novoCart;
+    } else if (cart.status !== 'active') {
+      await admin
+        .from('store_carts')
+        .update({ status: 'active', updated_at: new Date().toISOString() })
+        .eq('id', cart.id);
+      cart.status = 'active';
+    }
+
+    if (!cart) {
+      return NextResponse.json({ erro: 'Falha ao obter carrinho' }, { status: 500 });
     }
 
     // 2. Se for uma sincronização em lote (ex: ao fazer login vindo do localStorage)
@@ -130,23 +145,30 @@ export async function POST(request: NextRequest) {
           .single();
 
         if (prod && prod.is_active && prod.stock_quantity > 0) {
-          const qtdFinal = Math.min(Math.max(1, Number(item.quantity) || 1), prod.stock_quantity);
+          const qtdFinal = prod.price === 0 ? 1 : Math.min(Math.max(1, Number(item.quantity) || 1), prod.stock_quantity);
           const sizeNorm = item.size ? String(item.size).trim() : null;
 
           // Upsert item
-          const { data: itemExistente } = await admin
+          let queryExist = admin
             .from('store_cart_items')
             .select('id, quantity')
             .eq('cart_id', cart.id)
-            .eq('product_id', item.product_id)
-            .is('size', sizeNorm ? undefined : null)
-            .maybeSingle();
+            .eq('product_id', item.product_id);
+
+          if (sizeNorm) {
+            queryExist = queryExist.eq('size', sizeNorm);
+          } else {
+            queryExist = queryExist.is('size', null);
+          }
+
+          const { data: itemExistente } = await queryExist.maybeSingle();
 
           if (itemExistente) {
+            const novaQtd = prod.price === 0 ? 1 : Math.min(itemExistente.quantity + qtdFinal, prod.stock_quantity);
             await admin
               .from('store_cart_items')
               .update({
-                quantity: Math.min(itemExistente.quantity + qtdFinal, prod.stock_quantity),
+                quantity: novaQtd,
                 unit_price_snapshot: prod.price,
               })
               .eq('id', itemExistente.id);
@@ -184,7 +206,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ erro: 'Produto sem estoque disponível' }, { status: 400 });
     }
 
-    const qtdDesejada = Math.max(1, parseInt(String(quantity), 10) || 1);
+    const qtdDesejada = product.price === 0 ? 1 : Math.max(1, parseInt(String(quantity), 10) || 1);
     const sizeNorm = size ? String(size).trim() : null;
 
     // Checa se o item já existe no carrinho com esse tamanho
@@ -202,8 +224,35 @@ export async function POST(request: NextRequest) {
 
     const { data: itemExist } = await queryBusca.maybeSingle();
 
+    // Se o produto for gratuito (preço 0)
+    if (product.price === 0) {
+      // 1. Checa se o usuário já resgatou este produto gratuito em pedidos anteriores
+      const { data: resgatesAnteriores } = await admin
+        .from('store_order_items')
+        .select('id, store_orders!inner(id, user_id, status)')
+        .eq('product_id', product_id)
+        .eq('store_orders.user_id', user.id)
+        .in('store_orders.status', ['paid', 'pending_payment'])
+        .limit(1);
+
+      if (resgatesAnteriores && resgatesAnteriores.length > 0) {
+        return NextResponse.json(
+          { erro: `Você já resgatou o produto gratuito "${product.name}". O limite é de 1 por usuário.` },
+          { status: 400 }
+        );
+      }
+
+      // 2. Se já existe no carrinho, impede adicionar mais unidades
+      if (itemExist) {
+        return NextResponse.json(
+          { erro: 'Produtos gratuitos possuem limite de apenas 1 unidade por usuário.' },
+          { status: 400 }
+        );
+      }
+    }
+
     if (itemExist) {
-      const novaQtd = Math.min(itemExist.quantity + qtdDesejada, product.stock_quantity);
+      const novaQtd = product.price === 0 ? 1 : Math.min(itemExist.quantity + qtdDesejada, product.stock_quantity);
       await admin
         .from('store_cart_items')
         .update({
@@ -212,7 +261,7 @@ export async function POST(request: NextRequest) {
         })
         .eq('id', itemExist.id);
     } else {
-      const qtdFinal = Math.min(qtdDesejada, product.stock_quantity);
+      const qtdFinal = product.price === 0 ? 1 : Math.min(qtdDesejada, product.stock_quantity);
       await admin.from('store_cart_items').insert({
         cart_id: cart.id,
         product_id,
@@ -224,7 +273,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ sucesso: true, mensagem: 'Item adicionado ao carrinho' });
   } catch (error) {
-    logger.error('Erro no POST /api/loja/carrinho', error);
+    logger.error('Erro no POST /api/loja/carrinho', { erro: error instanceof Error ? error.message : String(error) });
     return NextResponse.json({ erro: 'Falha ao adicionar item ao carrinho' }, { status: 500 });
   }
 }
@@ -272,7 +321,12 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ sucesso: true, removido: true });
     }
 
-    const maxStock = (item.product as any)?.stock_quantity ?? 99;
+    const isFree = (item.product as any)?.price === 0;
+    if (isFree && qtd > 1) {
+      return NextResponse.json({ erro: 'Produtos gratuitos possuem limite de 1 unidade por usuário.' }, { status: 400 });
+    }
+
+    const maxStock = isFree ? 1 : ((item.product as any)?.stock_quantity ?? 99);
     const qtdFinal = Math.min(qtd, maxStock);
 
     await admin
@@ -282,7 +336,7 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({ sucesso: true, quantity: qtdFinal });
   } catch (error) {
-    logger.error('Erro no PUT /api/loja/carrinho', error);
+    logger.error('Erro no PUT /api/loja/carrinho', { erro: error instanceof Error ? error.message : String(error) });
     return NextResponse.json({ erro: 'Falha ao atualizar quantidade' }, { status: 500 });
   }
 }
@@ -328,7 +382,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ erro: 'Nenhuma ação especificada' }, { status: 400 });
   } catch (error) {
-    logger.error('Erro no DELETE /api/loja/carrinho', error);
+    logger.error('Erro no DELETE /api/loja/carrinho', { erro: error instanceof Error ? error.message : String(error) });
     return NextResponse.json({ erro: 'Falha ao remover item do carrinho' }, { status: 500 });
   }
 }

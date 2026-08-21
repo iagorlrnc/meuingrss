@@ -1,14 +1,15 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { criarClienteNavegador } from '@/lib/supabase/cliente';
 import { usarAutenticacao } from '@/contextos/ContextoAutenticacao';
+import { usarNotificacao } from '@/componentes/ui/Notificacao';
 import { formatarMoeda, formatarDataHora, formatarDataCurta } from '@/lib/utilitarios';
 import Cartao from '@/componentes/ui/Cartao';
 import Botao from '@/componentes/ui/Botao';
 import Modal from '@/componentes/ui/Modal';
 import Carregando from '@/componentes/ui/Carregando';
-import type { PedidoLoja, ItemPedidoLoja } from '@/tipos';
+import type { PedidoLoja } from '@/tipos';
 import {
   DollarSign,
   ShoppingCart,
@@ -25,16 +26,28 @@ import {
   Eye,
   BarChart3,
   Award,
+  Search,
+  X,
+  PackageCheck,
+  Check,
+  Truck,
+  RotateCcw,
 } from 'lucide-react';
 
 export default function PaginaMetricasLoja() {
   const { perfil } = usarAutenticacao();
+  const { sucesso, erro } = usarNotificacao();
   const supabase = criarClienteNavegador();
 
   const [pedidos, setPedidos] = useState<PedidoLoja[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [periodoFiltro, setPeriodoFiltro] = useState<'7d' | '30d' | 'mes' | 'todos'>('30d');
-  const [metodoFiltro, setMetodoFiltro] = useState<'todos' | 'pix' | 'cartao'>('todos');
+  const [metodoFiltro, setMetodoFiltro] = useState<'todos' | 'pix' | 'cartao' | 'gratuito'>('todos');
+  const [entregaFiltro, setEntregaFiltro] = useState<'todos' | 'pendente' | 'entregue'>('todos');
+  const [buscaTexto, setBuscaTexto] = useState('');
+
+  // ID do pedido sendo atualizado no momento
+  const [atualizandoEntregaId, setAtualizandoEntregaId] = useState<string | null>(null);
 
   // Modal de Detalhes do Pedido
   const [pedidoSelecionado, setPedidoSelecionado] = useState<PedidoLoja | null>(null);
@@ -61,8 +74,8 @@ export default function PaginaMetricasLoja() {
           query = query.eq('atletica_id', perfil.atletica_id);
         }
 
-        const { data, error } = await query;
-        if (!error && data) {
+        const { data, error: errQuery } = await query;
+        if (!errQuery && data) {
           setPedidos(data as PedidoLoja[]);
         }
       } catch (err) {
@@ -75,33 +88,131 @@ export default function PaginaMetricasLoja() {
     carregarMetricas();
   }, [perfil, supabase]);
 
-  // Filtragem dos pedidos
-  const agora = Date.now();
-  const pedidosFiltrados = pedidos.filter((ped) => {
-    const dataPed = new Date(ped.created_at).getTime();
+  // Função para marcar pedido como entregue (ação permanente)
+  async function marcarEntregue(orderId: string) {
+    setAtualizandoEntregaId(orderId);
 
-    // Filtro por Período
-    if (periodoFiltro === '7d') {
-      if (agora - dataPed > 7 * 24 * 60 * 60 * 1000) return false;
-    } else if (periodoFiltro === '30d') {
-      if (agora - dataPed > 30 * 24 * 60 * 60 * 1000) return false;
-    } else if (periodoFiltro === 'mes') {
-      const dataObj = new Date(ped.created_at);
-      const agoraObj = new Date();
-      if (dataObj.getMonth() !== agoraObj.getMonth() || dataObj.getFullYear() !== agoraObj.getFullYear()) {
-        return false;
+    try {
+      const res = await fetch('/api/diretor/loja/pedidos/entregar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          order_id: orderId,
+          entregue: true,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.sucesso) {
+        erro('Erro ao confirmar entrega', data.erro || 'Não foi possível atualizar o status do pedido.');
+        return;
       }
-    }
 
-    // Filtro por Método
-    if (metodoFiltro === 'pix') {
-      if (ped.payment_method !== 'pix') return false;
-    } else if (metodoFiltro === 'cartao') {
-      if (ped.payment_method === 'pix') return false;
-    }
+      // Atualização otimista na lista de pedidos
+      setPedidos((prev) =>
+        prev.map((p) => {
+          if (p.id === orderId) {
+            const metaAtual = (p.metadata && typeof p.metadata === 'object') ? p.metadata : {};
+            return {
+              ...p,
+              metadata: {
+                ...metaAtual,
+                entregue: true,
+                entregue_em: new Date().toISOString(),
+                entregue_por_nome: perfil?.nome || 'Diretoria',
+              },
+            };
+          }
+          return p;
+        })
+      );
 
-    return true;
-  });
+      // Atualiza também no modal se estiver aberto
+      if (pedidoSelecionado?.id === orderId) {
+        setPedidoSelecionado((prev) => {
+          if (!prev) return null;
+          const metaAtual = (prev.metadata && typeof prev.metadata === 'object') ? prev.metadata : {};
+          return {
+            ...prev,
+            metadata: {
+              ...metaAtual,
+              entregue: true,
+              entregue_em: new Date().toISOString(),
+              entregue_por_nome: perfil?.nome || 'Diretoria',
+            },
+          };
+        });
+      }
+
+      sucesso(
+        'Produto Entregue!',
+        `O pedido #${orderId.substring(0, 8).toUpperCase()} foi marcado como entregue com sucesso.`
+      );
+    } catch {
+      erro('Erro de conexão', 'Falha ao conectar com o servidor. Tente novamente.');
+    } finally {
+      setAtualizandoEntregaId(null);
+    }
+  }
+
+  // Filtragem dos pedidos com busca textual
+  const agora = Date.now();
+  const pedidosFiltrados = useMemo(() => {
+    return pedidos.filter((ped) => {
+      const dataPed = new Date(ped.created_at).getTime();
+
+      // Filtro por Período
+      if (periodoFiltro === '7d') {
+        if (agora - dataPed > 7 * 24 * 60 * 60 * 1000) return false;
+      } else if (periodoFiltro === '30d') {
+        if (agora - dataPed > 30 * 24 * 60 * 60 * 1000) return false;
+      } else if (periodoFiltro === 'mes') {
+        const dataObj = new Date(ped.created_at);
+        const agoraObj = new Date();
+        if (dataObj.getMonth() !== agoraObj.getMonth() || dataObj.getFullYear() !== agoraObj.getFullYear()) {
+          return false;
+        }
+      }
+
+      // Filtro por Método
+      if (metodoFiltro === 'pix') {
+        if (ped.payment_method !== 'pix') return false;
+      } else if (metodoFiltro === 'cartao') {
+        if (ped.payment_method === 'pix' || ped.payment_method === 'gratuito') return false;
+      } else if (metodoFiltro === 'gratuito') {
+        if (ped.payment_method !== 'gratuito') return false;
+      }
+
+      // Filtro por Status de Entrega
+      const estaEntregue = Boolean(ped.metadata?.entregue);
+      if (entregaFiltro === 'entregue' && !estaEntregue) return false;
+      if (entregaFiltro === 'pendente' && (estaEntregue || ped.status !== 'paid')) return false;
+
+      // Filtro por Barra de Pesquisa
+      if (buscaTexto.trim()) {
+        const termo = buscaTexto.trim().toLowerCase();
+        const idLimpo = ped.id.toLowerCase();
+        const compradorNome = ((ped.user as any)?.nome || '').toLowerCase();
+        const compradorEmail = ((ped.user as any)?.email || '').toLowerCase();
+        const compradorCpf = ((ped.user as any)?.cpf || '').toLowerCase();
+        const compradorTel = ((ped.user as any)?.telefone || '').toLowerCase();
+        const produtosNomes = (ped.items || []).map((it) => it.product_name_snapshot.toLowerCase()).join(' ');
+
+        const bateu =
+          idLimpo.includes(termo) ||
+          compradorNome.includes(termo) ||
+          compradorEmail.includes(termo) ||
+          compradorCpf.includes(termo) ||
+          compradorTel.includes(termo) ||
+          produtosNomes.includes(termo);
+
+        if (!bateu) return false;
+      }
+
+      return true;
+    });
+  }, [pedidos, periodoFiltro, metodoFiltro, entregaFiltro, buscaTexto, agora]);
 
   // Cálculos de Resumo
   const pedidosPagos = pedidosFiltrados.filter((p) => p.status === 'paid');
@@ -148,7 +259,7 @@ export default function PaginaMetricasLoja() {
     switch (status) {
       case 'paid':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-sucesso/10 text-sucesso border border-sucesso/20">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
             <CheckCircle2 size={12} />
             <span>Pago</span>
           </span>
@@ -162,7 +273,7 @@ export default function PaginaMetricasLoja() {
         );
       case 'stock_unavailable':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-erro/10 text-erro border border-erro/20">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-red-500/10 text-red-400 border border-red-500/20">
             <AlertTriangle size={12} />
             <span>Sem Estoque</span>
           </span>
@@ -175,12 +286,38 @@ export default function PaginaMetricasLoja() {
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-erro/10 text-erro border border-erro/20">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-red-500/10 text-red-400 border border-red-500/20">
             <XCircle size={12} />
             <span>Cancelado</span>
           </span>
         );
     }
+  }
+
+  function renderEntregaBadge(metadata?: any, status?: string) {
+    if (status !== 'paid') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-white/5 text-slate-400 border border-white/10">
+          Aguardando Pgto
+        </span>
+      );
+    }
+
+    if (metadata?.entregue) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+          <PackageCheck size={11} />
+          <span>Entregue</span>
+        </span>
+      );
+    }
+
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-cyan-500/10 text-[#00e5ff] border border-[#00e5ff]/30">
+        <Truck size={11} />
+        <span>Pendente</span>
+      </span>
+    );
   }
 
   if (carregando) {
@@ -196,12 +333,12 @@ export default function PaginaMetricasLoja() {
       {/* Cabeçalho */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black font-titulo text-texto-principal flex items-center gap-2.5">
-            <BarChart3 className="text-primaria-400" size={28} />
+          <h1 className="text-2xl sm:text-3xl font-black font-titulo text-white flex items-center gap-2.5">
+            <BarChart3 className="text-[#00e5ff]" size={28} />
             Métricas da Loja
           </h1>
-          <p className="text-texto-secundario text-xs sm:text-sm mt-1">
-            Acompanhe o faturamento, volume de vendas e produtos mais vendidos da sua atlética
+          <p className="text-slate-400 text-xs sm:text-sm mt-1">
+            Acompanhe o faturamento, volume de vendas e controle as entregas de produtos da sua atlética
           </p>
         </div>
 
@@ -210,7 +347,7 @@ export default function PaginaMetricasLoja() {
           <select
             value={periodoFiltro}
             onChange={(e) => setPeriodoFiltro(e.target.value as any)}
-            className="bg-fundo-card border border-borda-sutil rounded-xl px-3 py-2 text-xs font-bold text-texto-principal outline-none focus:border-primaria-500 cursor-pointer"
+            className="bg-[#0e1626] border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-white outline-none focus:border-[#00e5ff] cursor-pointer"
           >
             <option value="7d">Últimos 7 dias</option>
             <option value="30d">Últimos 30 dias</option>
@@ -221,11 +358,22 @@ export default function PaginaMetricasLoja() {
           <select
             value={metodoFiltro}
             onChange={(e) => setMetodoFiltro(e.target.value as any)}
-            className="bg-fundo-card border border-borda-sutil rounded-xl px-3 py-2 text-xs font-bold text-texto-principal outline-none focus:border-primaria-500 cursor-pointer"
+            className="bg-[#0e1626] border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-white outline-none focus:border-[#00e5ff] cursor-pointer"
           >
             <option value="todos">Todos os Métodos</option>
             <option value="pix">Apenas Pix</option>
             <option value="cartao">Apenas Cartão</option>
+            <option value="gratuito">Apenas Gratuitos</option>
+          </select>
+
+          <select
+            value={entregaFiltro}
+            onChange={(e) => setEntregaFiltro(e.target.value as any)}
+            className="bg-[#0e1626] border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-white outline-none focus:border-[#00e5ff] cursor-pointer"
+          >
+            <option value="todos">Todas Entregas</option>
+            <option value="pendente">Pendentes de Entrega</option>
+            <option value="entregue">Já Entregues</option>
           </select>
         </div>
       </div>
@@ -233,7 +381,7 @@ export default function PaginaMetricasLoja() {
       {/* Cards de Métricas de Resumo */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Cartao variante="vidro" className="p-5 space-y-2">
-          <div className="flex items-center justify-between text-texto-terciario">
+          <div className="flex items-center justify-between text-slate-400">
             <span className="text-xs font-bold uppercase tracking-wider">Faturamento Total</span>
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white shadow-md">
               <DollarSign size={20} />
@@ -248,22 +396,22 @@ export default function PaginaMetricasLoja() {
         </Cartao>
 
         <Cartao variante="vidro" className="p-5 space-y-2">
-          <div className="flex items-center justify-between text-texto-terciario">
+          <div className="flex items-center justify-between text-slate-400">
             <span className="text-xs font-bold uppercase tracking-wider">Pedidos Pagos</span>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primaria-500 to-primaria-600 flex items-center justify-center text-white shadow-md">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#00e5ff] to-[#026cdf] flex items-center justify-center text-white shadow-md">
               <ShoppingCart size={20} />
             </div>
           </div>
           <p className="text-2xl sm:text-3xl font-black font-titulo text-white">
             {totalPedidosPagosCount}
           </p>
-          <span className="text-[11px] text-texto-secundario block">
+          <span className="text-[11px] text-slate-400 block">
             De um total de {pedidosFiltrados.length} pedidos
           </span>
         </Cartao>
 
         <Cartao variante="vidro" className="p-5 space-y-2">
-          <div className="flex items-center justify-between text-texto-terciario">
+          <div className="flex items-center justify-between text-slate-400">
             <span className="text-xs font-bold uppercase tracking-wider">Ticket Médio</span>
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white shadow-md">
               <TrendingUp size={20} />
@@ -272,23 +420,23 @@ export default function PaginaMetricasLoja() {
           <p className="text-2xl sm:text-3xl font-black font-titulo text-white">
             {formatarMoeda(ticketMedioReais)}
           </p>
-          <span className="text-[11px] text-texto-secundario block">
+          <span className="text-[11px] text-slate-400 block">
             Média por pedido aprovado
           </span>
         </Cartao>
 
         <Cartao variante="vidro" className="p-5 space-y-2">
-          <div className="flex items-center justify-between text-texto-terciario">
+          <div className="flex items-center justify-between text-slate-400">
             <span className="text-xs font-bold uppercase tracking-wider">Itens Vendidos</span>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-secundaria-500 to-secundaria-600 flex items-center justify-center text-white shadow-md">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#ff007a] to-[#8b5cf6] flex items-center justify-center text-white shadow-md">
               <Package size={20} />
             </div>
           </div>
           <p className="text-2xl sm:text-3xl font-black font-titulo text-white">
             {totalProdutosVendidosUnidades} <span className="text-sm font-normal text-slate-400">unidades</span>
           </p>
-          <span className="text-[11px] text-texto-secundario block">
-            Volume de produtos entregues
+          <span className="text-[11px] text-slate-400 block">
+            Volume de produtos movimentados
           </span>
         </Cartao>
       </div>
@@ -299,11 +447,11 @@ export default function PaginaMetricasLoja() {
         <div className="lg:col-span-7">
           <Cartao variante="vidro" className="p-6 space-y-6 h-full flex flex-col justify-between">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold font-titulo text-texto-principal flex items-center gap-2">
-                <BarChart3 className="text-primaria-400" size={18} />
+              <h3 className="text-base font-bold font-titulo text-white flex items-center gap-2">
+                <BarChart3 className="text-[#00e5ff]" size={18} />
                 Vendas por Período
               </h3>
-              <span className="text-xs text-texto-terciario">Total por dia (R$)</span>
+              <span className="text-xs text-slate-400">Total por dia (R$)</span>
             </div>
 
             {diasOrdenados.length > 0 ? (
@@ -321,11 +469,11 @@ export default function PaginaMetricasLoja() {
 
                         {/* Barra */}
                         <div
-                          className="w-full max-w-[32px] rounded-t-lg bg-gradient-to-t from-primaria-600 to-[#00e5ff] group-hover:brightness-125 transition-all"
+                          className="w-full max-w-[32px] rounded-t-lg bg-gradient-to-t from-[#ff007a] to-[#00e5ff] group-hover:brightness-125 transition-all"
                           style={{ height: `${alturaPercent}%` }}
                         />
                         {/* Label Data */}
-                        <span className="text-[10px] text-texto-terciario font-mono truncate">
+                        <span className="text-[10px] text-slate-400 font-mono truncate">
                           {dia.label}
                         </span>
                       </div>
@@ -334,7 +482,7 @@ export default function PaginaMetricasLoja() {
                 </div>
               </div>
             ) : (
-              <div className="py-16 text-center text-xs text-texto-terciario">
+              <div className="py-16 text-center text-xs text-slate-400">
                 Nenhuma venda registrada no período selecionado.
               </div>
             )}
@@ -344,12 +492,12 @@ export default function PaginaMetricasLoja() {
         {/* Ranking dos Produtos Mais Vendidos (5 colunas) */}
         <div className="lg:col-span-5">
           <Cartao variante="vidro" className="p-6 space-y-4 h-full">
-            <div className="flex items-center justify-between pb-3 border-b border-borda-sutil">
-              <h3 className="text-base font-bold font-titulo text-texto-principal flex items-center gap-2">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <h3 className="text-base font-bold font-titulo text-white flex items-center gap-2">
                 <Award className="text-amber-400" size={18} />
                 Ranking de Produtos
               </h3>
-              <span className="text-xs text-texto-terciario">Por Receita</span>
+              <span className="text-xs text-slate-400">Por Receita</span>
             </div>
 
             {rankingProdutos.length > 0 ? (
@@ -357,7 +505,7 @@ export default function PaginaMetricasLoja() {
                 {rankingProdutos.map((item, idx) => (
                   <div
                     key={idx}
-                    className="p-3 rounded-2xl bg-fundo-card/60 border border-borda-sutil flex items-center justify-between gap-3 text-xs"
+                    className="p-3 rounded-2xl bg-[#0e1626]/80 border border-white/10 flex items-center justify-between gap-3 text-xs"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-black text-xs shrink-0 ${
@@ -367,23 +515,23 @@ export default function PaginaMetricasLoja() {
                           ? 'bg-slate-300 text-slate-950 shadow-md'
                           : idx === 2
                           ? 'bg-amber-700 text-white'
-                          : 'bg-white/5 text-texto-terciario'
+                          : 'bg-white/5 text-slate-400'
                       }`}>
                         #{idx + 1}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-bold text-texto-principal truncate">{item.nome}</p>
-                        <p className="text-[11px] text-texto-terciario">{item.quantidade} unidades vendidas</p>
+                        <p className="font-bold text-white truncate">{item.nome}</p>
+                        <p className="text-[11px] text-slate-400">{item.quantidade} unidades vendidas</p>
                       </div>
                     </div>
-                    <span className="font-black text-texto-principal font-titulo shrink-0">
+                    <span className="font-black text-white font-titulo shrink-0">
                       {formatarMoeda(item.receita)}
                     </span>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="py-12 text-center text-xs text-texto-terciario">
+              <div className="py-12 text-center text-xs text-slate-400">
                 Nenhum produto vendido ainda.
               </div>
             )}
@@ -391,20 +539,46 @@ export default function PaginaMetricasLoja() {
         </div>
       </div>
 
-      {/* Tabela de Pedidos Recentes da Loja */}
+      {/* Tabela de Pedidos Recentes da Loja com Busca e Ação de Entrega */}
       <Cartao variante="vidro" className="p-6 space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-borda-sutil">
-          <h3 className="text-base font-bold font-titulo text-texto-principal flex items-center gap-2">
-            <ShoppingCart className="text-primaria-400" size={18} />
-            Pedidos Recentes da Loja
-          </h3>
-          <span className="text-xs text-texto-terciario">{pedidosFiltrados.length} pedidos listados</span>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/10">
+          <div>
+            <h3 className="text-base sm:text-lg font-bold font-titulo text-white flex items-center gap-2">
+              <ShoppingCart className="text-[#00e5ff]" size={20} />
+              Pedidos Recentes da Loja
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {pedidosFiltrados.length} {pedidosFiltrados.length === 1 ? 'pedido encontrado' : 'pedidos encontrados'}
+            </p>
+          </div>
+
+          {/* Barra de Pesquisa */}
+          <div className="relative w-full md:w-80">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+            <input
+              type="text"
+              value={buscaTexto}
+              onChange={(e) => setBuscaTexto(e.target.value)}
+              placeholder="Buscar por nº, cliente, e-mail, produto..."
+              className="w-full bg-[#0e1626] border border-white/10 focus:border-[#00e5ff] rounded-xl pl-10 pr-9 py-2 text-xs text-white placeholder-slate-500 outline-none transition-colors shadow-inner"
+            />
+            {buscaTexto && (
+              <button
+                type="button"
+                onClick={() => setBuscaTexto('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+                title="Limpar busca"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
         </div>
 
         {pedidosFiltrados.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="border-b border-borda-sutil text-texto-terciario uppercase tracking-wider font-bold">
+              <thead className="border-b border-white/10 text-slate-400 uppercase tracking-wider font-bold">
                 <tr>
                   <th className="py-3 px-3">Pedido</th>
                   <th className="py-3 px-3">Comprador</th>
@@ -412,50 +586,98 @@ export default function PaginaMetricasLoja() {
                   <th className="py-3 px-3">Método</th>
                   <th className="py-3 px-3">Total</th>
                   <th className="py-3 px-3">Status</th>
+                  <th className="py-3 px-3">Entrega</th>
                   <th className="py-3 px-3">Data</th>
-                  <th className="py-3 px-3 text-right">Ação</th>
+                  <th className="py-3 px-3 text-right">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-borda-sutil">
+              <tbody className="divide-y divide-white/5">
                 {pedidosFiltrados.map((ped) => {
                   const compradorNome = (ped.user as any)?.nome || 'Cliente';
                   const compradorEmail = (ped.user as any)?.email || '';
                   const total = ped.total_amount / 100;
                   const totalItensQtd = ped.items?.reduce((acc, it) => acc + it.quantity, 0) || 0;
+                  const estaEntregue = Boolean(ped.metadata?.entregue);
+                  const estaAtualizando = atualizandoEntregaId === ped.id;
 
                   return (
-                    <tr key={ped.id} className="hover:bg-fundo-hover transition-colors">
-                      <td className="py-3 px-3 font-mono font-bold text-texto-principal">
+                    <tr key={ped.id} className="hover:bg-white/[0.02] transition-colors">
+                      <td className="py-3 px-3 font-mono font-bold text-white">
                         #{ped.id.substring(0, 8).toUpperCase()}
                       </td>
                       <td className="py-3 px-3">
-                        <p className="font-bold text-texto-principal">{compradorNome}</p>
-                        <p className="text-[11px] text-texto-terciario">{compradorEmail}</p>
+                        <p className="font-bold text-white">{compradorNome}</p>
+                        <p className="text-[11px] text-slate-400">{compradorEmail}</p>
                       </td>
-                      <td className="py-3 px-3 text-texto-secundario">
+                      <td className="py-3 px-3 text-slate-300">
                         {totalItensQtd} {totalItensQtd === 1 ? 'item' : 'itens'}
                       </td>
-                      <td className="py-3 px-3 text-texto-principal uppercase font-bold text-[11px]">
-                        {ped.payment_method || 'Pix/Cartão'}
+                      <td className="py-3 px-3 text-white uppercase font-bold text-[11px]">
+                        {ped.payment_method === 'gratuito' ? (
+                          <span className="text-emerald-400">Grátis</span>
+                        ) : (
+                          ped.payment_method || 'Pix/Cartão'
+                        )}
                       </td>
-                      <td className="py-3 px-3 font-black text-texto-principal font-titulo">
-                        {formatarMoeda(total)}
+                      <td className="py-3 px-3 font-black text-white font-titulo">
+                        {total === 0 ? (
+                          <span className="text-emerald-400">R$ 0,00</span>
+                        ) : (
+                          formatarMoeda(total)
+                        )}
                       </td>
                       <td className="py-3 px-3">
                         {renderStatusBadge(ped.status)}
                       </td>
-                      <td className="py-3 px-3 text-texto-terciario text-[11px] whitespace-nowrap">
+                      <td className="py-3 px-3">
+                        {renderEntregaBadge(ped.metadata, ped.status)}
+                      </td>
+                      <td className="py-3 px-3 text-slate-400 text-[11px] whitespace-nowrap">
                         {formatarDataCurta(ped.created_at)}
                       </td>
                       <td className="py-3 px-3 text-right">
-                        <button
-                          type="button"
-                          onClick={() => setPedidoSelecionado(ped)}
-                          className="p-1.5 rounded-lg bg-fundo-card border border-borda-sutil hover:border-primaria-500 text-texto-secundario hover:text-texto-principal transition-all cursor-pointer inline-flex items-center gap-1 text-[11px] font-bold"
-                        >
-                          <Eye size={13} />
-                          <span>Detalhes</span>
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          {/* Botão ou Tag de Entrega */}
+                          {ped.status === 'paid' && (
+                            estaEntregue ? (
+                              <span
+                                className="px-2.5 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[11px] font-bold inline-flex items-center gap-1.5 select-none shadow-sm cursor-default"
+                                title={`Entregue em ${ped.metadata?.entregue_em ? formatarDataHora(String(ped.metadata.entregue_em)) : 'Data confirmada'}`}
+                              >
+                                <Check size={12} className="stroke-[3]" />
+                                <span>Entregue</span>
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => marcarEntregue(ped.id)}
+                                disabled={estaAtualizando}
+                                className="px-2.5 py-1.5 rounded-lg border border-[#00e5ff]/30 bg-[#00e5ff]/10 text-[#00e5ff] hover:bg-[#00e5ff]/20 text-[11px] font-bold inline-flex items-center gap-1.5 transition-all cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Confirmar entrega do produto ao cliente"
+                              >
+                                {estaAtualizando ? (
+                                  <Carregando tamanho="sm" />
+                                ) : (
+                                  <>
+                                    <PackageCheck size={13} />
+                                    <span>Entregar</span>
+                                  </>
+                                )}
+                              </button>
+                            )
+                          )}
+
+                          {/* Botão Ver Detalhes */}
+                          <button
+                            type="button"
+                            onClick={() => setPedidoSelecionado(ped)}
+                            className="p-1.5 rounded-lg bg-white/5 border border-white/10 hover:border-[#00e5ff]/50 text-slate-300 hover:text-white transition-all cursor-pointer inline-flex items-center gap-1 text-[11px] font-bold"
+                            title="Ver detalhes completos do pedido"
+                          >
+                            <Eye size={13} />
+                            <span className="hidden sm:inline">Detalhes</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -464,8 +686,14 @@ export default function PaginaMetricasLoja() {
             </table>
           </div>
         ) : (
-          <div className="py-12 text-center text-xs text-texto-terciario">
-            Nenhum pedido encontrado com os filtros atuais.
+          <div className="py-12 text-center text-xs text-slate-400 space-y-2">
+            <ShoppingCart size={32} className="mx-auto text-slate-600 mb-2" />
+            <p className="font-bold text-white">Nenhum pedido encontrado</p>
+            <p className="text-slate-400 max-w-sm mx-auto">
+              {buscaTexto
+                ? `Nenhum resultado corresponde à busca "${buscaTexto}". Tente outros termos.`
+                : 'Não há pedidos para os filtros selecionados.'}
+            </p>
           </div>
         )}
       </Cartao>
@@ -475,78 +703,138 @@ export default function PaginaMetricasLoja() {
         aberto={Boolean(pedidoSelecionado)}
         aoFechar={() => setPedidoSelecionado(null)}
         titulo={`Detalhes do Pedido #${pedidoSelecionado?.id.substring(0, 8).toUpperCase()}`}
-        descricao="Informações completas de compra e itens do pedido da loja."
+        descricao="Informações completas de compra, comprador e controle de entrega."
         tamanho="lg"
       >
         {pedidoSelecionado && (
           <div className="space-y-5 text-xs sm:text-sm">
+            {/* Bloco de Ação de Entrega em Destaque */}
+            <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
+              pedidoSelecionado.metadata?.entregue
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                : 'bg-[#00e5ff]/10 border-[#00e5ff]/30 text-[#00e5ff]'
+            }`}>
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                  pedidoSelecionado.metadata?.entregue
+                    ? 'bg-emerald-500/20 text-emerald-400'
+                    : 'bg-[#00e5ff]/20 text-[#00e5ff]'
+                }`}>
+                  {pedidoSelecionado.metadata?.entregue ? <PackageCheck size={20} /> : <Truck size={20} />}
+                </div>
+                <div>
+                  <h4 className="font-bold text-white text-sm">
+                    {pedidoSelecionado.metadata?.entregue
+                      ? 'Produto Entregue ao Cliente'
+                      : 'Aguardando Retirada / Entrega'}
+                  </h4>
+                  <p className="text-xs text-slate-300">
+                    {pedidoSelecionado.metadata?.entregue
+                      ? pedidoSelecionado.metadata.entregue_em
+                        ? `Entregue em ${formatarDataHora(String(pedidoSelecionado.metadata.entregue_em))}`
+                        : 'Entregue registrado com sucesso.'
+                      : 'O cliente ainda não retirou ou recebeu os produtos deste pedido.'}
+                  </p>
+                </div>
+              </div>
+
+              {pedidoSelecionado.status === 'paid' && (
+                pedidoSelecionado.metadata?.entregue ? (
+                  <div className="px-3.5 py-2 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold flex items-center justify-center gap-1.5 select-none shrink-0">
+                    <Check size={14} className="stroke-[3]" />
+                    <span>Entrega Concluída</span>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => marcarEntregue(pedidoSelecionado.id)}
+                    disabled={atualizandoEntregaId === pedidoSelecionado.id}
+                    className="w-full sm:w-auto px-4 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md bg-gradient-to-r from-emerald-500 to-emerald-600 hover:brightness-110 text-slate-950 font-black shrink-0"
+                  >
+                    {atualizandoEntregaId === pedidoSelecionado.id ? (
+                      <Carregando tamanho="sm" />
+                    ) : (
+                      <>
+                        <Check size={14} className="stroke-[3]" />
+                        <span>Confirmar Entrega</span>
+                      </>
+                    )}
+                  </button>
+                )
+              )}
+            </div>
+
             {/* Informações Gerais */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-2xl bg-fundo-input border border-borda-sutil">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-2xl bg-[#080c14] border border-white/10">
               <div>
-                <p className="text-[11px] text-texto-terciario uppercase font-bold">Status</p>
+                <p className="text-[11px] text-slate-400 uppercase font-bold">Status Pgto</p>
                 <div className="mt-1">{renderStatusBadge(pedidoSelecionado.status)}</div>
               </div>
               <div>
-                <p className="text-[11px] text-texto-terciario uppercase font-bold">Valor Total</p>
-                <p className="text-base font-black text-texto-principal font-titulo mt-0.5">
-                  {formatarMoeda(pedidoSelecionado.total_amount / 100)}
+                <p className="text-[11px] text-slate-400 uppercase font-bold">Valor Total</p>
+                <p className="text-base font-black text-white font-titulo mt-0.5">
+                  {pedidoSelecionado.total_amount === 0 ? (
+                    <span className="text-emerald-400">Grátis</span>
+                  ) : (
+                    formatarMoeda(pedidoSelecionado.total_amount / 100)
+                  )}
                 </p>
               </div>
               <div>
-                <p className="text-[11px] text-texto-terciario uppercase font-bold">Forma de Pagamento</p>
-                <p className="font-bold text-texto-principal uppercase mt-0.5">
+                <p className="text-[11px] text-slate-400 uppercase font-bold">Forma Pgto</p>
+                <p className="font-bold text-white uppercase mt-0.5">
                   {pedidoSelecionado.payment_method || 'Pix/Cartão'}
                 </p>
               </div>
               <div>
-                <p className="text-[11px] text-texto-terciario uppercase font-bold">Data da Compra</p>
-                <p className="text-texto-principal font-medium mt-0.5">
+                <p className="text-[11px] text-slate-400 uppercase font-bold">Data da Compra</p>
+                <p className="text-white font-medium mt-0.5">
                   {formatarDataHora(pedidoSelecionado.created_at)}
                 </p>
               </div>
             </div>
 
             {/* Dados do Comprador */}
-            <div className="p-4 rounded-2xl bg-fundo-input border border-borda-sutil space-y-1.5">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-texto-principal">
+            <div className="p-4 rounded-2xl bg-[#080c14] border border-white/10 space-y-2">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-white">
                 Dados do Comprador
               </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-texto-secundario">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-slate-300">
                 <div>
-                  <span className="text-texto-terciario block">Nome:</span>
-                  <strong className="text-texto-principal">{(pedidoSelecionado.user as any)?.nome || 'Cliente'}</strong>
+                  <span className="text-slate-400 block">Nome:</span>
+                  <strong className="text-white">{(pedidoSelecionado.user as any)?.nome || 'Cliente'}</strong>
                 </div>
                 <div>
-                  <span className="text-texto-terciario block">E-mail:</span>
-                  <strong className="text-texto-principal">{(pedidoSelecionado.user as any)?.email || 'Não informado'}</strong>
+                  <span className="text-slate-400 block">E-mail:</span>
+                  <strong className="text-white">{(pedidoSelecionado.user as any)?.email || 'Não informado'}</strong>
                 </div>
                 <div>
-                  <span className="text-texto-terciario block">Telefone:</span>
-                  <strong className="text-texto-principal">{(pedidoSelecionado.user as any)?.telefone || 'Não informado'}</strong>
+                  <span className="text-slate-400 block">Telefone:</span>
+                  <strong className="text-white">{(pedidoSelecionado.user as any)?.telefone || 'Não informado'}</strong>
                 </div>
               </div>
             </div>
 
             {/* Lista dos Itens do Pedido */}
             <div className="space-y-2.5">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-texto-principal">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-white">
                 Itens Comprados:
               </h4>
               <div className="space-y-2">
                 {pedidoSelecionado.items?.map((it) => (
                   <div
                     key={it.id}
-                    className="p-3.5 rounded-xl bg-fundo-card border border-borda-sutil flex items-center justify-between text-xs"
+                    className="p-3.5 rounded-xl bg-[#0e1626] border border-white/10 flex items-center justify-between text-xs"
                   >
                     <div className="space-y-0.5">
-                      <p className="font-bold text-texto-principal text-sm">{it.product_name_snapshot}</p>
-                      <div className="flex items-center gap-3 text-texto-terciario text-[11px]">
-                        <span>Quantidade: <strong className="text-texto-secundario">{it.quantity}x</strong></span>
-                        {it.size && <span>Tamanho: <strong className="text-texto-secundario">{it.size}</strong></span>}
-                        <span>Preço Unitário: <strong className="text-texto-secundario">{formatarMoeda(it.unit_price_snapshot / 100)}</strong></span>
+                      <p className="font-bold text-white text-sm">{it.product_name_snapshot}</p>
+                      <div className="flex items-center gap-3 text-slate-400 text-[11px]">
+                        <span>Quantidade: <strong className="text-white">{it.quantity}x</strong></span>
+                        {it.size && <span>Tamanho: <strong className="text-white">{it.size}</strong></span>}
+                        <span>Preço Unitário: <strong className="text-white">{formatarMoeda(it.unit_price_snapshot / 100)}</strong></span>
                       </div>
                     </div>
-                    <span className="text-sm font-black text-texto-principal font-titulo">
+                    <span className="text-sm font-black text-white font-titulo">
                       {formatarMoeda(it.subtotal / 100)}
                     </span>
                   </div>
@@ -554,9 +842,9 @@ export default function PaginaMetricasLoja() {
               </div>
             </div>
 
-            <div className="flex justify-end pt-3 border-t border-borda-sutil">
+            <div className="flex justify-end pt-3 border-t border-white/10">
               <Botao
-                variante="primario"
+                variante="fantasma"
                 tamanho="md"
                 onClick={() => setPedidoSelecionado(null)}
               >

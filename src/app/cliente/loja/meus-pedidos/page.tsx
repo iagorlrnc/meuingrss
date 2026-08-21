@@ -18,6 +18,8 @@ import {
   ArrowLeft,
   Sparkles,
   ExternalLink,
+  PackageCheck,
+  Truck,
 } from 'lucide-react';
 
 function ConteudoMeusPedidos() {
@@ -88,13 +90,21 @@ function ConteudoMeusPedidos() {
     );
   }
 
-  function renderStatusBadge(status: string) {
+  function renderStatusBadge(status: string, metadata?: any) {
     switch (status) {
       case 'paid':
+        if (metadata?.entregue) {
+          return (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+              <PackageCheck size={13} />
+              <span>Entregue</span>
+            </span>
+          );
+        }
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
             <CheckCircle2 size={13} />
-            <span>Pago e Confirmado</span>
+            <span>Pago • Aguardando Retirada</span>
           </span>
         );
       case 'pending_payment':
@@ -156,7 +166,7 @@ function ConteudoMeusPedidos() {
         </div>
 
         <Link href="/loja">
-          <Botao variante="fantasma" tamanho="sm" icone={<Sparkles size={16} />}>
+          <Botao variante="fantasma" tamanho="sm" >
             Ir para a Loja
           </Botao>
         </Link>
@@ -198,7 +208,7 @@ function ConteudoMeusPedidos() {
                   </div>
 
                   <div className="flex items-center gap-3">
-                    {renderStatusBadge(pedido.status)}
+                    {renderStatusBadge(pedido.status, pedido.metadata)}
                     <span className="text-lg font-black text-[#00e5ff] font-titulo">
                       {formatarMoeda(totalReais)}
                     </span>
@@ -248,7 +258,7 @@ function ConteudoMeusPedidos() {
             Você ainda não realizou compras na loja de produtos oficiais das atléticas.
           </p>
           <Link href="/loja">
-            <Botao variante="festiva" tamanho="md" icone={<Sparkles size={16} />}>
+            <Botao variante="festiva" tamanho="md">
               Conhecer a Loja
             </Botao>
           </Link>

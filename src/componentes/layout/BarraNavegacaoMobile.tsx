@@ -73,7 +73,7 @@ function ConteudoBarraNavegacaoMobile() {
   const botoes = [
     { rotulo: 'Eventos', rotuloCurto: 'Eventos', href: '/eventos', icone: Calendar, ativo: ehEventos },
     { rotulo: 'Atléticas', rotuloCurto: 'Atléticas', href: '/atleticas', icone: Trophy, ativo: ehAtleticas },
-    { rotulo: 'Loja', rotuloCurto: 'Loja', href: '/loja', icone: ShoppingCart, ativo: ehLoja, badge: totalItens },
+    { rotulo: 'Loja', rotuloCurto: 'Loja', href: '/loja', icone: ShoppingCart, ativo: ehLoja },
     { rotulo: 'Ingressos', rotuloCurto: 'Ingressos', href: '/meus-ingressos', icone: Ticket, ativo: ehMeusIngressos },
   ];
 
@@ -99,11 +99,6 @@ function ConteudoBarraNavegacaoMobile() {
                 <span className="truncate">
                   <span>{item.rotuloCurto}</span>
                 </span>
-                {item.badge !== undefined && item.badge > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-[#ff007a] text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center">
-                    {item.badge}
-                  </span>
-                )}
               </Link>
             );
           })}

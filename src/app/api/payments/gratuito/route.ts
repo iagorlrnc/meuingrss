@@ -53,11 +53,30 @@ export async function POST(request: NextRequest) {
     }
 
     const qtd = parseInt(String(quantidade), 10);
-    if (isNaN(qtd) || qtd < 1 || qtd > 10) {
-      return NextResponse.json({ erro: 'Quantidade de ingressos inválida (permitido de 1 a 10).' }, { status: 400 });
+    if (isNaN(qtd) || qtd !== 1) {
+      return NextResponse.json(
+        { erro: 'Ingressos gratuitos possuem limite estrito de apenas 1 por usuário.' },
+        { status: 400 }
+      );
     }
 
     const supabase = criarClienteAdmin();
+
+    // 3.1. Checagem de Limite por Usuário: Impedir resgates duplicados de ingressos gratuitos
+    const { data: ingressosExistentes } = await supabase
+      .from('ingressos')
+      .select('id')
+      .eq('comprador_id', comprador_id)
+      .eq('evento_id', evento_id)
+      .neq('status', 'cancelado')
+      .limit(1);
+
+    if (ingressosExistentes && ingressosExistentes.length > 0) {
+      return NextResponse.json(
+        { erro: 'Você já possui 1 ingresso garantido para este evento. Ingressos gratuitos têm limite de 1 por usuário.' },
+        { status: 400 }
+      );
+    }
 
     // 4. Busca do lote e validação de gratuidade (Anti Price Tampering)
     const { data: lote, error: erroLote } = await supabase

@@ -13,7 +13,7 @@ interface PropsCardProduto {
 }
 
 export default function CardProduto({ produto }: PropsCardProduto) {
-  const { adicionarItem } = usarCarrinho();
+  const { itens, adicionarItem } = usarCarrinho();
   const { mostrarNotificacao } = usarNotificacao();
   const [adicionando, setAdicionando] = useState(false);
   const [adicionado, setAdicionado] = useState(false);
@@ -21,12 +21,13 @@ export default function CardProduto({ produto }: PropsCardProduto) {
   const imagemPrincipal = produto.images?.[0] || '/imagens/placeholder-produto.png';
   const esgotado = produto.stock_quantity <= 0;
   const precoReais = produto.price / 100;
+  const estaNoCarrinho = itens.some((it) => it.product_id === produto.id);
 
   async function handleAdicionar(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
 
-    if (esgotado || adicionando || adicionado) return;
+    if (esgotado || adicionando || adicionado || estaNoCarrinho) return;
 
     setAdicionando(true);
     const tamanhoInicial = Array.isArray(produto.sizes) && produto.sizes.length > 0 ? produto.sizes[0] : null;
@@ -40,9 +41,6 @@ export default function CardProduto({ produto }: PropsCardProduto) {
         titulo: 'Adicionado ao carrinho!',
         mensagem: `${produto.name} foi adicionado ao seu carrinho.`,
       });
-      setTimeout(() => {
-        setAdicionado(false);
-      }, 2000);
     } else {
       mostrarNotificacao({
         tipo: 'erro',
@@ -118,38 +116,49 @@ export default function CardProduto({ produto }: PropsCardProduto) {
         {/* Preço e Ação */}
         <div className="pt-2 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2">
           <div>
-            <span className="text-[8px] sm:text-[10px] text-slate-400 uppercase tracking-wider block font-bold">Por apenas</span>
-            <span className="text-xs sm:text-lg font-black text-[#00e5ff] font-titulo">
-              {formatarMoeda(precoReais)}
+            <span className="text-[8px] sm:text-[10px] text-slate-400 uppercase tracking-wider block font-bold">
+              {precoReais === 0 ? 'Resgate' : 'Por apenas'}
+            </span>
+            <span className={`text-xs sm:text-lg font-black font-titulo ${precoReais === 0 ? 'text-emerald-400' : 'text-[#00e5ff]'}`}>
+              {precoReais === 0 ? 'Grátis' : formatarMoeda(precoReais)}
             </span>
           </div>
 
-          <button
-            type="button"
-            onClick={handleAdicionar}
-            disabled={esgotado || adicionando || adicionado}
-            className={`w-full sm:w-auto justify-center px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider flex items-center gap-1 sm:gap-1.5 transition-all min-h-[28px] sm:min-h-[32px] cursor-pointer ${
-              esgotado
-                ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-white/5'
-                : adicionado
-                ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20 cursor-not-allowed'
-                : 'bg-gradient-to-r from-[#ff007a] to-[#8b5cf6] hover:brightness-110 text-white shadow-md active:scale-95'
-            }`}
-          >
-            {esgotado ? (
+          {esgotado ? (
+            <button
+              type="button"
+              disabled
+              className="w-full sm:w-auto justify-center px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider flex items-center gap-1 sm:gap-1.5 min-h-[28px] sm:min-h-[32px] bg-slate-800 text-slate-500 cursor-not-allowed border border-white/5"
+            >
               <span>Esgotado</span>
-            ) : adicionado ? (
-              <>
-                <Check size={13} className="stroke-[3]" />
-                <span>Adicionado</span>
-              </>
-            ) : (
-              <>
-                <ShoppingCart size={13} />
-                <span>{adicionando ? 'Adicionando...' : 'Adicionar'}</span>
-              </>
-            )}
-          </button>
+            </button>
+          ) : estaNoCarrinho || adicionado ? (
+            <Link
+              href="/loja/carrinho"
+              onClick={(e) => e.stopPropagation()}
+              className="w-full sm:w-auto justify-center px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider flex items-center gap-1 sm:gap-1.5 transition-all min-h-[28px] sm:min-h-[32px] cursor-pointer bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/20 active:scale-95 shrink-0"
+              title="Ir para o carrinho"
+            >
+              <ShoppingCart size={13} className="stroke-[2.5]" />
+              <span>Ver Carrinho</span>
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={handleAdicionar}
+              disabled={adicionando}
+              className="w-full sm:w-auto justify-center px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider flex items-center gap-1 sm:gap-1.5 transition-all min-h-[28px] sm:min-h-[32px] cursor-pointer bg-gradient-to-r from-[#ff007a] to-[#8b5cf6] hover:brightness-110 text-white shadow-md active:scale-95 disabled:opacity-50"
+            >
+              {adicionando ? (
+                <span className="animate-pulse">Adicionando...</span>
+              ) : (
+                <>
+                  <ShoppingCart size={13} />
+                  <span>Adicionar</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
     </div>
